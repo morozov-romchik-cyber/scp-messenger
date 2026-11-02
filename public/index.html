@@ -440,7 +440,7 @@
   </div>
 </div>
 
-<!-- Модальное окно создания группы (БЕЗ ПОИСКА) -->
+<!-- Модальное окно создания группы -->
 <div class="modal" id="create-group-modal">
   <div class="modal-content" style="height: 80vh; display: flex; flex-direction: column;">
     <h3>СОЗДАТЬ ГРУППУ</h3>
@@ -451,7 +451,7 @@
   </div>
 </div>
 
-<!-- Модальное окно добавления в группу (БЕЗ ПОИСКА) -->
+<!-- Модальное окно добавления в группу -->
 <div class="modal" id="add-to-group-modal">
   <div class="modal-content" style="height: 80vh; display: flex; flex-direction: column;">
     <h3>ДОБАВИТЬ В ГРУППУ</h3>
@@ -494,6 +494,7 @@
     <h3>УПРАВЛЕНИЕ ЧАТОМ</h3>
     <button class="modal-btn" id="view-profile-btn" style="background: var(--accent); color: #000; margin-bottom: 10px;">👤 Профиль собеседника</button>
     <button class="modal-btn" id="add-group-member-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">➕ Добавить участника</button>
+    <button class="modal-btn" id="leave-group-btn" style="background: #ffaa00; color: #000; margin-bottom: 10px; display: none;">🚪 Выйти из чата</button>
     <button class="modal-btn" id="block-user-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Заблокировать</button>
     <button class="modal-btn" id="unblock-user-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">Разблокировать</button>
     <button class="modal-btn" id="delete-group-btn" style="background: #ff4d4d; color: #fff; margin-bottom: 10px; display: none;">❌ Удалить группу</button>
@@ -607,7 +608,6 @@
   <aside id="sidebar">
     <div class="brand">
       <div class="brand-left"><img src="/favicon.png" class="brand-logo" alt="SCP" /><div class="brand-title">SCP MESSENGER</div></div>
-      <div class="create-group-btn" onclick="openContactsModal()" title="Меню контактов">+</div>
       <small id="me-status" style="margin-left: 10px;">online</small>
     </div>
     <div class="favorites-shortcut" onclick="openSavedMessages()">
@@ -620,7 +620,6 @@
     <div class="search"><input id="user-search" placeholder="🔍 Поиск агента..." /></div>
     <div id="chat-list"></div>
     
-    <!-- НОВАЯ КНОПКА ВНИЗУ САЙДБАРА -->
     <div class="sidebar-bottom">
       <button class="new-chat-fab" onclick="openContactsModal()">
         <span>+</span> Новый чат
@@ -971,9 +970,6 @@ window.wipeAllMessages = async function(e) {
   }
 };
 
-// ==========================================
-// СПИСОК ВСЕХ КОНТАКТОВ
-// ==========================================
 let allContacts = [];
 
 window.openContactsModal = async function() {
@@ -1024,9 +1020,6 @@ document.getElementById('contacts-search').addEventListener('input', (e) => {
   renderContacts(filtered);
 });
 
-// ==========================================
-// ГРУППОВЫЕ ЧАТЫ (ОБНОВЛЕНО)
-// ==========================================
 window.openCreateGroupModal = async function() {
   document.getElementById('group-name-input').value = '';
   const list = document.getElementById('group-user-list');
@@ -1067,7 +1060,6 @@ window.createGroup = async function() {
   }
 };
 
-// Показ участников группы (КРАСНАЯ КНОПКА УДАЛЕНИЯ ДЛЯ СОЗДАТЕЛЯ)
 document.getElementById('group-members-btn').addEventListener('click', async () => {
   if (!state.currentChat || !state.currentChat.isGroup) return;
   const modal = document.getElementById('group-members-modal');
@@ -1108,7 +1100,6 @@ window.removeMemberFromGroup = async function(userId) {
   }
 };
 
-// Добавление участников (ЗЕЛЕНАЯ КНОПКА)
 window.openAddMemberModal = async function() {
   const list = document.getElementById('add-user-list');
   list.innerHTML = 'Загрузка...';
@@ -1300,14 +1291,19 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   document.getElementById('clear-chat-btn').style.display = 'inline-block';
   document.getElementById('chat-options-btn').style.display = 'inline-block';
   
-  // Показываем кнопку участников для групп
   document.getElementById('group-members-btn').style.display = isGroup ? 'block' : 'none';
+
+  const isCreator = isGroup && creatorId === state.me.id;
 
   document.getElementById('view-profile-btn').style.display = isGroup ? 'none' : 'block';
   document.getElementById('block-user-btn').style.display = isGroup ? 'none' : (isBlocked ? 'none' : 'block');
   document.getElementById('unblock-user-btn').style.display = isGroup ? 'none' : (isBlocked ? 'block' : 'none');
-  document.getElementById('add-group-member-btn').style.display = isGroup ? 'block' : 'none';
-  document.getElementById('delete-group-btn').style.display = (isGroup && creatorId === state.me.id) ? 'block' : 'none';
+  
+  // Кнопку добавления видят только создатели, а выйти могут все участники кроме создателя
+  document.getElementById('add-group-member-btn').style.display = (isGroup && isCreator) ? 'block' : 'none';
+  document.getElementById('leave-group-btn').style.display = (isGroup && !isCreator) ? 'block' : 'none';
+
+  document.getElementById('delete-group-btn').style.display = (isGroup && isCreator) ? 'block' : 'none';
   document.getElementById('delete-chat-btn').style.display = isGroup ? 'none' : 'block';
 
   const headerAvatar = document.getElementById('header-avatar');
@@ -1425,9 +1421,6 @@ document.getElementById('msg-del-all-btn').addEventListener('click', async () =>
   try { await api('/messages/' + msg.id, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); document.getElementById('msg-actions-modal').classList.remove('visible'); } catch (e) { alert(e.message); }
 });
 
-// ==========================================
-// ЛОГИКА ЗАГРУЗКИ ФАЙЛОВ В S3
-// ==========================================
 let currentXhrUpload = null;
 let isUploading = false;
 
@@ -1534,7 +1527,6 @@ document.getElementById('paste-file-send-btn').addEventListener('click', () => {
   const files = stagedPastedFiles.slice(); cancelPastedFile(); uploadFilesWithProgress(files, caption);
 });
 
-// Drag and Drop
 (function() {
   const overlay = document.createElement('div');
   overlay.id = 'drag-overlay';
@@ -1578,7 +1570,6 @@ document.getElementById('file-input').addEventListener('change', () => {
   fileInput.value = ''; uploadFilesWithProgress(files, caption);
 });
 
-// Очистка чата
 document.getElementById('clear-chat-btn').addEventListener('click', () => { if (state.currentChat) document.getElementById('clear-modal').classList.add('visible'); });
 document.getElementById('clear-me-btn').addEventListener('click', () => { if (state.currentChat) { document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } });
 document.getElementById('clear-all-btn').addEventListener('click', async () => {
@@ -1586,7 +1577,6 @@ document.getElementById('clear-all-btn').addEventListener('click', async () => {
   try { await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } catch (e) { alert(e.message); }
 });
 
-// Настройки чата
 document.getElementById('chat-options-btn').addEventListener('click', () => {
   if (!state.currentChat) return;
   document.getElementById('chat-settings-modal').classList.add('visible');
@@ -1595,6 +1585,28 @@ document.getElementById('add-group-member-btn').addEventListener('click', () => 
   document.getElementById('chat-settings-modal').classList.remove('visible');
   openAddMemberModal();
 });
+
+// Кнопка выхода из чата (для участников)
+document.getElementById('leave-group-btn').addEventListener('click', async () => {
+  if (!state.currentChat || !state.currentChat.isGroup) return;
+  if (!confirm('Вы уверены, что хотите покинуть этот чат?')) return;
+  try {
+    await api('/chats/' + state.currentChat.id + '/leave', { method: 'POST' });
+    document.getElementById('chat-settings-modal').classList.remove('visible');
+    state.currentChat = null;
+    document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
+    document.getElementById('chat-title').textContent = 'Выберите чат';
+    document.getElementById('composer').style.display = 'none';
+    document.getElementById('chat-options-btn').style.display = 'none';
+    document.getElementById('clear-chat-btn').style.display = 'none';
+    document.getElementById('header-avatar').style.display = 'none';
+    document.getElementById('group-members-btn').style.display = 'none';
+    loadChats();
+  } catch (e) {
+    alert(e.message);
+  }
+});
+
 document.getElementById('delete-group-btn').addEventListener('click', () => {
   document.getElementById('chat-settings-modal').classList.remove('visible');
   deleteGroup();
@@ -1619,7 +1631,6 @@ document.getElementById('delete-chat-btn').addEventListener('click', async () =>
   } catch (e) { alert(e.message); }
 });
 
-// Поиск
 let searchTimeout = null;
 document.getElementById('user-search').addEventListener('input', (e) => {
   const q = e.target.value.trim(); clearTimeout(searchTimeout);
@@ -1637,15 +1648,11 @@ window.startChat = async function(userId) {
   try { const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId }) }); await loadChats(); document.getElementById('user-search').value = ''; openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires || 0, false); } catch (e) { alert(e.message); }
 };
 
-// Мобильная адаптация и ввод
 document.getElementById('back-btn').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('mobile-open'); });
 const msgInput = document.getElementById('msg-input');
 msgInput.addEventListener('input', () => { msgInput.style.height = 'auto'; msgInput.style.height = Math.min(msgInput.scrollHeight, 140) + 'px'; });
 msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('composer').dispatchEvent(new Event('submit')); } });
 
-// ==========================================
-// ПЛАВАЮЩЕЕ ОКНО ПРОСМОТРА ВЛОЖЕНИЙ
-// ==========================================
 let _attViewerState = { attachments: [], index: 0, chatName: '', senderName: '' };
 window.openAttViewer = function(msgId, index) {
   const data = window._attStore && window._attStore[msgId]; if (!data) return;
@@ -1698,7 +1705,6 @@ function getAttIcon(a) {
   return '📎';
 }
 
-// Перетаскивание окна просмотра
 (function() {
   const el = document.getElementById('att-viewer-content'); const handle = document.getElementById('att-viewer-header');
   if (!el || !handle) return; let isDown = false, offsetX = 0, offsetY = 0;
@@ -1713,7 +1719,6 @@ function getAttIcon(a) {
   window.addEventListener('touchend', end);
 })();
 
-// Фоновые эффекты
 (function() {
   const canvas = document.getElementById('fx-canvas'); const ctx = canvas.getContext('2d');
   let w = canvas.width = window.innerWidth; let h = canvas.height = window.innerHeight;
@@ -1748,7 +1753,6 @@ function getAttIcon(a) {
   tick();
 })();
 
-// Авто-вход
 (async () => {
   if (state.token) {
     try { state.me = await api('/me'); state.read_deleted = state.me.read_deleted || false; enterChat(); }
