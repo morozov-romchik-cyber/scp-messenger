@@ -38,6 +38,7 @@
     font-family: 'Fira Code', monospace; border-radius: 4px;
     animation: rotateBadge 6s linear infinite; transform-style: preserve-3d;
     transform-origin: center; white-space: nowrap; text-transform: uppercase;
+    vertical-align: middle; margin-left: 4px;
   }
   .badge-sysadmin { background: #000000; color: #ffffff; border: 1px solid #ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
   .badge-admin { background: #ff3333; color: #000; border: 1px solid #fff; }
@@ -85,12 +86,32 @@
   .badge { background: var(--accent); color: #000; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 700; font-family: 'Fira Code', monospace; }
 
   .sidebar-bottom { padding: 16px; border-top: 1px solid var(--border); background: var(--panel); display: flex; justify-content: center; }
+  
+  /* FAB МЕНЮ КРУГЛОЕ */
   .fab-container { position: relative; width: 100%; display: flex; justify-content: center; }
-  .new-chat-fab { width: 100%; background: var(--accent); color: #000; border: none; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; z-index: 3; }
-  .fab-menu { position: absolute; bottom: 55px; left: 0; width: 100%; display: flex; justify-content: center; gap: 15px; pointer-events: none; opacity: 0; transform: translateY(10px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; }
-  .fab-container.open .fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
-  .fab-container.open #fab-plus { transform: rotate(45deg); }
-  .fab-sub-btn { width: 45px; height: 45px; border-radius: 50%; background: var(--card); border: 1px solid var(--border-hover); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: transform 0.2s, background 0.2s; }
+  .new-chat-fab { 
+    width: 60px; height: 60px; background: var(--accent); color: #000; border: none; 
+    border-radius: 50%; font-weight: bold; font-size: 32px; cursor: pointer; 
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s; 
+    display: flex; align-items: center; justify-content: center; z-index: 3;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .new-chat-fab:hover { transform: scale(1.05); }
+  .fab-container.open .new-chat-fab { transform: rotate(45deg); }
+  
+  .fab-menu { 
+    position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%) translateY(20px); 
+    display: flex; flex-direction: column; gap: 12px; pointer-events: none; opacity: 0; 
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; align-items: center;
+  }
+  .fab-container.open .fab-menu { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+  
+  .fab-sub-btn { 
+    width: 50px; height: 50px; border-radius: 50%; background: var(--card); 
+    border: 1px solid var(--border-hover); color: var(--accent); 
+    display: flex; align-items: center; justify-content: center; cursor: pointer; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: transform 0.2s, background 0.2s; 
+  }
   .fab-sub-btn:hover { transform: scale(1.1); background: var(--border); }
 
   main { flex: 1; display: flex; flex-direction: column; background: rgba(13, 17, 23, 0.85); position: relative; height: 100%; z-index: 2; min-width: 0; }
@@ -615,14 +636,14 @@
       <div class="fab-container" id="fab-container">
         <div class="fab-menu" id="fab-menu">
           <button class="fab-sub-btn" onclick="openCreateGroupModal(false)" title="Создать группу">
-            <svg style="width:20px;height:20px;fill:currentColor;" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+            <svg style="width:24px;height:24px;fill:currentColor;" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
           </button>
           <button class="fab-sub-btn" onclick="openCreateGroupModal(true)" title="Создать канал">
-            <svg style="width:20px;height:20px;fill:currentColor;" viewBox="0 0 24 24"><path d="M18 11v2h4v-2h-4zm-2 6.11c.72.57 1.5 1.03 2.34 1.38l1.42-1.42c-.59-.76-1.09-1.59-1.48-2.48l-2.28 2.52zm0-10.22l2.28 2.52c.39-.89.89-1.72 1.48-2.48l-1.42-1.42c-.84.35-1.62.81-2.34 1.38zM20 4h-2c0 2.8-1.2 5.3-3.1 7-.4.3-.8.7-1.2 1-.4-.3-.8-.7-1.2-1-1.9-1.7-3.1-4.2-3.1-7H4c0 3.5 1.7 6.6 4.3 8.6C6.3 15.1 5 17.4 5 20h2c0-2.2 1.3-4.1 3.2-5 1.2.6 2.5 1 3.8 1s2.6-.4 3.8-1c1.9.9 3.2 2.8 3.2 5h2c0-2.6-1.3-4.9-3.3-7.4 2.6-2 4.3-5.1 4.3-8.6z"/></svg>
+            <svg style="width:24px;height:24px;fill:currentColor;" viewBox="0 0 24 24"><path d="M18 11v2h4v-2h-4zm-2 6.11c.72.57 1.5 1.03 2.34 1.38l1.42-1.42c-.59-.76-1.09-1.59-1.48-2.48l-2.28 2.52zm0-10.22l2.28 2.52c.39-.89.89-1.72 1.48-2.48l-1.42-1.42c-.84.35-1.62.81-2.34 1.38zM20 4h-2c0 2.8-1.2 5.3-3.1 7-.4.3-.8.7-1.2 1-.4-.3-.8-.7-1.2-1-1.9-1.7-3.1-4.2-3.1-7H4c0 3.5 1.7 6.6 4.3 8.6C6.3 15.1 5 17.4 5 20h2c0-2.2 1.3-4.1 3.2-5 1.2.6 2.5 1 3.8 1s2.6-.4 3.8-1c1.9.9 3.2 2.8 3.2 5h2c0-2.6-1.3-4.9-3.3-7.4 2.6-2 4.3-5.1 4.3-8.6z"/></svg>
           </button>
         </div>
         <button class="new-chat-fab" id="main-fab" onclick="toggleFabMenu()">
-          <span id="fab-plus" style="font-size: 22px; transition: transform 0.3s;">+</span>
+          <span id="fab-plus" style="font-size: 34px; line-height: 1; margin-top: -3px; transition: transform 0.3s;">+</span>
         </button>
       </div>
     </div>
@@ -632,17 +653,16 @@
     <div class="chat-header">
       <div class="chat-header-left">
         <button class="back-btn" id="back-btn">←</button>
-        <div id="header-avatar-container" style="position: relative; display: none; flex-shrink: 0;">
-          <img id="header-avatar" src="/favicon.png" class="chat-avatar" style="cursor: pointer;" title="Профиль" />
-          <svg id="header-verified-star" style="display: none; position: absolute; bottom: -2px; right: -2px; width: 16px; height: 16px; fill: #1d9bf0; background: var(--panel); border-radius: 50%;" viewBox="0 0 24 24"><path d="M12 2l2.4 2.8 3.7-.6 1 3.6 3.5 1.4-.2 3.8 2.6 2.8-2.2 3.1.6 3.7-3.6 1.1-1.6 3.4-3.7-.2-2.8 2.5-3.4-1.5-3.1 2.1-3.6-1.2-.8-3.6-3.6-.8-.4-3.7 2.3-3-1.8-3.2 1.3-3.5-2.5-1.5 2.1z"/></svg>
-        </div>
+        <img id="header-avatar" src="/favicon.png" class="chat-avatar" style="display: none; flex-shrink: 0; cursor: pointer;" title="Профиль" />
         <div style="display: flex; flex-direction: column; min-width: 0;">
           <h2>
-            <span id="chat-title">SCP_Helper</span>
-            <svg id="verified-star" style="width: 16px; height: 16px; fill: #1d9bf0; display: inline-block; vertical-align: middle; flex-shrink: 0;" viewBox="0 0 24 24"><path d="M12 2l2.4 2.8 3.7-.6 1 3.6 3.5 1.4-.2 3.8 2.6 2.8-2.2 3.1.6 3.7-3.6 1.1-1.6 3.4-3.7-.2-2.8 2.5-3.4-1.5-3.1 2.1-3.6-1.2-.8-3.6-3.6-.8-.4-3.7 2.3-3-1.8-3.2 1.3-3.5-2.5-1.5 2.1z" /></svg>
+            <span id="chat-title">Выберите чат</span>
+            <!-- Галочка для SCP_Helper -->
+            <svg id="verified-star" style="width: 16px; height: 16px; fill: #1d9bf0; display: none; vertical-align: middle; flex-shrink: 0; margin-left: 4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            <span id="header-chat-role-badge"></span>
             <button class="clear-chat-btn" id="clear-chat-btn" title="Clear" style="display: none;">🔥</button>
           </h2>
-          <small id="chat-subtitle" style="color: var(--muted); font-size: 11px; font-family: 'Fira Code', monospace;">Служебные уведомления</small>
+          <small id="chat-subtitle" style="color: var(--muted); font-size: 11px; font-family: 'Fira Code', monospace;"></small>
         </div>
       </div>
       <div id="my-role-badge" style="font-size: 12px; font-family: 'Fira Code'; margin-right: 15px; font-weight: bold; color: var(--muted);"></div>
@@ -654,7 +674,7 @@
     <div id="user-banned-banner">⛔ Пользователь заблокирован</div>
     <div id="blocked-banner" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; z-index: 10;">Пользователь заблокирован вами</div>
 
-    <div id="messages"><div class="empty">⚠ ЧАТ НЕ ВЫБРАН</div></div>
+    <div id="messages"><div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div></div>
     
     <div class="file-progress" id="file-progress">
       <span id="file-progress-text">⏳ Загрузка... 0%</span>
@@ -680,6 +700,7 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
+// Глобальные переменные инициализируются в самом начале
 let favoriteChats = JSON.parse(localStorage.getItem('scp_fav_chats') || '[]');
 const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false };
 
@@ -737,6 +758,12 @@ document.getElementById('a-submit').addEventListener('click', async () => {
   } catch (e) { if (e.message !== 'Banned') errEl.textContent = e.message; } finally { btn.disabled = false; btn.textContent = orig; }
 });
 
+function updateReadDeletedStatusLabel(isChecked) {
+  const label = document.getElementById('read-deleted-status-label'); if (!label) return;
+  label.textContent = isChecked ? 'Статус: Функция чтения удаленных сообщений ВКЛЮЧЕНА' : 'Статус: Функция чтения удаленных сообщений ВЫКЛЮЧЕНА';
+  label.style.color = isChecked ? '#00ff9d' : '#ff4d4d';
+}
+
 function enterChat() {
   authScreen.style.display = 'none'; chatScreen.classList.add('visible');
   connectSocket(); loadChats();
@@ -746,7 +773,7 @@ function enterChat() {
   document.getElementById('set-my-id').textContent = state.me.id;
   document.getElementById('set-my-ip').textContent = state.me.ip || 'Скрыт';
   const roleBadge = document.getElementById('my-role-badge');
-  roleBadge.innerHTML = `<span class="rotating-badge badge-${state.me.role}">${(ROLE_LABEL[state.me.role] || state.me.role).toUpperCase()}</span>`;
+  roleBadge.innerHTML = `<span style="color:${ROLE_COLOR[state.me.role] || 'var(--muted)'}">${ROLE_ICON[state.me.role] || '👤'} ${ROLE_LABEL[state.me.role] || 'user'}</span>`;
   
   if (['sysadmin', 'admin', 'moderator', 'helper'].includes(state.me.role)) {
     document.getElementById('admin-header-btn').style.display = 'block';
@@ -824,7 +851,7 @@ window.openProfile = async function(userId) {
 
 document.getElementById('header-avatar').addEventListener('click', () => {
   if (state.currentChat) {
-    if (state.currentChat.isGroup || state.currentChat.isHelper) return;
+    if (state.currentChat.isGroup) return;
     openProfile(state.currentChat.otherUserId || state.me.id);
   }
 });
@@ -977,6 +1004,7 @@ window.wipeAllMessages = async function(e) {
   }
 };
 
+// --- FAB МЕНЮ (КРУГЛЫЕ КНОПКИ) ---
 function toggleFabMenu() {
   document.getElementById('fab-container').classList.toggle('open');
 }
@@ -1048,7 +1076,7 @@ window.toggleFavorite = function(chatId, event) {
 window.openSavedMessages = async function() {
   try {
     const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId: state.me.id }) });
-    await loadChats(); openChat(chat.id, 'Избранное ⭐', state.me.avatarUrl, false, state.me.id, 0, false, '', false, '', false);
+    await loadChats(); openChat(chat.id, 'Избранное ⭐', state.me.avatarUrl, false, state.me.id, 0);
   } catch (e) { alert(e.message); }
 };
 
@@ -1064,14 +1092,27 @@ function renderChatList() {
     const avatar = c.avatarUrl ? `<img src="${escAttr(c.avatarUrl)}" class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')" alt="">` : `<div class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')">${c.isGroup ? (c.isChannel ? '📢' : '👥') : esc((c.name || '?')[0].toUpperCase())}</div>`;
     const active = state.currentChat && state.currentChat.id === c.id ? ' active' : '';
     const starBtn = visualSettings.favorites ? `<div onclick="toggleFavorite('${escAttr(c.id)}', event)" style="font-size: 18px; cursor: pointer; color: ${isFav ? '#ffd700' : 'var(--border)'}; margin-left: auto; padding: 0 5px;">★</div>` : '';
+    
     let roleBadgeHtml = '';
-    if (c.role && c.role !== 'user' && !c.isGroup && !c.isHelper) roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 6px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
+    let checkmarkHtml = '';
+    if (c.isHelper) checkmarkHtml = `<svg style="width: 14px; height: 14px; fill: #1d9bf0; display: inline-block; vertical-align: middle; margin-left: 4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+    
+    // Вращающиеся плашки ролей
+    if (c.role && c.role !== 'user' && !c.isGroup) {
+      roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 4px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
+    }
+    
     const isBanned = c.ban_expires && c.ban_expires !== 0 && (c.ban_expires === -1 || c.ban_expires > Date.now());
+    
     return `<div class="chat-item${active}" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0}, ${c.isGroup ? 'true' : 'false'}, '${escAttr(c.creatorId || '')}', ${c.isChannel ? 'true' : 'false'}, '${escAttr(c.username || '')}', ${c.isHelper ? 'true' : 'false'})">
       ${avatar}
       <div class="chat-info" style="flex: 1; min-width: 0;">
-        <div class="name">${esc(c.name)} ${roleBadgeHtml}</div>
-        <div class="preview">${isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован вами' : (c.isSelf ? 'Личные заметки' : (c.isHelper ? 'Служебные уведомления' : (c.isChannel ? 'Канал' : 'Открыть чат'))))}${unread ? ` <span class="badge">${unread}</span>` : ''}</div>
+        <div class="name" style="display:flex; align-items:center;">
+          <span>${esc(c.name)}</span>
+          ${checkmarkHtml}
+          ${roleBadgeHtml}
+        </div>
+        <div class="preview">${isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован вами' : (c.isSelf ? 'Личные заметки' : (c.isChannel ? 'Канал' : 'Открыть чат')))}${unread ? ` <span class="badge">${unread}</span>` : ''}</div>
       </div>
       ${starBtn}
     </div>`;
@@ -1083,10 +1124,31 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   state.unreadCounts[chatId] = 0; updatePageTitle();
   
   document.getElementById('chat-title').textContent = name;
-  document.getElementById('chat-subtitle').textContent = isHelper ? 'Служебные уведомления' : (isChannel ? (username ? `scp.me/${username}` : 'Канал (без ссылки)') : 'Личный чат');
+  
+  const verifiedStar = document.getElementById('verified-star');
+  if (isHelper) {
+    verifiedStar.style.display = 'inline-block';
+    document.getElementById('chat-subtitle').textContent = 'Служебные уведомления';
+  } else {
+    verifiedStar.style.display = 'none';
+    document.getElementById('chat-subtitle').textContent = isChannel ? (username ? `scp.me/${username}` : 'Канал') : '';
+  }
+
+  // Вращающаяся плашка собеседника в шапке
+  const headerBadge = document.getElementById('header-chat-role-badge');
+  if (!isGroup && state.chats) {
+    const current = state.chats.find(c => c.id === chatId);
+    if (current && current.role && current.role !== 'user') {
+      headerBadge.innerHTML = `<span class="rotating-badge badge-${current.role}" style="margin-left: 8px;">${(ROLE_LABEL[current.role] || current.role).toUpperCase()}</span>`;
+    } else {
+      headerBadge.innerHTML = '';
+    }
+  } else {
+    headerBadge.innerHTML = '';
+  }
 
   const isCreator = !isGroup || (creatorId === state.me.id);
-  const showComposer = !isBlocked && (!isChannel || isCreator) && !isHelper;
+  const showComposer = !isBlocked && (!isChannel || isCreator) && !isHelper; // Запрещаем писать в SCP_Helper
 
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
   document.getElementById('blocked-banner').style.display = isBlocked ? 'block' : 'none';
@@ -1096,13 +1158,14 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   if (isBanned) { userBannedBanner.style.display = 'block'; userBannedBanner.textContent = `⛔ Заблокирован (${ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(ban_expires).toLocaleString()})`; }
   else userBannedBanner.style.display = 'none';
   
+  // Прячем кнопку очистки и настроек для SCP_Helper
   document.getElementById('clear-chat-btn').style.display = isHelper ? 'none' : 'inline-block';
   document.getElementById('chat-options-btn').style.display = isHelper ? 'none' : 'inline-block';
   document.getElementById('group-members-btn').style.display = isGroup ? 'block' : 'none';
 
-  document.getElementById('view-profile-btn').style.display = (isGroup || isHelper) ? 'none' : 'block';
+  document.getElementById('view-profile-btn').style.display = isGroup ? 'none' : 'block';
   document.getElementById('block-user-btn').style.display = (isGroup || isHelper) ? 'none' : (isBlocked ? 'none' : 'block');
-  document.getElementById('unblock-user-btn').style.display = (isGroup || isHelper) ? 'none' : (isBlocked ? 'block' : 'none');
+  document.getElementById('unblock-user-btn').style.display = isGroup ? 'none' : (isBlocked ? 'block' : 'none');
   
   document.getElementById('leave-group-btn').style.display = (isGroup && !isCreator) ? 'block' : 'none';
   document.getElementById('delete-group-btn').style.display = (isGroup && isCreator) ? 'block' : 'none';
@@ -1124,23 +1187,8 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
     setChannelUsernameSection.style.display = 'none';
   }
 
-  const headerAvatarContainer = document.getElementById('header-avatar-container');
   const headerAvatar = document.getElementById('header-avatar');
-  const headerVerifiedStar = document.getElementById('header-verified-star');
-  
-  if (isHelper) {
-    headerAvatar.src = '/favicon.png';
-    headerAvatarContainer.style.display = 'block';
-    headerVerifiedStar.style.display = 'block';
-  } else if (avatarUrl && !isGroup) {
-    headerAvatar.src = avatarUrl;
-    headerAvatarContainer.style.display = 'block';
-    headerVerifiedStar.style.display = 'none';
-  } else {
-    headerAvatarContainer.style.display = 'none';
-    headerVerifiedStar.style.display = 'none';
-  }
-
+  if (avatarUrl && !isGroup) { headerAvatar.src = avatarUrl; headerAvatar.style.display = 'block'; } else headerAvatar.style.display = 'none';
   const msgsEl = document.getElementById('messages'); msgsEl.innerHTML = 'Загрузка...';
   if (state.socket) state.socket.emit('joinChat', chatId);
   try {
@@ -1203,8 +1251,9 @@ function appendMessage(msg, scroll = true) {
   let whoHtml = '';
   if (!mine) {
     let roleBadge = ''; const r = msg.sender.role;
-    if (r && r !== 'user') roleBadge = ` <span class="rotating-badge badge-${r}" title="${(ROLE_LABEL[r] || r).toUpperCase()}">${(ROLE_LABEL[r] || r).toUpperCase()}</span>`;
-    whoHtml = `<div class="who">@${esc(msg.sender.username)}${roleBadge}</div>`;
+    if (r && r !== 'user') roleBadge = `<span class="rotating-badge badge-${r}" title="${(ROLE_LABEL[r] || r).toUpperCase()}">${(ROLE_LABEL[r] || r).toUpperCase()}</span>`;
+    let check = msg.sender.id === 'system_scp_helper_id' ? `<svg style="width: 12px; height: 12px; fill: #1d9bf0; display: inline-block; margin-left: 4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>` : '';
+    whoHtml = `<div class="who">@${esc(msg.sender.username)}${check} ${roleBadge}</div>`;
   }
   const isMsgDeletedClass = msg.is_deleted ? 'deleted-msg' : '';
   row.innerHTML = `
@@ -1374,6 +1423,7 @@ document.getElementById('paste-file-send-btn').addEventListener('click', () => {
       e.preventDefault(); overlay.style.display = 'none'; dragDepth = 0;
       if (!state.currentChat) return alert('Сначала выберите чат');
       if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
+      if (state.currentChat.isHelper) return alert('В этот чат нельзя отправлять сообщения');
       const files = Array.from(e.dataTransfer.files);
       const caption = document.getElementById('msg-input').value.trim();
       document.getElementById('msg-input').value = '';
@@ -1385,6 +1435,7 @@ document.getElementById('paste-file-send-btn').addEventListener('click', () => {
 document.getElementById('composer').addEventListener('submit', async (e) => {
   e.preventDefault(); const input = document.getElementById('msg-input'); const text = input.value.trim();
   if (!text || !state.currentChat) return;
+  if (state.currentChat.isHelper) return alert('В этот чат нельзя отправлять сообщения');
   input.value = ''; let body = text;
   if (state.replyTo) body = `> ${state.replyTo.sender.username}: ${(state.replyTo.text || '(файл)').slice(0, 80)}\n${text}`;
   state.replyTo = null; document.getElementById('reply-bar').classList.remove('visible');
@@ -1393,12 +1444,14 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
 document.getElementById('file-btn').addEventListener('click', () => {
   if (!state.currentChat) return alert('Выберите чат');
   if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
+  if (state.currentChat.isHelper) return alert('В этот чат нельзя отправлять сообщения');
   document.getElementById('file-input').click();
 });
 document.getElementById('file-input').addEventListener('change', () => {
   const fileInput = document.getElementById('file-input'); const files = Array.from(fileInput.files || []);
   if (!files.length || !state.currentChat) return;
   if (state.currentChat.isBlocked) { fileInput.value = ''; return alert('Пользователь заблокирован'); }
+  if (state.currentChat.isHelper) { fileInput.value = ''; return alert('В этот чат нельзя отправлять сообщения'); }
   const caption = document.getElementById('msg-input').value.trim(); document.getElementById('msg-input').value = '';
   fileInput.value = ''; uploadFilesWithProgress(files, caption);
 });
@@ -1462,12 +1515,12 @@ document.getElementById('leave-group-btn').addEventListener('click', async () =>
     await api('/chats/' + state.currentChat.id + '/leave', { method: 'POST' });
     document.getElementById('chat-settings-modal').classList.remove('visible');
     state.currentChat = null;
-    document.getElementById('messages').innerHTML = '<div class="empty">⚠ ЧАТ НЕ ВЫБРАН</div>';
+    document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
     document.getElementById('chat-title').textContent = 'SCP_Helper';
     document.getElementById('composer').style.display = 'none';
     document.getElementById('chat-options-btn').style.display = 'none';
     document.getElementById('clear-chat-btn').style.display = 'none';
-    document.getElementById('header-avatar-container').style.display = 'none';
+    document.getElementById('header-avatar').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
     loadChats();
   } catch (e) {
@@ -1481,9 +1534,9 @@ document.getElementById('delete-group-btn').addEventListener('click', async () =
   try {
     await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
     state.currentChat = null;
-    document.getElementById('messages').innerHTML = '<div class="empty">⚠ ЧАТ НЕ ВЫБРАН</div>';
+    document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
     document.getElementById('chat-title').textContent = 'SCP_Helper'; document.getElementById('composer').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible');
-    document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar-container').style.display = 'none';
+    document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
     loadChats();
   } catch (e) {
