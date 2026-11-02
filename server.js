@@ -180,7 +180,7 @@ const findUserByUsername = (username) => {
 
 const chatIsBlocked = (chatId, myId) => {
   const chat = db.chats.find(c => c.id === chatId);
-  if (chat && chat.is_group) return false; 
+  if (chat && (chat.is_group || chat.is_helper)) return false; 
   const members = db.chat_members.filter(m => m.chat_id === chatId);
   const otherId = members.find(m => m.user_id !== myId)?.user_id;
   if (!otherId) return false;
@@ -422,16 +422,15 @@ app.post('/api/users/:userId/unblock', authMiddleware, (req, res) => {
 app.get('/api/chats', authMiddleware, (req, res) => {
   const myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
   
-  // Убедимся, что у пользователя есть чат SCP_Helper (системный канал уведомлений)
-  let helperChat = db.chats.find(c => c.is_channel && c.name === 'SCP_Helper');
+  let helperChat = db.chats.find(c => c.is_helper && c.creator_id === req.userId);
   if (!helperChat) {
     const helperId = genId();
     helperChat = {
       id: helperId,
       created_at: Math.floor(Date.now() / 1000),
-      is_group: true,
-      is_channel: true,
-      username: 'scp_helper',
+      is_group: false,
+      is_channel: false,
+      is_helper: true,
       name: 'SCP_Helper',
       creator_id: req.userId
     };
@@ -440,7 +439,6 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     saveDb();
     myChatIds.push(helperId);
   } else {
-    // Если хелпер есть, но пользователя нет в его участниках — добавляем
     if (!db.chat_members.some(m => m.chat_id === helperChat.id && m.user_id === req.userId)) {
       db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: req.userId });
       saveDb();
@@ -450,7 +448,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
 
   const chats = db.chats.filter(c => myChatIds.includes(c.id)).map(c => {
     const members = db.chat_members.filter(m => m.chat_id === c.id);
-    const isSelf = !c.is_group && members.length === 1 && members[0].user_id === req.userId;
+    const isSelf = !c.is_group && !c.is_helper && members.length === 1 && members[0].user_id === req.userId;
     const otherId = isSelf ? req.userId : members.find(m => m.user_id !== req.userId)?.user_id;
     const other = otherId ? db.users.find(u => u.id === otherId) : null;
     
@@ -458,7 +456,10 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     let chatAvatar = null;
     let otherRole = 'user';
 
-    if (c.is_group) {
+    if (c.is_helper) {
+        chatName = 'SCP_Helper';
+        chatAvatar = '/favicon.png';
+    } else if (c.is_group) {
         chatName = c.name || 'Групповой чат';
     } else if (isSelf) {
         chatName = 'Избранное';
@@ -474,11 +475,12 @@ app.get('/api/chats', authMiddleware, (req, res) => {
 
     return {
       id: c.id, name: chatName, avatarUrl: chatAvatar,
-      otherUserId: c.is_group ? null : (other ? other.id : null),
-      role: otherRole, isBlocked: c.is_group ? false : (isSelf ? false : chatIsBlocked(c.id, req.userId)),
+      otherUserId: c.is_group || c.is_helper ? null : (other ? other.id : null),
+      role: otherRole, isBlocked: c.is_group || c.is_helper ? false : (isSelf ? false : chatIsBlocked(c.id, req.userId)),
       ban_expires: banExpires, createdAt: c.created_at, isSelf: isSelf,
       isGroup: !!c.is_group, creatorId: c.creator_id,
       isChannel: !!c.is_channel,
+      isHelper: !!c.is_helper,
       username: c.username || null
     };
   });
@@ -568,6 +570,7 @@ app.delete('/api/chats/:chatId', authMiddleware, (req, res) => {
   const chat = db.chats.find(c => c.id === chatId);
   
   if (!chat) return res.status(404).json({ error: 'Чат не найден' });
+  if (chat.is_helper) return res.status(403).json({ error: 'Нельзя удалить чат службы поддержки' });
   if (!chat.is_group) return res.status(400).json({ error: 'Это не групповой чат' });
   if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может удалить группу' });
   
@@ -608,7 +611,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
   const myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
   for (const chatId of myChatIds) {
     const chat = db.chats.find(c => c.id === chatId);
-    if (chat && chat.is_group) continue;
+    if (chat && (chat.is_group || chat.is_helper)) continue;
 
     const members = db.chat_members.filter(m => m.chat_id === chatId);
     if (isSelf && members.length === 1 && members[0].user_id === req.userId) {
@@ -657,11 +660,12 @@ app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
 
 app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
+  const chat = db.chats.find(c => c.id === chatId);
+  if (chat && chat.is_helper) return res.status(403).json({ error: 'Нельзя писать в SCP_Helper' });
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
 
-  const chatForCheck = db.chats.find(c => c.id === chatId);
-  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
+  if (chat && chat.is_channel && chat.creator_id !== req.userId) {
     return res.status(403).json({ error: 'Только создатель канала может писать сообщения' });
   }
 
@@ -690,11 +694,12 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
 
 app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) => {
   const chatId = req.params.chatId;
+  const chat = db.chats.find(c => c.id === chatId);
+  if (chat && chat.is_helper) return res.status(403).json({ error: 'Нельзя загружать файлы в SCP_Helper' });
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
 
-  const chatForCheck = db.chats.find(c => c.id === chatId);
-  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
+  if (chat && chat.is_channel && chat.creator_id !== req.userId) {
     return res.status(403).json({ error: 'Только создатель канала может загружать файлы' });
   }
 
@@ -717,10 +722,11 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
 
 app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
+  const chat = db.chats.find(c => c.id === chatId);
+  if (chat && chat.is_helper) return res.status(403).json({ error: 'Нельзя отправлять файлы в SCP_Helper' });
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
 
-  const chatForCheck = db.chats.find(c => c.id === chatId);
-  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
+  if (chat && chat.is_channel && chat.creator_id !== req.userId) {
     return res.status(403).json({ error: 'Только создатель канала может отправлять файлы' });
   }
 
@@ -808,6 +814,8 @@ app.post('/api/chats/:chatId/mark-read', authMiddleware, (req, res) => {
 
 app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
+  const chat = db.chats.find(c => c.id === chatId);
+  if (chat && chat.is_helper) return res.status(403).json({ error: 'Нельзя очистить чат помощи' });
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   const scope = (req.body && req.body.scope) || 'me';
   if (scope === 'all') {
@@ -829,6 +837,8 @@ app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
 app.delete('/api/messages/:messageId', authMiddleware, (req, res) => {
   const msg = db.messages.find(m => m.id === req.params.messageId);
   if (!msg) return res.status(404).json({ error: 'Message not found' });
+  const chat = db.chats.find(c => c.id === msg.chat_id);
+  if (chat && chat.is_helper) return res.status(403).json({ error: 'Нельзя удалять сообщения' });
   const me = db.users.find(u => u.id === req.userId);
   const isAdmin = me && ['sysadmin', 'admin', 'moderator'].includes(me.role);
   const isOwn = msg.sender_id === req.userId;
@@ -846,10 +856,11 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   const src = db.messages.find(m => m.id === req.params.messageId);
   if (!src) return res.status(404).json({ error: 'Message not found' });
   const { chatId } = req.body;
+  const targetChat = db.chats.find(c => c.id === chatId);
+  if (targetChat && targetChat.is_helper) return res.status(403).json({ error: 'Нельзя пересылать в SCP_Helper' });
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
 
-  const targetChat = db.chats.find(c => c.id === chatId);
   if (targetChat && targetChat.is_channel && targetChat.creator_id !== req.userId) {
     return res.status(403).json({ error: 'Только создатель канала может пересылать в него' });
   }
@@ -915,6 +926,18 @@ app.post('/api/register', async (req, res) => {
       role: isAdmin ? 'sysadmin' : userRole, invited_by: inviter, ban_expires: 0
     };
     db.users.push(newUser);
+
+    const helperChatId = genId();
+    db.chats.push({
+      id: helperChatId,
+      created_at: Math.floor(Date.now() / 1000),
+      is_group: false,
+      is_channel: false,
+      is_helper: true,
+      name: 'SCP_Helper',
+      creator_id: id
+    });
+    db.chat_members.push({ id: genId(), chat_id: helperChatId, user_id: id });
 
     const plainCodes = [];
     for (let i = 0; i < 12; i++) {
