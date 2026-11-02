@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>SCP Foundation — Secure Channel</title>
+<link rel="icon" type="image/png" href="/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --card: #1c2128; --border: #30363d;
+    --border-hover: #8b949e; --accent: #ffffff; --text: #e6edf3; --muted: #8b949e;
+    --hill-color: #2c333a; --tree-color: #465059; --ground-color: #5a6670;
+    --admin-bg: #110505; --admin-panel: #1a0a0a; --admin-border: #4a1515;
+    --admin-accent: #ff3333; --admin-text: #ffcccc; --admin-green: #00ff9d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; height: 100dvh; overflow: hidden; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+
+  #fx-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
+  #landscape { position: fixed; bottom: 0; left: 0; width: 100%; height: 250px; pointer-events: none; z-index: 0; opacity: 0.8; transition: opacity 0.5s; }
+  #landscape.hidden { opacity: 0; }
+  #landscape path, #landscape polygon, #landscape circle { transition: fill 1.5s ease; }
+
+  input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px var(--bg) inset !important; -webkit-text-fill-color: var(--text) !important; }
+
+  @keyframes rotateBadge {
+    0% { transform: perspective(200px) rotateY(0deg); }
+    100% { transform: perspective(200px) rotateY(360deg); }
+  }
+  .rotating-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 2px 6px; font-size: 9px; font-weight: bold;
+    font-family: 'Fira Code', monospace; border-radius: 4px;
+    animation: rotateBadge 6s linear infinite; transform-style: preserve-3d;
+    transform-origin: center; white-space: nowrap; text-transform: uppercase;
+  }
+  .badge-sysadmin { background: #000000; color: #ffffff; border: 1px solid #ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
+  .badge-admin { background: #ff3333; color: #000; border: 1px solid #fff; }
+  .badge-moderator { background: #ffcc00; color: #000; }
+  .badge-helper { background: #00ccff; color: #000; }
+
+  #auth { display: flex; align-items: center; justify-content: center; height: 100%; padding: 20px; position: relative; z-index: 1; }
+  .auth-card { width: 100%; max-width: 420px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 40px 32px; box-shadow: 0 20px 40px rgba(0,0,0,0.8); backdrop-filter: blur(10px); }
+  .auth-card h1 { font-family: 'Fira Code', monospace; color: var(--accent); font-size: 24px; letter-spacing: 2px; margin-bottom: 6px; text-align: center; }
+  .auth-card .subtitle { color: var(--muted); font-size: 12px; letter-spacing: 1px; margin-bottom: 30px; text-transform: uppercase; text-align: center; font-family: 'Fira Code', monospace; }
+  .tabs { display: flex; gap: 10px; margin-bottom: 24px; background: var(--bg); padding: 4px; border-radius: 6px; border: 1px solid var(--border); }
+  .tab { flex: 1; text-align: center; padding: 10px; font-size: 13px; cursor: pointer; color: var(--muted); text-transform: uppercase; font-weight: 600; border-radius: 4px; transition: all 0.2s; }
+  .tab.active { background: var(--card); color: var(--accent); box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+  .auth-card input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 14px; border-radius: 6px; font-size: 16px; margin-bottom: 14px; font-family: inherit; }
+  .auth-card input:focus { outline: none; border-color: var(--border-hover); }
+  .btn { width: 100%; background: var(--accent); color: #000; border: none; padding: 14px; border-radius: 6px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; font-size: 13px; cursor: pointer; margin-top: 8px; transition: opacity 0.2s; }
+  .btn:hover { opacity: 0.8; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .error { color: #ff7b72; font-size: 12px; margin: 4px 0 12px; min-height: 16px; font-weight: 500; text-align: center; }
+
+  #chat { display: none; height: 100%; height: 100dvh; width: 100vw; position: relative; z-index: 1; }
+  #chat.visible { display: flex; }
+
+  aside { width: 300px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100%; z-index: 2; }
+  .brand { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .brand-left { display: flex; align-items: center; gap: 12px; }
+  .brand-logo { width: 40px; height: 40px; object-fit: contain; }
+  .brand-title { font-family: 'Fira Code', monospace; color: var(--accent); font-size: 14px; letter-spacing: 1px; }
+  .brand small { color: var(--muted); font-size: 11px; }
+
+  .search { padding: 14px; border-bottom: 1px solid var(--border); }
+  .search input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: 6px; font-size: 13px; font-family: inherit; }
+
+  .favorites-shortcut { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; gap: 12px; background: var(--card); transition: background .15s; }
+  .favorites-shortcut:hover { background: var(--border); }
+
+  #chat-list { flex: 1; overflow-y: auto; height: 0; }
+  .chat-item { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .15s; display: flex; align-items: center; gap: 12px; user-select: none; }
+  .chat-item:hover { background: var(--card); }
+  .chat-item.active { background: var(--card); border-left: 3px solid var(--accent); }
+  .chat-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; font-family: 'Fira Code'; color: var(--text); font-size: 16px; border: 1px solid var(--border); cursor: pointer; }
+  .chat-info { flex: 1; min-width: 0; }
+  .chat-item .name { font-weight: 600; font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 4px; }
+  .chat-item .preview { font-size: 12px; color: var(--muted); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+  .badge { background: var(--accent); color: #000; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 700; font-family: 'Fira Code', monospace; }
+
+  main { flex: 1; display: flex; flex-direction: column; background: rgba(13, 17, 23, 0.85); position: relative; height: 100%; z-index: 2; min-width: 0; }
+  .chat-header { height: 73px; flex-shrink: 0; padding: 0 16px; border-bottom: 1px solid var(--border); background: rgba(22, 27, 34, 0.9); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: space-between; width: 100%; }
+  .chat-header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .chat-header h2 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-btn { background: transparent; border: none; font-size: 20px; cursor: pointer; padding: 4px; color: var(--muted); transition: color 0.2s; flex-shrink: 0; }
+  .header-btn:hover { color: var(--accent); }
+  .clear-chat-btn { background: transparent; border: none; font-size: 18px; cursor: pointer; transition: transform 0.2s; padding: 4px; opacity: 0.7; flex-shrink: 0; margin-left: 5px; }
+  .clear-chat-btn:hover { transform: scale(1.2); opacity: 1; }
+
+  #user-banned-banner { display: none; background: #ff3333; color: #ffffff; padding: 10px 16px; font-size: 13px; font-weight: bold; font-family: 'Fira Code', monospace; text-align: center; border-bottom: 1px solid #4a1515; box-shadow: 0 4px 10px rgba(255, 51, 51, 0.2); z-index: 10; }
+
+  #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; position: relative; z-index: 2; }
+  .msg-row { display: flex; gap: 12px; align-items: flex-end; max-width: 85%; position: relative; }
+  .msg-row.mine { align-self: flex-end; flex-direction: row-reverse; }
+  .msg-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 1px solid var(--border); cursor: pointer; transition: transform 0.2s, border-color 0.2s; }
+  .msg-avatar:hover { transform: scale(1.1); border-color: var(--accent); }
+
+  .msg { padding: 12px 16px; background: rgba(28, 33, 40, 0.95); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; word-wrap: break-word; position: relative; animation: slideUp 0.2s ease-out; backdrop-filter: blur(5px); width: fit-content; max-width: 100%; cursor: pointer; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  .msg-row.mine .msg { background: rgba(48, 54, 61, 0.95); border-color: var(--border-hover); border-bottom-right-radius: 2px; }
+  .msg-row:not(.mine) .msg { border-bottom-left-radius: 2px; }
+
+  .msg.deleted-msg { background: rgba(30, 30, 30, 0.5) !important; border-color: #444 !important; color: #884444; font-style: italic; }
+  .msg .deleted-label { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #ff4d4d; margin-top: 6px; font-weight: bold; }
+  .msg .who { font-size: 11px; color: var(--muted); font-weight: 600; margin-bottom: 4px; font-family: 'Fira Code', monospace; display: flex; align-items: center; gap: 6px; }
+  .msg-row.mine .who { display: none; }
+
+  .msg .reply-quote { background: rgba(255, 255, 255, 0.04); border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 0 6px 6px 0; margin-bottom: 8px; font-size: 12px; cursor: pointer; transition: background 0.2s; }
+  .msg .reply-quote:hover { background: rgba(255, 255, 255, 0.08); }
+  .msg .reply-quote .rq-name { color: var(--accent); font-weight: 600; margin-bottom: 2px; font-family: 'Fira Code', monospace; }
+  .msg .reply-quote .rq-text { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .msg-status { font-size: 13px; margin-top: 4px; text-align: right; font-family: 'Fira Code', monospace; color: var(--muted); display: flex; justify-content: flex-end; align-items: center; }
+  .msg-status .tick { display: inline-block; font-weight: bold; }
+  .msg-status .tick + .tick { margin-left: -5px; position: relative; left: -3px; }
+  .msg-status.delivered { color: var(--text); }
+  .msg-status.read { color: #00ff9d; }
+
+  .msg img { max-width: 100%; max-height: 220px; object-fit: cover; border-radius: 6px; margin-top: 8px; display: block; border: 1px solid var(--border); cursor: pointer; }
+  .msg video { max-width: 100%; max-height: 300px; border-radius: 6px; margin-top: 8px; display: block; border: 1px solid var(--border); }
+  .msg audio { margin-top: 8px; width: 240px; }
+  .msg .file-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); text-decoration: none; font-size: 13px; font-family: 'Fira Code', monospace; transition: border-color 0.2s; }
+
+  /* Стили для чипов вложений */
+  .att-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .att-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; max-width: 200px; font-size: 12px; font-family: 'Fira Code', monospace; transition: border-color 0.2s, background 0.2s; }
+  .att-chip:hover { border-color: var(--border-hover); background: var(--card); }
+  .att-chip-icon { font-size: 16px; flex-shrink: 0; }
+  .att-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Плавающее окно просмотра */
+  .att-viewer-modal { display: none; position: fixed; inset: 0; background: transparent; z-index: 99998; pointer-events: none; }
+  .att-viewer-modal.visible { display: block; }
+  .att-viewer-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px; min-width: 340px; max-width: 90vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.8); pointer-events: auto; overflow: hidden; }
+  .att-viewer-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--card); border-bottom: 1px solid var(--border); cursor: grab; user-select: none; font-family: 'Fira Code', monospace; font-size: 12px; font-weight: 600; }
+  .att-viewer-header:active { cursor: grabbing; }
+  .att-viewer-close { background: transparent; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1; }
+  .att-viewer-close:hover { color: var(--accent); }
+  .att-viewer-meta { padding: 8px 14px; font-size: 11px; color: var(--muted); font-family: 'Fira Code', monospace; border-bottom: 1px solid var(--border); word-break: break-all; }
+  .att-viewer-body { padding: 14px; overflow: auto; display: flex; justify-content: center; align-items: center; min-height: 120px; max-height: 60vh; }
+  .att-viewer-body img { max-width: 100%; max-height: 50vh; object-fit: contain; border-radius: 4px; }
+  .att-viewer-body video { max-width: 100%; max-height: 50vh; border-radius: 4px; }
+  .att-viewer-body audio { width: 100%; }
+  .att-viewer-nav { padding: 8px 14px; display: none; gap: 10px; justify-content: center; align-items: center; border-top: 1px solid var(--border); font-family: 'Fira Code', monospace; font-size: 12px; color: var(--muted); }
+  .att-viewer-nav button { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+  .att-viewer-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .att-viewer-nav button:not(:disabled):hover { border-color: var(--border-hover); }
+
+  #reply-bar { display: none; padding: 8px 24px; background: var(--panel); border-top: 1px solid var(--border); align-items: center; justify-content: space-between; }
+  #reply-bar.visible { display: flex; }
+  .reply-bar-content { flex: 1; min-width: 0; border-left: 3px solid var(--border-hover); padding-left: 10px; }
+  .reply-bar-name { font-size: 12px; font-weight: bold; color: var(--accent); }
+  .reply-bar-text { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .close-reply { background: transparent; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 0 10px; }
+
+  #composer { flex-shrink: 0; display: flex; gap: 12px; padding: 16px 24px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); background: rgba(22, 27, 34, 0.9); backdrop-filter: blur(10px); border-top: 1px solid var(--border); align-items: flex-end; position: relative; z-index: 2; }
+  #composer textarea { flex: 1; background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 8px; font-family: inherit; font-size: 16px; resize: none; max-height: 140px; min-height: 44px; }
+  #composer button { background: var(--card); color: var(--text); border: 1px solid var(--border); width: 44px; height: 44px; border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  #composer button#send-btn { background: var(--accent); color: #000; border: none; }
+  #composer button#send-btn:hover { opacity: 0.8; }
+
+  .file-progress { position: absolute; bottom: 90px; right: 24px; padding: 10px 16px; font-size: 12px; color: var(--text); font-family: 'Fira Code', monospace; background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 10; align-items: center; gap: 12px; }
+  .file-progress.visible { display: flex; }
+  .file-progress button { background: #ff4d4d; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; }
+
+  .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 99999; align-items: center; justify-content: center; }
+  .modal.visible { display: flex; }
+  .modal-content { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 24px; width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); max-height: 90vh; display: flex; flex-direction: column; overflow-y: auto; }
+  .modal-content h3 { font-family: 'Fira Code', monospace; margin-bottom: 20px; font-size: 16px; color: var(--accent); text-align: center; }
+  .setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; font-size: 14px; }
+  .setting-row select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 4px; outline: none; font-family: inherit; }
+  .setting-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+  .modal-btn { width: 100%; background: var(--accent); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: opacity 0.2s; }
+  .modal-btn:hover { opacity: 0.8; }
+
+  .forward-list { overflow-y: auto; flex: 1; margin-bottom: 10px; max-height: 40vh; }
+  .forward-item { padding: 10px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; gap: 10px; }
+  .forward-item:hover { background: var(--card); }
+
+  #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 999999; align-items: center; justify-content: center; cursor: zoom-out; backdrop-filter: blur(5px); }
+  #lightbox img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 8px; }
+
+  #admin-dashboard-modal .modal-content { width: 90vw; max-width: 1000px; height: 85vh; padding: 0; overflow: hidden; flex-direction: row; border: 1px solid var(--admin-accent); box-shadow: 0 0 30px rgba(255, 51, 51, 0.15); background: var(--admin-bg); }
+  .admin-sidebar { width: 240px; background: #0d0404; border-right: 1px solid var(--admin-border); display: flex; flex-direction: column; overflow-y: auto; }
+  .admin-tab { padding: 18px 16px; cursor: pointer; color: #884444; font-weight: 600; font-size: 14px; border-left: 3px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 10px; }
+  .admin-tab:hover { background: #1a0a0a; color: #ff6666; }
+  .admin-tab.active { background: #1a0a0a; color: var(--admin-accent); border-left-color: var(--admin-accent); }
+  .admin-main { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; background: #140505; }
+  .admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--admin-border); padding-bottom: 16px; margin-bottom: 24px; }
+  .admin-header h2 { font-family: 'Fira Code', monospace; font-size: 20px; margin: 0; color: var(--admin-accent); }
+  .admin-section { background: #1a0a0a; border: 1px solid var(--admin-border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+  .admin-section h4 { margin-bottom: 16px; font-size: 14px; color: var(--admin-accent); border-bottom: 1px solid #331111; padding-bottom: 10px; letter-spacing: 0.5px; }
+  .admin-input-group { display: flex; gap: 10px; margin-bottom: 12px; }
+  .admin-input-group input, .admin-input-group select { flex: 1; background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none; }
+  .admin-input-group input:focus, .admin-input-group select:focus { border-color: var(--admin-accent); }
+  .admin-btn { background: #331111; border: 1px solid var(--admin-accent); color: #ff9999; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+  .admin-btn:hover { background: var(--admin-accent); color: #000; }
+  .admin-btn-danger { background: transparent; border: 1px solid var(--admin-accent); color: var(--admin-accent); }
+  .admin-btn-danger:hover { background: var(--admin-accent); color: #000; }
+  .log-box { background: #000; color: var(--admin-green); font-family: 'Fira Code', monospace; font-size: 12px; padding: 12px; border-radius: 6px; height: 220px; overflow-y: auto; border: 1px solid var(--admin-border); line-height: 1.6; }
+  .admin-toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; color: #ccaaaa; font-size: 14px; }
+  .admin-toggle-row input[type="checkbox"] { accent-color: var(--admin-accent); width: 18px; height: 18px; cursor: pointer; }
+
+  #profile-modal .modal-content { width: 360px; }
+  .profile-header { display: flex; flex-direction: column; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .profile-avatar { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); margin-bottom: 12px; }
+  .profile-username { font-size: 13px; color: var(--muted); font-family: 'Fira Code', monospace; }
+  .profile-online { font-size: 12px; margin-top: 6px; font-family: 'Fira Code', monospace; }
+  .profile-info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-family: 'Fira Code', monospace; font-size: 12px; }
+  .profile-info-row span:first-child { color: var(--muted); }
+  .profile-info-box { background: var(--bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 12px; }
+
+  @media (max-width: 720px) {
+    aside { display: none; width: 100%; position: absolute; inset: 0; z-index: 20; }
+    aside.mobile-open { display: flex; }
+    .back-btn { display: block !important; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 16px; flex-shrink: 0; }
+    .msg-row { max-width: 90%; }
+    .chat-header { padding: 0 12px; }
+    #messages { padding: 16px; }
+    #composer { padding: 12px 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+    .file-progress { bottom: 80px; right: 12px; }
+    #admin-dashboard-modal .modal-content { flex-direction: column; width: 100%; height: 100%; max-height: none; border-radius: 0; border: none; }
+    .admin-sidebar { width: 100%; flex-direction: row; overflow-x: auto; overflow-y: hidden; border-right: none; border-bottom: 1px solid var(--admin-border); }
+    .admin-tab { border-left: none; border-bottom: 3px solid transparent; padding: 12px; white-space: nowrap; }
+    .admin-tab.active { border-left-color: transparent; border-bottom-color: var(--admin-accent); }
+  }
+  .back-btn { display: none; }
+  .empty { text-align: center; color: var(--muted); font-family: 'Fira Code', monospace; font-size: 13px; padding: 60px 20px; letter-spacing: 1px; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<canvas id="fx-canvas"></canvas>
+<div id="lightbox" onclick="this.style.display='none'"><img id="lightbox-img" src="" alt="Фото"></div>
+
+<svg id="landscape" viewBox="0 0 1440 320" preserveAspectRatio="none">
+  <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
+</svg>
+
+<div class="modal" id="profile-modal">
+  <div class="modal-content">
+    <h3>ПРОФИЛЬ</h3>
+    <div class="profile-header">
+      <img id="profile-avatar" class="profile-avatar" src="/favicon.png" />
+      <div id="profile-display-name" style="font-size: 18px; font-weight: 600; margin-bottom: 2px;">-</div>
+      <div id="profile-username" class="profile-username">@-</div>
+      <div id="profile-online" class="profile-online">⚪ Не в сети</div>
+    </div>
+    <div class="profile-info-box">
+      <div class="profile-info-row"><span>Роль:</span><span id="profile-role" style="font-weight: 600;">-</span></div>
+      <div class="profile-info-row"><span>ID:</span><span id="profile-id" style="color: #ffd700;">-</span></div>
+      <div class="profile-info-row" style="margin-bottom: 0;"><span>IP:</span><span id="profile-ip" style="color: #00ff9d;">-</span></div>
+    </div>
+    <div id="profile-ban" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; border-radius: 6px; text-align: center; font-size: 12px; margin-bottom: 12px;"></div>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('profile-modal').classList.remove('visible')">Закрыть</button>
+  </div>
+</div>
+
+<div class="modal" id="admin-dashboard-modal">
+  <div class="modal-content">
+    <div class="admin-sidebar">
+      <div class="admin-tab active" data-tab="server">👑 Управление сервером</div>
+      <div class="admin-tab" data-tab="moderation" id="tab-btn-moderation" style="display: none;">🛡️ Модерация контента</div>
+      <div class="admin-tab" data-tab="users">👥 Управление пользователями</div>
+      <div class="admin-tab" data-tab="staff">📋 Список персонала</div>
+      <div class="admin-tab" data-tab="support" id="tab-btn-support" style="display: none;">💬 Поддержка & Логи</div>
+      <div style="flex: 1;"></div>
+      <div class="admin-tab" style="color: #ff3333; border-left-color: transparent;" onclick="document.getElementById('admin-dashboard-modal').classList.remove('visible')">✖ Закрыть</div>
+    </div>
+    <div class="admin-main">
+      <div id="tab-server" class="admin-tab-content">
+        <div class="admin-header"><h2>Управление сервером</h2></div>
+        <div class="admin-section" id="invite-section">
+          <h4>Генерация инвайт-кодов (Одноразовые)</h4>
+          <div class="admin-input-group">
+            <select id="invite-role-select"></select>
+            <button class="admin-btn" onclick="generateInvite()">Создать код</button>
+          </div>
+          <div id="invite-result" style="font-family: 'Fira Code'; font-size: 14px; color: #00ff9d; margin-top: 10px;"></div>
+          <div id="invite-hint" style="font-size: 12px; color: #ccaaaa; margin-top: 8px; font-family: 'Fira Code';"></div>
+        </div>
+      </div>
+
+      <div id="tab-moderation" class="admin-tab-content" style="display: none;">
+        <div class="admin-header"><h2>Модерация контента</h2></div>
+        <div class="admin-section">
+          <h4>Управление удаленными сообщениями</h4>
+          <div class="admin-toggle-row">
+            <span>Читать удаленные сообщения (Глобально)</span>
+            <input type="checkbox" id="read-deleted-toggle" onchange="toggleReadDeleted(this.checked)">
+          </div>
+          <div id="read-deleted-status-label" style="font-family: 'Fira Code'; font-size: 12px; margin-top: 8px; font-weight: bold;"></div>
+        </div>
+      </div>
+
+      <div id="tab-users" class="admin-tab-content" style="display: none;">
+        <div class="admin-header"><h2>Управление пользователями</h2></div>
+        <div class="admin-section" id="admin-grant-section" style="display: none;">
+          <h4>⭐ Выдача / снятие админки (только SysAdmin)</h4>
+          <div class="admin-input-group">
+            <input type="text" placeholder="Username (с @ или без)" id="grant-admin-input">
+            <button class="admin-btn" onclick="grantAdmin()">Выдать админа</button>
+            <button class="admin-btn admin-btn-danger" onclick="revokeAdmin()">Снять админа</button>
+          </div>
+        </div>
+        <div class="admin-section">
+          <h4>Блокировка аккаунта (Бан) — SysAdmin защищен</h4>
+          <div class="admin-input-group" style="flex-wrap: wrap;">
+            <input type="text" placeholder="Username (с @ или без)" id="user-ban-input" style="flex: 2; min-width: 140px;">
+            <select id="user-ban-duration" style="flex: 1; min-width: 120px;" onchange="handleBanPresetChange(this.value)">
+              <option value="custom">Свое время (мин)</option>
+              <option value="60">1 час</option>
+              <option value="1440">24 часа</option>
+              <option value="4320">3 дня</option>
+              <option value="10080">7 дней</option>
+              <option value="-1">Навсегда</option>
+            </select>
+            <input type="number" id="user-ban-custom-minutes" placeholder="Мин." min="1" style="width: 80px; flex: none;" value="10">
+            <button class="admin-btn admin-btn-danger" onclick="banUser()">Забанить</button>
+            <button class="admin-btn" onclick="unbanUser()">Разбанить</button>
+          </div>
+        </div>
+        <div class="admin-section">
+          <h4>Назначение ролей</h4>
+          <div class="admin-input-group">
+            <input type="text" placeholder="Username (с @ или без)" id="user-role-input">
+            <select id="user-role-select">
+              <option value="user">Пользователь</option>
+              <option value="helper">Хелпер</option>
+              <option value="moderator">Модератор</option>
+              <option value="admin" data-sysonly>Админ</option>
+              <option value="sysadmin" data-sysonly>SysAdmin</option>
+            </select>
+            <button class="admin-btn" onclick="assignRole()">Назначить</button>
+          </div>
+        </div>
+        <div class="admin-section">
+          <h4>Удаление пользователя</h4>
+          <div class="admin-input-group">
+            <input type="text" placeholder="Username (с @ или без)" id="user-action-input">
+            <button class="admin-btn admin-btn-danger" onclick="deleteUser()">Удалить навсегда</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-staff" class="admin-tab-content" style="display: none;">
+        <div class="admin-header">
+          <h2>Список персонала</h2>
+          <button class="admin-btn" onclick="loadStaffList()">🔄 Обновить</button>
+        </div>
+        <div class="admin-section">
+          <h4>Все сотрудники (кроме SysAdmin), по убыванию звания</h4>
+          <div id="staff-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+      </div>
+
+      <div id="tab-support" class="admin-tab-content" style="display: none;">
+        <div class="admin-header"><h2>Поддержка & Логи</h2></div>
+        <div class="admin-section">
+          <h4>Поиск IP пользователя</h4>
+          <div class="admin-input-group">
+            <input type="text" placeholder="Введите Username (с @ или без)" id="hash-input">
+            <button class="admin-btn" onclick="searchUserIp()">Найти IP</button>
+          </div>
+          <div class="log-box" id="diagnostic-log" style="margin-top: 10px; display: none;">[Log] Waiting...</div>
+        </div>
+        <div class="admin-section">
+          <h4>Мониторинг аномалий & Логи системы</h4>
+          <div class="log-box" id="anomaly-log">[System] Monitoring started...<br></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="clear-modal">
+  <div class="modal-content">
+    <h3>🔥 ОЧИСТИТЬ ЧАТ</h3>
+    <p style="margin-bottom: 20px; color: var(--muted); font-size: 14px; text-align: center;">Выберите, как очистить историю сообщений:</p>
+    <button class="modal-btn" id="clear-me-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Только у себя</button>
+    <button class="modal-btn" id="clear-all-btn" style="background: #ff4d4d; color: #fff; margin-bottom: 10px;">У всех</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('clear-modal').classList.remove('visible')">Отмена</button>
+  </div>
+</div>
+
+<div class="modal" id="msg-actions-modal">
+  <div class="modal-content">
+    <h3>ДЕЙСТВИЯ</h3>
+    <button class="modal-btn" id="msg-reply-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Ответить</button>
+    <button class="modal-btn" id="msg-forward-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Переслать</button>
+    <button class="modal-btn" id="msg-del-me-btn" style="background: transparent; color: #ff4d4d; border: 1px solid #ff4d4d; margin-bottom: 10px;">Удалить у себя</button>
+    <button class="modal-btn" id="msg-del-all-btn" style="background: #ff4d4d; color: #fff; margin-bottom: 10px; display: none;">Удалить у всех</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('msg-actions-modal').classList.remove('visible')">Отмена</button>
+  </div>
+</div>
+
+<div class="modal" id="forward-modal">
+  <div class="modal-content">
+    <h3>ПЕРЕСЛАТЬ В...</h3>
+    <div class="forward-list" id="forward-list"></div>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('forward-modal').classList.remove('visible')">Отмена</button>
+  </div>
+</div>
+
+<div class="modal" id="chat-settings-modal">
+  <div class="modal-content">
+    <h3>УПРАВЛЕНИЕ ЧАТОМ</h3>
+    <button class="modal-btn" id="view-profile-btn" style="background: var(--accent); color: #000; margin-bottom: 10px;">👤 Профиль собеседника</button>
+    <button class="modal-btn" id="block-user-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Заблокировать</button>
+    <button class="modal-btn" id="unblock-user-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">Разблокировать</button>
+    <button class="modal-btn" id="delete-chat-btn" style="background: #ff4d4d; color: #fff; margin-bottom: 10px;">Удалить чат</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('chat-settings-modal').classList.remove('visible')">Закрыть</button>
+  </div>
+</div>
+
+<div class="modal" id="settings-modal">
+  <div class="modal-content">
+    <h3>⚙️ НАСТРОЙКИ</h3>
+    <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
+      <span style="margin-bottom: 10px; font-weight: bold; color: var(--accent);">Ваш профиль:</span>
+      <div style="font-size: 13px; display: flex; flex-direction: column; gap: 6px; width: 100%; font-family: 'Fira Code';">
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Роль:</span><span id="set-my-role" style="font-weight:bold;">...</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Статус:</span><span id="set-my-status" style="color: #00ccff;">...</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">ID:</span><span id="set-my-id" style="color: #ffd700;">...</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">IP:</span><span id="set-my-ip" style="color: #00ff9d;">...</span></div>
+      </div>
+    </div>
+    <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
+      <span style="margin-bottom: 10px;">Ваш Аватар:</span>
+      <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+        <img id="settings-avatar-preview" src="/favicon.png" class="chat-avatar" style="width: 50px; height: 50px;" />
+        <button class="modal-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;" id="avatar-upload-btn">Загрузить</button>
+        <input type="file" id="avatar-input" accept="image/*" hidden>
+      </div>
+    </div>
+    <div style="border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
+      <div class="setting-row">
+        <span>Время года:</span>
+        <select id="season-select">
+          <option value="winter">Зима ❄️</option>
+          <option value="spring">Весна 🌱</option>
+          <option value="summer">Лето ☀️</option>
+          <option value="autumn">Осень 🍂</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <span>Погода:</span>
+        <select id="weather-select">
+          <option value="none">Ясно</option>
+          <option value="rain">Дождь 🌧️</option>
+          <option value="snow">Снег 🌨️</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <span>Призраки (SCP):</span>
+        <input type="checkbox" id="ghosts-toggle">
+      </div>
+      <div class="setting-row">
+        <span>Избранные чаты:</span>
+        <input type="checkbox" id="favorites-toggle">
+      </div>
+    </div>
+    <button class="modal-btn" id="logout-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-top: 10px;">Выйти из аккаунта</button>
+    <button class="modal-btn" id="delete-account-btn" style="background: #ff4d4d; color: #fff; margin-top: 10px;">Удалить аккаунт</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted); margin-top: 10px;" onclick="document.getElementById('settings-modal').classList.remove('visible')">Закрыть</button>
+  </div>
+</div>
+
+<div id="att-viewer" class="att-viewer-modal">
+  <div class="att-viewer-content" id="att-viewer-content">
+    <div class="att-viewer-header" id="att-viewer-header">
+      <span id="att-viewer-title">Файл</span>
+      <button class="att-viewer-close" onclick="closeAttViewer()">×</button>
+    </div>
+    <div class="att-viewer-meta" id="att-viewer-meta"></div>
+    <div class="att-viewer-body" id="att-viewer-body"></div>
+    <div class="att-viewer-nav" id="att-viewer-nav"></div>
+  </div>
+</div>
+
+<div class="modal" id="paste-file-modal">
+  <div class="modal-content" style="max-width: 400px; text-align: center;">
+    <h3>📊 ОТПРАВКА ФАЙЛА</h3>
+    <div id="paste-file-target" style="font-size: 12px; color: var(--muted); font-family: 'Fira Code'; margin-bottom: 12px;"></div>
+    <div id="paste-file-preview-container" style="margin: 15px 0; max-height: 200px; overflow: hidden; display: flex; justify-content: center;">
+      <img id="paste-file-img-preview" src="" alt="Превью" style="max-width: 100%; max-height: 180px; border-radius: 6px; display: none; object-fit: contain;" />
+      <div id="paste-file-name-preview" style="font-family: 'Fira Code'; font-size: 13px; color: var(--muted); word-break: break-all;"></div>
+    </div>
+    <input type="text" id="paste-file-caption" placeholder="Подпись к файлу (необязательно)" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 15px; outline: none;" />
+    <button class="modal-btn" id="paste-file-send-btn" style="background: var(--accent); color: #000; margin-bottom: 8px;">Отправить</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="cancelPastedFile()">Отмена</button>
+  </div>
+</div>
+
+<div id="auth">
+  <div class="auth-card">
+    <h1>SCP FOUNDATION</h1>
+    <div class="subtitle">// Secure Comm Channel</div>
+    <div class="tabs"><div class="tab active" id="tab-login">Вход</div><div class="tab" id="tab-register">Регистрация</div></div>
+    <input id="a-username" placeholder="username" autocomplete="username" />
+    <input id="a-password" type="password" placeholder="пароль (мин. 10 символов)" autocomplete="current-password" />
+    <input id="a-invite" placeholder="Код приглашения (если есть)" style="display: none;" />
+    <div class="error" id="a-error"></div>
+    <button class="btn" id="a-submit">Войти</button>
+  </div>
+</div>
+
+<div id="chat">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-left"><img src="/favicon.png" class="brand-logo" alt="SCP" /><div class="brand-title">SCP MESSENGER</div></div>
+      <small id="me-status">online</small>
+    </div>
+    <div class="favorites-shortcut" onclick="openSavedMessages()">
+      <div class="chat-avatar" style="background: var(--accent); color: #000; font-size: 16px;">⭐</div>
+      <div class="chat-info">
+        <div class="name">Избранное</div>
+        <div class="preview">Сохраненные заметки</div>
+      </div>
+    </div>
+    <div class="search"><input id="user-search" placeholder="🔍 Поиск агента..." /></div>
+    <div id="chat-list"></div>
+  </aside>
+
+  <main>
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <button class="back-btn" id="back-btn">←</button>
+        <img id="header-avatar" src="/favicon.png" class="chat-avatar" style="display: none; flex-shrink: 0; cursor: pointer;" title="Профиль" />
+        <h2><span id="chat-title">Выберите чат</span><button class="clear-chat-btn" id="clear-chat-btn" title="Clear" style="display: none;">🔥</button></h2>
+      </div>
+      <div id="my-role-badge" style="font-size: 12px; font-family: 'Fira Code'; margin-right: 15px; font-weight: bold; color: var(--muted);"></div>
+      <button class="header-btn" id="chat-options-btn" style="display: none;" title="Options">⋮</button>
+      <button class="header-btn" id="admin-header-btn" style="display: none; color: #ff3333; font-size: 18px;" title="Admin Panel">👑</button>
+      <button class="header-btn" id="open-settings" title="Settings">⚙️</button>
+    </div>
+
+    <div id="user-banned-banner">⛔ Пользователь заблокирован</div>
+    <div id="blocked-banner" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; z-index: 10;">Пользователь заблокирован вами</div>
+
+    <div id="messages"><div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div></div>
+    
+    <div class="file-progress" id="file-progress">
+      <span id="file-progress-text">⏳ Загрузка... 0%</span>
+      <button id="cancel-upload-btn" type="button">Отмена</button>
+    </div>
+
+    <div id="reply-bar">
+      <div class="reply-bar-content">
+        <div class="reply-bar-name" id="reply-bar-name">@user</div>
+        <div class="reply-bar-text" id="reply-bar-text">Текст сообщения...</div>
+      </div>
+      <button class="close-reply" id="close-reply">×</button>
+    </div>
+
+    <form id="composer">
+      <textarea id="msg-input" placeholder="Введите сообщение..." rows="1"></textarea>
+      <button type="button" class="file" id="file-btn" title="Attach">📎</button>
+      <button type="submit" id="send-btn" title="Send">▶</button>
+    </form>
+    <input type="file" id="file-input" hidden multiple />
+  </main>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false };
+const authScreen = document.getElementById('auth');
+const chatScreen = document.getElementById('chat');
+let authMode = 'login';
+
+const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
+const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
+const ROLE_ICON = { user: '👤', helper: '🤝', moderator: '🛡️', admin: '🔰', sysadmin: '👑' };
+const ROLE_COLOR = { user: 'var(--muted)', helper: '#00ccff', moderator: '#ffcc00', admin: '#ff9933', sysadmin: '#ffffff' };
+
+// Инициализация переключения вкладок
+document.getElementById('tab-login').addEventListener('click', () => {
+  authMode = 'login'; document.getElementById('tab-login').classList.add('active'); document.getElementById('tab-register').classList.remove('active');
+  document.getElementById('a-submit').textContent = 'Войти'; document.getElementById('a-invite').style.display = 'none';
+});
+document.getElementById('tab-register').addEventListener('click', () => {
+  authMode = 'register'; document.getElementById('tab-register').classList.add('active'); document.getElementById('tab-login').classList.remove('active');
+  document.getElementById('a-submit').textContent = 'Регистрация'; document.getElementById('a-invite').style.display = 'block';
+});
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  try {
+    const res = await fetch('/api' + path, { ...opts, headers });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 403 && data.error === 'BANNED') { showBanMessage(data.ban_expires); throw new Error('Banned'); }
+    if (!res.ok) throw new Error(data.error || `Ошибка ${res.status}`);
+    return data;
+  } catch (err) { if (err.message === 'Failed to fetch') throw new Error('Нет связи с сервером.'); throw err; }
+}
+
+function showBanMessage(ban_expires) {
+  let timeStr = ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(ban_expires).toLocaleString();
+  document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;margin-bottom:10px;font-size:13px;line-height:1.4;">⛔ <b>АККАУНТ ЗАБЛОКИРОВАН</b><br>Срок: ${timeStr}</div>`;
+  localStorage.removeItem('scp_token'); state.token = null;
+}
+
+document.getElementById('a-submit').addEventListener('click', async () => {
+  const username = document.getElementById('a-username').value.trim();
+  const password = document.getElementById('a-password').value;
+  const invited_by = document.getElementById('a-invite').value.trim() || null;
+  const errEl = document.getElementById('a-error'); errEl.textContent = '';
+  if (!username || !password) return errEl.textContent = 'Заполните все поля';
+  const btn = document.getElementById('a-submit'); const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Загрузка...';
+  try {
+    const url = authMode === 'register' ? '/register' : '/login';
+    const data = await api(url, { method: 'POST', body: JSON.stringify({ username, password, invited_by }) });
+    state.token = data.token; state.me = data.user; state.read_deleted = data.user.read_deleted || false;
+    localStorage.setItem('scp_token', data.token); localStorage.setItem('scp_saved_username', data.user.username);
+    if (authMode === 'register' && data.recoveryCodes) alert('СОХРАНИТЕ КОДЫ:\n\n' + data.recoveryCodes.join('\n'));
+    enterChat();
+  } catch (e) { if (e.message !== 'Banned') errEl.textContent = e.message; } finally { btn.disabled = false; btn.textContent = orig; }
+});
+
+function updateReadDeletedStatusLabel(isChecked) {
+  const label = document.getElementById('read-deleted-status-label'); if (!label) return;
+  label.textContent = isChecked ? 'Статус: Функция чтения удаленных сообщений ВКЛЮЧЕНА' : 'Статус: Функция чтения удаленных сообщений ВЫКЛЮЧЕНА';
+  label.style.color = isChecked ? '#00ff9d' : '#ff4d4d';
+}
+
+function enterChat() {
+  authScreen.style.display = 'none'; chatScreen.classList.add('visible');
+  connectSocket(); loadChats();
+  document.getElementById('me-status').textContent = '@' + state.me.username;
+  document.getElementById('set-my-role').innerHTML = `<span style="color:${ROLE_COLOR[state.me.role] || 'var(--muted)'}">${ROLE_ICON[state.me.role] || '👤'} ${ROLE_LABEL[state.me.role] || state.me.role}</span>`;
+  document.getElementById('set-my-status').textContent = state.me.status === 'online' ? '🟢 В сети' : '⚪ Не в сети';
+  document.getElementById('set-my-id').textContent = state.me.id;
+  document.getElementById('set-my-ip').textContent = state.me.ip || 'Скрыт';
+  const roleBadge = document.getElementById('my-role-badge');
+  roleBadge.innerHTML = `<span style="color:${ROLE_COLOR[state.me.role] || 'var(--muted)'}">${ROLE_ICON[state.me.role] || '👤'} ${ROLE_LABEL[state.me.role] || 'user'}</span>`;
+  if (['sysadmin', 'admin', 'moderator', 'helper'].includes(state.me.role)) document.getElementById('admin-header-btn').style.display = 'block';
+  else document.getElementById('admin-header-btn').style.display = 'none';
+  if (state.me.role === 'sysadmin') document.getElementById('admin-grant-section').style.display = 'block';
+  else document.querySelectorAll('#user-role-select option[data-sysonly]').forEach(o => o.remove());
+  if (['sysadmin', 'admin'].includes(state.me.role)) {
+    document.getElementById('tab-btn-moderation').style.display = 'flex';
+    document.getElementById('tab-btn-support').style.display = 'flex';
+  }
+  populateInviteRoles();
+}
+
+const visualSettings = {
+  season: localStorage.getItem('scp_season') || 'winter',
+  weather: localStorage.getItem('scp_weather') || 'snow',
+  ghosts: localStorage.getItem('scp_ghosts') === 'true',
+  favorites: localStorage.getItem('scp_favorites') === 'true'
+};
+
+function applyVisualSettings() {
+  const root = document.documentElement;
+  if (visualSettings.season === 'winter') { root.style.setProperty('--hill-color', '#3b4252'); root.style.setProperty('--tree-color', '#4c566a'); root.style.setProperty('--ground-color', '#d8dee9'); }
+  else if (visualSettings.season === 'spring') { root.style.setProperty('--hill-color', '#2e5c3a'); root.style.setProperty('--tree-color', '#4a7c59'); root.style.setProperty('--ground-color', '#6b8e23'); }
+  else if (visualSettings.season === 'summer') { root.style.setProperty('--hill-color', '#1e3b26'); root.style.setProperty('--tree-color', '#2e5c3a'); root.style.setProperty('--ground-color', '#3b5c3c'); }
+  else if (visualSettings.season === 'autumn') { root.style.setProperty('--hill-color', '#4a2e1b'); root.style.setProperty('--tree-color', '#8a3b12'); root.style.setProperty('--ground-color', '#5c4033'); }
+}
+
+document.getElementById('season-select').value = visualSettings.season;
+document.getElementById('weather-select').value = visualSettings.weather;
+document.getElementById('ghosts-toggle').checked = visualSettings.ghosts;
+document.getElementById('favorites-toggle').checked = visualSettings.favorites;
+applyVisualSettings();
+
+document.getElementById('season-select').addEventListener('change', (e) => { visualSettings.season = e.target.value; localStorage.setItem('scp_season', visualSettings.season); applyVisualSettings(); });
+document.getElementById('weather-select').addEventListener('change', (e) => { visualSettings.weather = e.target.value; localStorage.setItem('scp_weather', visualSettings.weather); });
+document.getElementById('ghosts-toggle').addEventListener('change', (e) => { visualSettings.ghosts = e.target.checked; localStorage.setItem('scp_ghosts', visualSettings.ghosts); });
+document.getElementById('favorites-toggle').addEventListener('change', (e) => { visualSettings.favorites = e.target.checked; localStorage.setItem('scp_favorites', visualSettings.favorites); renderChatList(); });
+
+document.getElementById('open-settings').addEventListener('click', () => {
+  if (state.me.avatarUrl) document.getElementById('settings-avatar-preview').src = state.me.avatarUrl;
+  document.getElementById('settings-modal').classList.add('visible');
+});
+
+window.openProfile = async function(userId) {
+  if (!userId) return;
+  try {
+    const u = await api('/users/' + userId);
+    document.getElementById('profile-avatar').src = u.avatarUrl || '/favicon.png';
+    document.getElementById('profile-display-name').textContent = u.displayName || u.username;
+    document.getElementById('profile-username').textContent = '@' + u.username;
+    document.getElementById('profile-role').innerHTML = `<span style="color:${ROLE_COLOR[u.role] || 'var(--muted)'}">${ROLE_ICON[u.role] || '👤'} ${ROLE_LABEL[u.role] || u.role}</span>`;
+    document.getElementById('profile-id').textContent = u.id;
+    document.getElementById('profile-ip').textContent = u.ip || 'Скрыт';
+    const onlineEl = document.getElementById('profile-online');
+    if (u.status === 'online') { onlineEl.textContent = '🟢 В сети'; onlineEl.style.color = '#00ff9d'; }
+    else { onlineEl.textContent = '⚪ Не в сети'; onlineEl.style.color = 'var(--muted)'; }
+    const banEl = document.getElementById('profile-ban');
+    if (u.ban_expires && u.ban_expires !== 0) {
+      banEl.style.display = 'block';
+      banEl.textContent = `⛔ Заблокирован: ${u.ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(u.ban_expires).toLocaleString()}`;
+    } else banEl.style.display = 'none';
+    document.getElementById('profile-modal').classList.add('visible');
+  } catch (e) { alert(e.message); }
+};
+
+document.getElementById('header-avatar').addEventListener('click', () => {
+  if (state.currentChat) openProfile(state.currentChat.otherUserId || state.me.id);
+});
+document.getElementById('logout-btn').addEventListener('click', () => { localStorage.removeItem('scp_token'); window.location.reload(); });
+document.getElementById('delete-account-btn').addEventListener('click', async () => {
+  if (!confirm('Удалить аккаунт?')) return;
+  try { await api('/users/me', { method: 'DELETE' }); localStorage.removeItem('scp_token'); window.location.reload(); } catch (e) { alert(e.message); }
+});
+document.getElementById('avatar-upload-btn').addEventListener('click', () => document.getElementById('avatar-input').click());
+document.getElementById('avatar-input').addEventListener('change', () => {
+  const file = document.getElementById('avatar-input').files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('avatar', file);
+  fetch('/api/users/avatar', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token }, body: fd })
+  .then(r => r.json()).then(data => {
+    if(data.error) return alert(data.error);
+    state.me = data; document.getElementById('settings-avatar-preview').src = data.avatarUrl; loadChats();
+  }).catch(e => alert(e.message));
+});
+
+document.getElementById('admin-header-btn').addEventListener('click', () => {
+  document.getElementById('admin-dashboard-modal').classList.add('visible');
+  document.getElementById('read-deleted-toggle').checked = state.read_deleted;
+  updateReadDeletedStatusLabel(state.read_deleted);
+  populateInviteRoles();
+});
+document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.admin-tab[data-tab]').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-content').forEach(c => c.style.display = 'none');
+    tab.classList.add('active'); document.getElementById('tab-' + tab.dataset.tab).style.display = 'block';
+    if (tab.dataset.tab === 'staff') loadStaffList();
+  });
+});
+
+window.loadStaffList = async function() {
+  const box = document.getElementById('staff-list'); box.innerHTML = 'Загрузка...';
+  try {
+    const users = await api('/admin/users-list');
+    if (!users.length) { box.innerHTML = 'Никого нет'; return; }
+    box.innerHTML = users.map(u => `<div class="forward-item" style="cursor: default;"><div class="chat-avatar" style="width:32px;height:32px;font-size:13px;">${esc((u.username || '?')[0].toUpperCase())}</div><div style="flex:1;"><div style="font-weight:600; font-size:13px;">@${esc(u.username)} ${u.ban_expires ? '[BAN]' : ''}</div><div style="font-size:11px; color:${ROLE_COLOR[u.role]}; font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]} • ${u.ip}</div></div><button class="admin-btn" onclick="openProfile('${u.id}')">Профиль</button></div>`).join('');
+  } catch (e) { box.innerHTML = `Ошибка: ${e.message}`; }
+};
+
+window.populateInviteRoles = function() {
+  const select = document.getElementById('invite-role-select'); const section = document.getElementById('invite-section'); const hint = document.getElementById('invite-hint');
+  if (!select || !state.me) return;
+  const myRank = ROLE_RANK[state.me.role] || 0;
+  const available = Object.keys(ROLE_RANK).filter(r => ROLE_RANK[r] < myRank).sort((a, b) => ROLE_RANK[b] - ROLE_RANK[a]);
+  select.innerHTML = '';
+  if (available.length === 0) { if (section) section.style.display = 'none'; return; }
+  if (section) section.style.display = 'block';
+  available.forEach(r => { const opt = document.createElement('option'); opt.value = r; opt.textContent = `Для ${ROLE_LABEL[r].toLowerCase()}`; select.appendChild(opt); });
+  if (hint) hint.textContent = `// Максимальная роль, которую вы можете выдать: ${ROLE_LABEL[available[0]]}`;
+};
+
+window.generateInvite = async function() {
+  const role = document.getElementById('invite-role-select').value; if (!role) return alert('Не выбрана роль');
+  try { const data = await api('/admin/generate-invite', { method: 'POST', body: JSON.stringify({ role }) }); document.getElementById('invite-result').textContent = `Код: ${data.code}`; } catch (e) { alert(e.message); }
+};
+
+window.toggleReadDeleted = async function(isChecked) {
+  try {
+    await api('/users/settings', { method: 'PUT', body: JSON.stringify({ read_deleted: isChecked }) });
+    state.read_deleted = isChecked; state.me.read_deleted = isChecked; updateReadDeletedStatusLabel(isChecked);
+    if (state.currentChat) openChat(state.currentChat.id, state.currentChat.name, state.currentChat.avatarUrl, state.currentChat.isBlocked, state.currentChat.otherUserId, state.currentChat.ban_expires);
+  } catch (e) { alert(e.message); document.getElementById('read-deleted-toggle').checked = !isChecked; updateReadDeletedStatusLabel(!isChecked); }
+};
+
+function cleanUsernameInput(val) { return String(val || '').trim().replace(/^@/, ''); }
+window.deleteUser = async function() {
+  const username = cleanUsernameInput(document.getElementById('user-action-input').value);
+  if (!username || !confirm(`Удалить @${username}?`)) return;
+  try { await api('/admin/delete-user', { method: 'POST', body: JSON.stringify({ username }) }); alert('Удален'); loadChats(); } catch (e) { alert(e.message); }
+};
+window.handleBanPresetChange = function(val) { document.getElementById('user-ban-custom-minutes').style.display = val === 'custom' ? 'inline-block' : 'none'; };
+window.banUser = async function() {
+  const username = cleanUsernameInput(document.getElementById('user-ban-input').value);
+  const preset = document.getElementById('user-ban-duration').value;
+  let duration = preset === 'custom' ? parseInt(document.getElementById('user-ban-custom-minutes').value, 10) : parseInt(preset, 10);
+  if (!username) return alert('Введите Username'); if (isNaN(duration)) return alert('Неверно время');
+  try { await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username, duration }) }); alert('Пользователь забанен'); } catch (e) { alert(e.message); }
+};
+window.unbanUser = async function() {
+  const username = cleanUsernameInput(document.getElementById('user-ban-input').value); if (!username) return alert('Введите Username');
+  try { await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username, duration: 0 }) }); alert('Пользователь разбанен'); } catch (e) { alert(e.message); }
+};
+window.assignRole = async function() {
+  const username = cleanUsernameInput(document.getElementById('user-role-input').value); const role = document.getElementById('user-role-select').value;
+  if (!username) return alert('Введите Username');
+  try { await api('/admin/set-role', { method: 'POST', body: JSON.stringify({ username, role }) }); alert('Роль назначена'); } catch (e) { alert(e.message); }
+};
+window.grantAdmin = async function() {
+  const username = cleanUsernameInput(document.getElementById('grant-admin-input').value); if (!username || !confirm(`Выдать админа @${username}?`)) return;
+  try { await api('/admin/set-role', { method: 'POST', body: JSON.stringify({ username, role: 'admin' }) }); alert('Выдан админ'); } catch (e) { alert(e.message); }
+};
+window.revokeAdmin = async function() {
+  const username = cleanUsernameInput(document.getElementById('grant-admin-input').value); if (!username || !confirm(`Снять админа у @${username}?`)) return;
+  try { await api('/admin/set-role', { method: 'POST', body: JSON.stringify({ username, role: 'user' }) }); alert('Снят админ'); } catch (e) { alert(e.message); }
+};
+window.searchUserIp = async function() {
+  const username = cleanUsernameInput(document.getElementById('hash-input').value); if (!username) return;
+  try {
+    const users = await api('/users/search?q=' + encodeURIComponent(username));
+    const u = users.find(x => x.username.toLowerCase() === username.toLowerCase());
+    document.getElementById('diagnostic-log').style.display = 'block';
+    document.getElementById('diagnostic-log').innerHTML = u ? `[Log] User: @${u.username}<br>[Log] IP: ${u.ip}<br>[Log] Role: ${u.role}` : `[Log] Не найден`;
+  } catch (e) { alert(e.message); }
+};
+
+function updatePageTitle() {
+  const totalUnread = Object.values(state.unreadCounts).reduce((a, b) => a + b, 0);
+  document.title = totalUnread > 0 ? `(${totalUnread}) SCP Foundation — Secure Channel` : `SCP Foundation — Secure Channel`;
+}
+
+function connectSocket() {
+  if (state.socket) state.socket.disconnect();
+  state.socket = io({ auth: { token: state.token } });
+  state.socket.on('forceLogout', (data) => {
+    state.socket.disconnect(); document.getElementById('chat').classList.remove('visible'); document.getElementById('auth').style.display = 'flex';
+    if (data.deleted) document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;">Аккаунт удален.</div>`;
+    else showBanMessage(data.ban_expires);
+  });
+  state.socket.on('roleChanged', async () => { try { state.me = await api('/me'); enterChat(); if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList(); } catch (e) {} });
+  state.socket.on('refreshData', async () => {
+    try {
+      state.me = await api('/me'); await loadChats();
+      if (state.currentChat) {
+        const updatedChat = state.chats.find(c => c.id === state.currentChat.id);
+        if (updatedChat) openChat(updatedChat.id, updatedChat.name, updatedChat.avatarUrl, updatedChat.isBlocked, updatedChat.otherUserId, updatedChat.ban_expires);
+      }
+      if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList();
+    } catch (e) {}
+  });
+  state.socket.on('newMessage', async (msg) => {
+    if (String(msg.sender.id) === String(state.me.id)) return;
+    if (!state.chats.some(c => c.id === msg.chatId)) await loadChats();
+    if (state.currentChat && msg.chatId === state.currentChat.id) {
+      appendMessage(msg); document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+      api('/chats/' + state.currentChat.id + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
+    } else { state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1; renderChatList(); updatePageTitle(); }
+  });
+  state.socket.on('messageDelivered', ({ messageId }) => {
+    const el = document.getElementById('msg-' + messageId); if (!el) return;
+    const statusEl = el.querySelector('.msg-status');
+    if (statusEl && statusEl.dataset.state === 'sent') { statusEl.dataset.state = 'delivered'; statusEl.classList.add('delivered'); statusEl.innerHTML = `<span class="tick">✓</span><span class="tick">✓</span>`; }
+  });
+  state.socket.on('messagesRead', ({ messageIds }) => {
+    messageIds.forEach(id => {
+      const el = document.getElementById('msg-' + id); if (!el) return;
+      const statusEl = el.querySelector('.msg-status');
+      if (statusEl) { statusEl.dataset.state = 'read'; statusEl.classList.remove('delivered'); statusEl.classList.add('read'); statusEl.innerHTML = `<span class="tick">✓</span><span class="tick">✓</span>`; }
+    });
+  });
+  state.socket.on('messageDeleted', ({ messageId, type }) => {
+    const el = document.getElementById('msg-' + messageId); if (!el) return;
+    const isAdmin = state.me && ['sysadmin', 'admin'].includes(state.me.role);
+    if (type === 'all' && isAdmin && state.read_deleted) {
+      const msgDiv = el.querySelector('.msg');
+      if (msgDiv && !msgDiv.classList.contains('deleted-msg')) { msgDiv.classList.add('deleted-msg'); msgDiv.innerHTML = '<div><i>Сообщение удалено</i></div><div class="deleted-label" style="display:flex">🗑️ Удалено</div>'; }
+    } else el.remove();
+  });
+  state.socket.on('chatCleared', ({ chatId }) => { if (state.currentChat && state.currentChat.id === chatId) document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; });
+}
+
+async function loadChats() { state.chats = await api('/chats'); renderChatList(); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+function escAttr(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+let favoriteChats = JSON.parse(localStorage.getItem('scp_fav_chats') || '[]');
+window.toggleFavorite = function(chatId, event) {
+  if (event) event.stopPropagation();
+  if (favoriteChats.includes(chatId)) favoriteChats = favoriteChats.filter(id => id !== chatId); else favoriteChats.push(chatId);
+  localStorage.setItem('scp_fav_chats', JSON.stringify(favoriteChats)); renderChatList();
+};
+
+window.openSavedMessages = async function() {
+  try {
+    const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId: state.me.id }) });
+    await loadChats(); openChat(chat.id, 'Избранное ⭐', state.me.avatarUrl, false, state.me.id, 0);
+  } catch (e) { alert(e.message); }
+};
+
+function renderChatList() {
+  const list = document.getElementById('chat-list');
+  if (!state.chats.length) { list.innerHTML = '<div class="empty">НЕТ ЧАТОВ<br><br>Используйте поиск выше</div>'; return; }
+  let sortedChats = [...state.chats];
+  if (visualSettings.favorites) sortedChats.sort((a, b) => (favoriteChats.includes(b.id) ? 1 : 0) - (favoriteChats.includes(a.id) ? 1 : 0));
+  list.innerHTML = sortedChats.map(c => {
+    const unread = state.unreadCounts[c.id] || 0;
+    const isFav = favoriteChats.includes(c.id);
+    const targetId = c.otherUserId || state.me.id;
+    const avatar = c.avatarUrl ? `<img src="${escAttr(c.avatarUrl)}" class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')" alt="">` : `<div class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')">${esc((c.name || '?')[0].toUpperCase())}</div>`;
+    const active = state.currentChat && state.currentChat.id === c.id ? ' active' : '';
+    const starBtn = visualSettings.favorites ? `<div onclick="toggleFavorite('${escAttr(c.id)}', event)" style="font-size: 18px; cursor: pointer; color: ${isFav ? '#ffd700' : 'var(--border)'}; margin-left: auto; padding: 0 5px;">★</div>` : '';
+    let roleBadgeHtml = '';
+    if (c.role && c.role !== 'user') roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 6px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
+    const isBanned = c.ban_expires && c.ban_expires !== 0 && (c.ban_expires === -1 || c.ban_expires > Date.now());
+    return `<div class="chat-item${active}" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0})">
+      ${avatar}
+      <div class="chat-info" style="flex: 1; min-width: 0;">
+        <div class="name">${esc(c.name)} ${roleBadgeHtml}</div>
+        <div class="preview">${isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован вами' : (c.isSelf ? 'Личные заметки' : 'Открыть чат'))}${unread ? ` <span class="badge">${unread}</span>` : ''}</div>
+      </div>
+      ${starBtn}
+    </div>`;
+  }).join('');
+}
+
+async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires = 0) {
+  state.currentChat = { id: chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires };
+  state.unreadCounts[chatId] = 0; updatePageTitle();
+  document.getElementById('chat-title').textContent = name;
+  document.getElementById('composer').style.display = isBlocked ? 'none' : 'flex';
+  document.getElementById('blocked-banner').style.display = isBlocked ? 'block' : 'none';
+  const userBannedBanner = document.getElementById('user-banned-banner');
+  const isBanned = ban_expires && ban_expires !== 0 && (ban_expires === -1 || ban_expires > Date.now());
+  if (isBanned) { userBannedBanner.style.display = 'block'; userBannedBanner.textContent = `⛔ Заблокирован (${ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(ban_expires).toLocaleString()})`; }
+  else userBannedBanner.style.display = 'none';
+  document.getElementById('clear-chat-btn').style.display = 'inline-block';
+  document.getElementById('chat-options-btn').style.display = 'inline-block';
+  const headerAvatar = document.getElementById('header-avatar');
+  if (avatarUrl) { headerAvatar.src = avatarUrl; headerAvatar.style.display = 'block'; } else headerAvatar.style.display = 'none';
+  const msgsEl = document.getElementById('messages'); msgsEl.innerHTML = 'Загрузка...';
+  if (state.socket) state.socket.emit('joinChat', chatId);
+  try {
+    const msgs = await api('/chats/' + chatId + '/messages');
+    msgsEl.innerHTML = '';
+    if (!msgs.length) msgsEl.innerHTML = '<div class="empty">Сообщений пока не было</div>';
+    msgs.forEach(m => appendMessage(m, false)); msgsEl.scrollTop = msgsEl.scrollHeight;
+    api('/chats/' + chatId + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
+  } catch (e) { msgsEl.innerHTML = '<div class="empty">Ошибка: ' + esc(e.message) + '</div>'; }
+  renderChatList(); document.getElementById('sidebar').classList.remove('mobile-open');
+}
+window.openChat = openChat;
+
+function appendMessage(msg, scroll = true) {
+  const msgsEl = document.getElementById('messages');
+  if (document.getElementById('msg-' + msg.id)) return;
+  if (msgsEl.innerHTML === 'Загрузка...' || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
+  const mine = msg.sender.id === state.me?.id;
+  const row = document.createElement('div');
+  row.className = 'msg-row' + (mine ? ' mine' : ''); row.id = 'msg-' + msg.id;
+  const isAdmin = state.me && ['sysadmin', 'admin'].includes(state.me.role);
+  const canReadDeleted = isAdmin && state.read_deleted;
+  let content = ''; let rawText = msg.text || '';
+
+  if (msg.is_deleted && !canReadDeleted) {
+    content += `<div><i>Сообщение удалено</i></div>`;
+  } else {
+    if (rawText.startsWith('> ')) {
+      const lines = rawText.split('\n'); const quoteLine = lines[0].replace('> ', ''); const colonIndex = quoteLine.indexOf(':');
+      let qName = 'Пользователь'; let qText = quoteLine;
+      if (colonIndex !== -1) { qName = quoteLine.slice(0, colonIndex).trim(); qText = quoteLine.slice(colonIndex + 1).trim(); }
+      const mainText = lines.slice(1).join('\n').trim();
+      content += `<div class="reply-quote"><div class="rq-name">@${esc(qName)}</div><div class="rq-text">${esc(qText)}</div></div>`;
+      if (mainText) content += `<div>${esc(mainText)}</div>`;
+    } else if (rawText) content += `<div>${esc(rawText)}</div>`;
+
+    if (Array.isArray(msg.attachments) && msg.attachments.length) {
+      window._attStore = window._attStore || {};
+      window._attStore[msg.id] = { attachments: msg.attachments, chatName: state.currentChat ? state.currentChat.name : '', senderName: msg.sender.username };
+      content += `<div class="att-grid">`;
+      msg.attachments.forEach((a, idx) => {
+        content += `<div class="att-chip" onclick="event.stopPropagation(); openAttViewer('${escAttr(msg.id)}', ${idx})"><span class="att-chip-icon">${getAttIcon(a)}</span><span class="att-chip-name">${esc(a.name || 'file')}</span></div>`;
+      });
+      content += `</div>`;
+    }
+  }
+
+  const deletedLabel = msg.is_deleted ? `<div class="deleted-label" style="display:flex">🗑️ Удалено</div>` : '';
+  let statusHtml = '';
+  if (mine && !msg.isSelfChat) {
+    if (msg.read) statusHtml = `<div class="msg-status read" data-state="read"><span class="tick">✓</span><span class="tick">✓</span></div>`;
+    else if (msg.delivered) statusHtml = `<div class="msg-status delivered" data-state="delivered"><span class="tick">✓</span><span class="tick">✓</span></div>`;
+    else statusHtml = `<div class="msg-status" data-state="sent"><span class="tick">✓</span></div>`;
+  }
+  let whoHtml = '';
+  if (!mine) {
+    let roleBadge = ''; const r = msg.sender.role;
+    if (r && r !== 'user') roleBadge = ` <span class="rotating-badge badge-${r}" title="${(ROLE_LABEL[r] || r).toUpperCase()}">${(ROLE_LABEL[r] || r).toUpperCase()}</span>`;
+    whoHtml = `<div class="who">@${esc(msg.sender.username)}${roleBadge}</div>`;
+  }
+  const isMsgDeletedClass = msg.is_deleted ? 'deleted-msg' : '';
+  row.innerHTML = `
+    <div class="msg-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(msg.sender.id)}')" title="Открыть профиль">${esc((msg.sender.username || '?')[0].toUpperCase())}</div>
+    <div class="msg ${isMsgDeletedClass}">${whoHtml}${content}${deletedLabel}${statusHtml}</div>
+  `;
+  row.querySelector('.msg').addEventListener('click', (e) => {
+    if (['IMG', 'VIDEO', 'AUDIO', 'A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip')) return;
+    openMsgActions(msg);
+  });
+  msgsEl.appendChild(row);
+  if (scroll) msgsEl.scrollTop = msgsEl.scrollHeight;
+}
+
+function openMsgActions(msg) {
+  state.activeMsgId = msg.id; state.activeMsg = msg;
+  const isOwn = msg.sender.id === state.me.id;
+  const canDeleteAll = isOwn || ['sysadmin', 'admin', 'moderator'].includes(state.me.role);
+  document.getElementById('msg-del-all-btn').style.display = canDeleteAll ? 'block' : 'none';
+  document.getElementById('msg-actions-modal').classList.add('visible');
+}
+document.getElementById('msg-reply-btn').addEventListener('click', () => {
+  const msg = state.activeMsg; if (!msg) return;
+  state.replyTo = msg; document.getElementById('reply-bar').classList.add('visible');
+  document.getElementById('reply-bar-name').textContent = '@' + msg.sender.username;
+  document.getElementById('reply-bar-text').textContent = msg.text || '(вложение)';
+  document.getElementById('msg-actions-modal').classList.remove('visible'); document.getElementById('msg-input').focus();
+});
+document.getElementById('close-reply').addEventListener('click', () => { state.replyTo = null; document.getElementById('reply-bar').classList.remove('visible'); });
+document.getElementById('msg-forward-btn').addEventListener('click', () => {
+  const msg = state.activeMsg; if (!msg) return;
+  const list = document.getElementById('forward-list');
+  list.innerHTML = state.chats.map(c => `<div class="forward-item" onclick="forwardTo('${escAttr(c.id)}')"><div class="chat-avatar">${esc((c.name || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(c.name)}</div></div></div>`).join('') || '<div class="empty">Нет доступных чатов</div>';
+  document.getElementById('msg-actions-modal').classList.remove('visible'); document.getElementById('forward-modal').classList.add('visible');
+});
+window.forwardTo = async function(chatId) {
+  const msg = state.activeMsg; if (!msg) return;
+  try { await api('/messages/' + msg.id + '/forward', { method: 'POST', body: JSON.stringify({ chatId }) }); document.getElementById('forward-modal').classList.remove('visible'); alert('Переслано'); } catch (e) { alert(e.message); }
+};
+document.getElementById('msg-del-me-btn').addEventListener('click', () => {
+  const msg = state.activeMsg; if (!msg) return;
+  const el = document.getElementById('msg-' + msg.id); if (el) el.remove();
+  document.getElementById('msg-actions-modal').classList.remove('visible');
+});
+document.getElementById('msg-del-all-btn').addEventListener('click', async () => {
+  const msg = state.activeMsg; if (!msg || !confirm('Удалить у всех?')) return;
+  try { await api('/messages/' + msg.id, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); document.getElementById('msg-actions-modal').classList.remove('visible'); } catch (e) { alert(e.message); }
+});
+
+// ==========================================
+// ЛОГИКА ЗАГРУЗКИ ФАЙЛОВ В S3
+// ==========================================
+let currentXhrUpload = null;
+let isUploading = false;
+
+async function uploadFilesWithProgress(files, caption = '') {
+  if (!state.currentChat) return;
+  if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
+  if (isUploading) return alert('Подождите, предыдущая загрузка ещё идёт');
+  if (!files || !files.length) return;
+
+  isUploading = true;
+  const progressEl = document.getElementById('file-progress');
+  const progressText = document.getElementById('file-progress-text');
+  progressEl.classList.add('visible');
+  const uploadedFilesData = [];
+  const totalFiles = files.length;
+
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const label = totalFiles === 1 ? file.name : `Файл ${i+1} из ${totalFiles}`;
+      progressText.textContent = `⏳ Подготовка ${label}...`;
+
+      // 1. Получаем ссылку у сервера
+      const { uploadUrl, key } = await api(`/chats/${state.currentChat.id}/get-upload-url`, {
+        method: 'POST',
+        body: JSON.stringify({ fileName: file.name, fileType: file.type || 'application/octet-stream' })
+      });
+
+      // 2. Загружаем напрямую в S3
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        currentXhrUpload = xhr;
+        
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            progressText.textContent = `⏳ Отправка ${label}: ${percent}%`;
+          }
+        });
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error('Ошибка S3: ' + xhr.status));
+        });
+        xhr.addEventListener('error', () => reject(new Error('Сетевая ошибка S3')));
+        xhr.addEventListener('abort', () => reject(new Error('Отменено')));
+
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+        xhr.send(file);
+      });
+
+      uploadedFilesData.push({ key: key, name: file.name, type: file.type || 'application/octet-stream', size: file.size });
+    }
+
+    // 3. Сообщаем серверу
+    progressText.textContent = `⏳ Сохранение сообщения...`;
+    const msg = await api(`/chats/${state.currentChat.id}/confirm-upload`, {
+      method: 'POST',
+      body: JSON.stringify({ files: uploadedFilesData, caption })
+    });
+    appendMessage(msg);
+  } catch (err) {
+    alert('Ошибка загрузки: ' + err.message);
+  } finally {
+    progressEl.classList.remove('visible');
+    currentXhrUpload = null;
+    isUploading = false;
+  }
+}
+
+document.getElementById('cancel-upload-btn').addEventListener('click', () => {
+  if (currentXhrUpload) { currentXhrUpload.abort(); currentXhrUpload = null; isUploading = false; document.getElementById('file-progress').classList.remove('visible'); }
+});
+
+// Вставка из буфера
+let stagedPastedFiles = [];
+const msgInputArea = document.getElementById('msg-input');
+msgInputArea.addEventListener('paste', (e) => {
+  const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  const foundFiles = [];
+  for (const item of items) { if (item.kind === 'file') { const f = item.getAsFile(); if (f) foundFiles.push(f); } }
+  if (foundFiles.length) {
+    e.preventDefault();
+    stagedPastedFiles = foundFiles;
+    const modal = document.getElementById('paste-file-modal');
+    const imgPrev = document.getElementById('paste-file-img-preview');
+    const namePrev = document.getElementById('paste-file-name-preview');
+    document.getElementById('paste-file-caption').value = '';
+    if (foundFiles.length === 1 && foundFiles[0].type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => { imgPrev.src = event.target.result; imgPrev.style.display = 'block'; namePrev.style.display = 'none'; };
+      reader.readAsDataURL(foundFiles[0]);
+    } else {
+      imgPrev.style.display = 'none'; namePrev.style.display = 'block';
+      namePrev.textContent = foundFiles.length === 1 ? (foundFiles[0].name || 'pasted_file') : foundFiles.map(f => f.name || 'file').join('\n');
+      namePrev.style.whiteSpace = 'pre-wrap'; namePrev.style.textAlign = 'left';
+    }
+    const targetEl = document.getElementById('paste-file-target');
+    if (targetEl) targetEl.textContent = 'Отправка в: @' + (state.currentChat ? state.currentChat.name : '—') + (foundFiles.length > 1 ? ` • ${foundFiles.length} файл(ов)` : '');
+    modal.classList.add('visible');
+    document.getElementById('paste-file-caption').focus();
+  }
+});
+window.cancelPastedFile = function() { stagedPastedFiles = []; document.getElementById('paste-file-modal').classList.remove('visible'); };
+document.getElementById('paste-file-send-btn').addEventListener('click', () => {
+  if (!stagedPastedFiles.length || !state.currentChat) return;
+  const caption = document.getElementById('paste-file-caption').value.trim();
+  const files = stagedPastedFiles.slice(); cancelPastedFile(); uploadFilesWithProgress(files, caption);
+});
+
+// Drag and Drop
+(function() {
+  const overlay = document.createElement('div');
+  overlay.id = 'drag-overlay';
+  overlay.style.cssText = `position: fixed; inset: 0; z-index: 99997; background: rgba(13,17,23,0.85); backdrop-filter: blur(4px); border: 3px dashed var(--accent); display: none; align-items: center; justify-content: center; font-family: 'Fira Code', monospace; font-size: 20px; color: var(--accent); pointer-events: none; text-align: center; padding: 20px;`;
+  overlay.textContent = '📥 Отпустите файлы чтобы отправить'; document.body.appendChild(overlay);
+  let dragDepth = 0;
+  window.addEventListener('dragenter', (e) => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) { dragDepth++; if (state.currentChat && !state.currentChat.isBlocked) overlay.style.display = 'flex'; } });
+  window.addEventListener('dragover', (e) => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+  window.addEventListener('dragleave', (e) => { dragDepth--; if (dragDepth <= 0) { overlay.style.display = 'none'; dragDepth = 0; } });
+  window.addEventListener('drop', (e) => {
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+      e.preventDefault(); overlay.style.display = 'none'; dragDepth = 0;
+      if (!state.currentChat) return alert('Сначала выберите чат');
+      if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
+      const files = Array.from(e.dataTransfer.files);
+      const caption = document.getElementById('msg-input').value.trim();
+      document.getElementById('msg-input').value = '';
+      uploadFilesWithProgress(files, caption);
+    } else { overlay.style.display = 'none'; dragDepth = 0; }
+  });
+})();
+
+document.getElementById('composer').addEventListener('submit', async (e) => {
+  e.preventDefault(); const input = document.getElementById('msg-input'); const text = input.value.trim();
+  if (!text || !state.currentChat) return;
+  input.value = ''; let body = text;
+  if (state.replyTo) body = `> ${state.replyTo.sender.username}: ${(state.replyTo.text || '(файл)').slice(0, 80)}\n${text}`;
+  state.replyTo = null; document.getElementById('reply-bar').classList.remove('visible');
+  try { const msg = await api('/chats/' + state.currentChat.id + '/messages', { method: 'POST', body: JSON.stringify({ text: body }) }); appendMessage(msg); } catch (e) { alert(e.message); }
+});
+document.getElementById('file-btn').addEventListener('click', () => {
+  if (!state.currentChat) return alert('Выберите чат');
+  if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
+  document.getElementById('file-input').click();
+});
+document.getElementById('file-input').addEventListener('change', () => {
+  const fileInput = document.getElementById('file-input'); const files = Array.from(fileInput.files || []);
+  if (!files.length || !state.currentChat) return;
+  if (state.currentChat.isBlocked) { fileInput.value = ''; return alert('Пользователь заблокирован'); }
+  const caption = document.getElementById('msg-input').value.trim(); document.getElementById('msg-input').value = '';
+  fileInput.value = ''; uploadFilesWithProgress(files, caption);
+});
+
+// Очистка чата
+document.getElementById('clear-chat-btn').addEventListener('click', () => { if (state.currentChat) document.getElementById('clear-modal').classList.add('visible'); });
+document.getElementById('clear-me-btn').addEventListener('click', () => { if (state.currentChat) { document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } });
+document.getElementById('clear-all-btn').addEventListener('click', async () => {
+  if (!state.currentChat || !confirm('Очистить чат у всех?')) return;
+  try { await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } catch (e) { alert(e.message); }
+});
+
+// Настройки чата
+document.getElementById('chat-options-btn').addEventListener('click', () => {
+  if (!state.currentChat) return;
+  document.getElementById('block-user-btn').style.display = state.currentChat.isBlocked ? 'none' : 'block';
+  document.getElementById('unblock-user-btn').style.display = state.currentChat.isBlocked ? 'block' : 'none';
+  const viewProfileBtn = document.getElementById('view-profile-btn');
+  if (state.currentChat.otherUserId) { viewProfileBtn.style.display = 'block'; viewProfileBtn.onclick = () => { document.getElementById('chat-settings-modal').classList.remove('visible'); openProfile(state.currentChat.otherUserId); }; }
+  else viewProfileBtn.style.display = 'none';
+  document.getElementById('chat-settings-modal').classList.add('visible');
+});
+document.getElementById('block-user-btn').addEventListener('click', async () => {
+  if (!state.currentChat || !state.currentChat.otherUserId) return;
+  try { await api('/users/' + state.currentChat.otherUserId + '/block', { method: 'POST', body: '{}' }); state.currentChat.isBlocked = true; document.getElementById('composer').style.display = 'none'; document.getElementById('blocked-banner').style.display = 'block'; document.getElementById('chat-settings-modal').classList.remove('visible'); loadChats(); } catch (e) { alert(e.message); }
+});
+document.getElementById('unblock-user-btn').addEventListener('click', async () => {
+  if (!state.currentChat || !state.currentChat.otherUserId) return;
+  try { await api('/users/' + state.currentChat.otherUserId + '/unblock', { method: 'POST', body: '{}' }); state.currentChat.isBlocked = false; document.getElementById('composer').style.display = 'flex'; document.getElementById('blocked-banner').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible'); loadChats(); } catch (e) { alert(e.message); }
+});
+document.getElementById('delete-chat-btn').addEventListener('click', async () => {
+  if (!state.currentChat || !confirm('Удалить чат у себя?')) return;
+  try {
+    await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'me' }) });
+    state.currentChat = null; document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
+    document.getElementById('chat-title').textContent = 'Выберите чат'; document.getElementById('composer').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible');
+    document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar').style.display = 'none';
+    loadChats();
+  } catch (e) { alert(e.message); }
+});
+
+// Поиск
+let searchTimeout = null;
+document.getElementById('user-search').addEventListener('input', (e) => {
+  const q = e.target.value.trim(); clearTimeout(searchTimeout);
+  if (!q) { renderChatList(); return; }
+  searchTimeout = setTimeout(async () => {
+    try {
+      const users = await api('/users/search?q=' + encodeURIComponent(q));
+      const list = document.getElementById('chat-list');
+      if (!users.length) { list.innerHTML = '<div class="empty">Ничего не найдено</div>'; return; }
+      list.innerHTML = users.map(u => `<div class="chat-item" onclick="startChat('${escAttr(u.id)}')"><div class="chat-avatar">${esc((u.username || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">@${esc(u.username)}</div><div class="preview">${u.status === 'online' ? '🟢 online' : '⚪ offline'} • ${esc(ROLE_LABEL[u.role] || u.role)}</div></div></div>`).join('');
+    } catch (err) {}
+  }, 250);
+});
+window.startChat = async function(userId) {
+  try { const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId }) }); await loadChats(); document.getElementById('user-search').value = ''; openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires || 0); } catch (e) { alert(e.message); }
+};
+
+// Мобильная адаптация и ввод
+document.getElementById('back-btn').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('mobile-open'); });
+const msgInput = document.getElementById('msg-input');
+msgInput.addEventListener('input', () => { msgInput.style.height = 'auto'; msgInput.style.height = Math.min(msgInput.scrollHeight, 140) + 'px'; });
+msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('composer').dispatchEvent(new Event('submit')); } });
+
+// ==========================================
+// ПЛАВАЮЩЕЕ ОКНО ПРОСМОТРА ВЛОЖЕНИЙ
+// ==========================================
+let _attViewerState = { attachments: [], index: 0, chatName: '', senderName: '' };
+window.openAttViewer = function(msgId, index) {
+  const data = window._attStore && window._attStore[msgId]; if (!data) return;
+  _attViewerState = { attachments: data.attachments, index: Math.max(0, Math.min(index || 0, data.attachments.length - 1)), chatName: data.chatName || '', senderName: data.senderName || '' };
+  renderAttViewer(); document.getElementById('att-viewer').classList.add('visible');
+};
+window.closeAttViewer = function() { document.getElementById('att-viewer').classList.remove('visible'); };
+window.navAttViewer = function(dir) {
+  const n = _attViewerState.index + dir;
+  if (n < 0 || n >= _attViewerState.attachments.length) return;
+  _attViewerState.index = n; renderAttViewer();
+};
+
+function renderAttViewer() {
+  const { attachments, index, chatName, senderName } = _attViewerState;
+  const a = attachments[index]; if (!a) return;
+  document.getElementById('att-viewer-title').textContent = a.name || 'Файл';
+  document.getElementById('att-viewer-meta').textContent = `От: @${senderName} → Чат: @${chatName} • ${index + 1} / ${attachments.length}`;
+  const body = document.getElementById('att-viewer-body'); const url = a.url || ''; const mime = a.mime || '';
+  if (mime.startsWith('image/')) body.innerHTML = `<img src="${escAttr(url)}" alt="">`;
+  else if (mime.startsWith('video/')) body.innerHTML = `<video src="${escAttr(url)}" controls autoplay></video>`;
+  else if (mime.startsWith('audio/')) body.innerHTML = `<audio src="${escAttr(url)}" controls autoplay></audio>`;
+  else {
+    body.innerHTML = `<div style="text-align: center; width: 100%;">
+        <div style="font-size: 48px; margin-bottom: 15px;">${getAttIcon(a)}</div>
+        <a class="file-link" href="${escAttr(url)}" target="_blank" download="${escAttr(a.name || 'file')}" style="display: inline-flex; justify-content: center; padding: 12px 24px; font-size: 14px; background: var(--accent); color: #000; border: none;">
+          📥 Скачать ${esc(a.name || 'file')} (${formatSize(a.size)})
+        </a>
+      </div>`;
+  }
+  const nav = document.getElementById('att-viewer-nav');
+  if (attachments.length > 1) {
+    nav.style.display = 'flex';
+    nav.innerHTML = `<button onclick="navAttViewer(-1)" ${index === 0 ? 'disabled' : ''}>←</button><span>${index + 1} / ${attachments.length}</span><button onclick="navAttViewer(1)" ${index === attachments.length - 1 ? 'disabled' : ''}>→</button>`;
+  } else { nav.style.display = 'none'; nav.innerHTML = ''; }
+}
+
+function formatSize(bytes) {
+  if (!bytes) return '0 B'; const units = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0, n = bytes;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return n.toFixed(1) + ' ' + units[i];
+}
+function getAttIcon(a) {
+  const mime = a.mime || ''; const name = (a.name || '').toLowerCase();
+  if (mime.startsWith('image/')) return '🖼️'; if (mime.startsWith('video/')) return '🎬'; if (mime.startsWith('audio/')) return '🎵';
+  if (name.endsWith('.pdf')) return '📄'; if (/\.(zip|rar|7z|tar|gz|bz2|xz|zst)$/.test(name)) return '📦';
+  if (/\.(doc|docx)$/.test(name)) return '📝'; if (/\.(xls|xlsx|csv)$/.test(name)) return '📊'; if (/\.(ppt|pptx)$/.test(name)) return '📽️';
+  return '📎';
+}
+
+// Перетаскивание окна просмотра
+(function() {
+  const el = document.getElementById('att-viewer-content'); const handle = document.getElementById('att-viewer-header');
+  if (!el || !handle) return; let isDown = false, offsetX = 0, offsetY = 0;
+  const start = (cx, cy) => { isDown = true; const rect = el.getBoundingClientRect(); el.style.left = rect.left + 'px'; el.style.top = rect.top + 'px'; el.style.transform = 'none'; offsetX = cx - rect.left; offsetY = cy - rect.top; };
+  const move = (cx, cy) => { if (!isDown) return; let nx = cx - offsetX; let ny = cy - offsetY; nx = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, nx)); ny = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, ny)); el.style.left = nx + 'px'; el.style.top = ny + 'px'; };
+  const end = () => { isDown = false; };
+  handle.addEventListener('mousedown', (e) => { if (e.target.closest('.att-viewer-close')) return; start(e.clientX, e.clientY); e.preventDefault(); });
+  window.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
+  window.addEventListener('mouseup', end);
+  handle.addEventListener('touchstart', (e) => { if (e.target.closest('.att-viewer-close')) return; const t = e.touches[0]; start(t.clientX, t.clientY); }, { passive: true });
+  window.addEventListener('touchmove', (e) => { if (!isDown) return; const t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: true });
+  window.addEventListener('touchend', end);
+})();
+
+// Фоновые эффекты
+(function() {
+  const canvas = document.getElementById('fx-canvas'); const ctx = canvas.getContext('2d');
+  let w = canvas.width = window.innerWidth; let h = canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; });
+  let particles = [];
+  function initParticles() {
+    particles = []; const count = visualSettings.weather !== 'none' ? 80 : 0;
+    for (let i = 0; i < count; i++) {
+      particles.push({ x: Math.random() * w, y: Math.random() * h, vx: visualSettings.weather === 'rain' ? (Math.random() - 0.5) * 2 : (Math.random() - 0.5) * 0.5, vy: visualSettings.weather === 'rain' ? Math.random() * 5 + 5 : Math.random() * 1 + 0.5, r: visualSettings.weather === 'rain' ? Math.random() * 1 + 0.5 : Math.random() * 2 + 1 });
+    }
+  }
+  setInterval(() => { if (visualSettings.weather !== 'none' && particles.length === 0) initParticles(); if (visualSettings.weather === 'none' && particles.length > 0) particles = []; }, 1000);
+  initParticles();
+  function tick() {
+    ctx.clearRect(0, 0, w, h);
+    if (visualSettings.weather === 'rain') {
+      ctx.strokeStyle = 'rgba(150, 200, 255, 0.4)'; ctx.lineWidth = 1;
+      particles.forEach(p => { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.vx, p.y + p.vy); ctx.stroke(); p.x += p.vx; p.y += p.vy; if (p.y > h) { p.y = -10; p.x = Math.random() * w; } });
+    } else if (visualSettings.weather === 'snow') {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      particles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); p.x += Math.sin(p.y * 0.02) * 1; p.y += p.vy; if (p.y > h) { p.y = -10; p.x = Math.random() * w; } });
+    }
+    if (visualSettings.ghosts) {
+      const time = Date.now() * 0.001;
+      for (let i = 0; i < 5; i++) {
+        const px = w / 2 + Math.sin(time + i * 2) * (w / 2); const py = h / 2 + Math.cos(time * 0.8 + i * 3) * (h / 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.03)'; ctx.beginPath(); ctx.arc(px, py, 60 + Math.sin(time * 2 + i) * 20, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+// Авто-вход
+(async () => {
+  if (state.token) {
+    try { state.me = await api('/me'); state.read_deleted = state.me.read_deleted || false; enterChat(); }
+    catch (e) { if (e.message !== 'Banned') { localStorage.removeItem('scp_token'); state.token = null; } }
+  }
+})();
+</script>
+</body>
+</html>
