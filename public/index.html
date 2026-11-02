@@ -274,6 +274,8 @@
       <div class="admin-tab" data-tab="users">👥 Управление пользователями</div>
       <div class="admin-tab" data-tab="staff">📋 Список персонала</div>
       <div class="admin-tab" data-tab="support" id="tab-btn-support" style="display: none;">💬 Поддержка & Логи</div>
+      <!-- НОВАЯ ВКЛАДКА: Срочные оповещения -->
+      <div class="admin-tab" data-tab="alerts" id="tab-btn-alerts" style="display: none; color: #ff3333; font-weight: bold;">🚨 Срочные оповещения</div>
       <div style="flex: 1;"></div>
       <div class="admin-tab" style="color: #ff3333; border-left-color: transparent;" onclick="document.getElementById('admin-dashboard-modal').classList.remove('visible')">✖ Закрыть</div>
     </div>
@@ -379,6 +381,22 @@
           <div class="log-box" id="anomaly-log">[System] Monitoring started...<br></div>
         </div>
       </div>
+
+      <!-- НОВАЯ ВКЛАДКА: Срочные оповещения -->
+      <div id="tab-alerts" class="admin-tab-content" style="display: none;">
+        <div class="admin-header"><h2>Срочные оповещения</h2></div>
+        <div class="admin-section">
+          <h4>📢 Отправить оповещение всем пользователям</h4>
+          <p style="font-size: 12px; color: #ccaaaa; margin-bottom: 15px;">
+            Это сообщение мгновенно появится на экране у всех пользователей в сети. Используйте только в экстренных случаях.
+          </p>
+          <div class="admin-input-group" style="flex-direction: column; align-items: stretch;">
+            <textarea id="alert-text-input" placeholder="Введите текст срочного оповещения..." rows="4" style="background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none; resize: vertical; margin-bottom: 10px;"></textarea>
+            <button class="admin-btn admin-btn-danger" onclick="sendUrgentAlert()" style="background: #ff3333; color: #fff; font-size: 16px; padding: 12px;">🚨 ОТПРАВИТЬ ВСЕМ</button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -499,6 +517,16 @@
     <input type="text" id="paste-file-caption" placeholder="Подпись к файлу (необязательно)" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 15px; outline: none;" />
     <button class="modal-btn" id="paste-file-send-btn" style="background: var(--accent); color: #000; margin-bottom: 8px;">Отправить</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="cancelPastedFile()">Отмена</button>
+  </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО ДЛЯ СРОЧНЫХ ОПОВЕЩЕНИЙ -->
+<div class="modal" id="urgent-alert-modal" style="z-index: 9999999; background: rgba(255, 0, 0, 0.2); backdrop-filter: blur(8px);">
+  <div class="modal-content" style="border: 2px solid #ff3333; box-shadow: 0 0 50px rgba(255, 51, 51, 0.6); text-align: center; max-width: 450px;">
+    <h3 style="color: #ff3333; font-size: 26px; margin-bottom: 20px; text-shadow: 0 0 10px rgba(255,51,51,0.8);">🚨 ВНИМАНИЕ 🚨</h3>
+    <div id="urgent-alert-text" style="font-size: 16px; margin-bottom: 25px; white-space: pre-wrap; font-family: 'Fira Code', monospace; color: #fff; line-height: 1.6;"></div>
+    <div id="urgent-alert-sender" style="font-size: 11px; color: #884444; margin-bottom: 15px; font-family: 'Fira Code';"></div>
+    <button class="modal-btn" onclick="document.getElementById('urgent-alert-modal').classList.remove('visible')" style="background: #ff3333; color: #fff; border: none; font-weight: bold;">ПРИНЯТО</button>
   </div>
 </div>
 
@@ -645,10 +673,21 @@ function enterChat() {
   document.getElementById('set-my-ip').textContent = state.me.ip || 'Скрыт';
   const roleBadge = document.getElementById('my-role-badge');
   roleBadge.innerHTML = `<span style="color:${ROLE_COLOR[state.me.role] || 'var(--muted)'}">${ROLE_ICON[state.me.role] || '👤'} ${ROLE_LABEL[state.me.role] || 'user'}</span>`;
-  if (['sysadmin', 'admin', 'moderator', 'helper'].includes(state.me.role)) document.getElementById('admin-header-btn').style.display = 'block';
-  else document.getElementById('admin-header-btn').style.display = 'none';
-  if (state.me.role === 'sysadmin') document.getElementById('admin-grant-section').style.display = 'block';
-  else document.querySelectorAll('#user-role-select option[data-sysonly]').forEach(o => o.remove());
+  
+  if (['sysadmin', 'admin', 'moderator', 'helper'].includes(state.me.role)) {
+    document.getElementById('admin-header-btn').style.display = 'block';
+  } else {
+    document.getElementById('admin-header-btn').style.display = 'none';
+  }
+  
+  if (state.me.role === 'sysadmin') {
+    document.getElementById('admin-grant-section').style.display = 'block';
+    document.getElementById('tab-btn-alerts').style.display = 'flex';
+  } else {
+    document.querySelectorAll('#user-role-select option[data-sysonly]').forEach(o => o.remove());
+    document.getElementById('tab-btn-alerts').style.display = 'none';
+  }
+
   if (['sysadmin', 'admin'].includes(state.me.role)) {
     document.getElementById('tab-btn-moderation').style.display = 'flex';
     document.getElementById('tab-btn-support').style.display = 'flex';
@@ -823,6 +862,25 @@ function updatePageTitle() {
   document.title = totalUnread > 0 ? `(${totalUnread}) SCP Foundation — Secure Channel` : `SCP Foundation — Secure Channel`;
 }
 
+// НОВАЯ ФУНКЦИЯ ОТПРАВКИ ОПОВЕЩЕНИЯ
+window.sendUrgentAlert = async function() {
+  const input = document.getElementById('alert-text-input');
+  const text = input.value.trim();
+  if (!text) return alert('Введите текст оповещения!');
+  if (!confirm('Вы уверены, что хотите отправить это сообщение ВСЕМ пользователям?')) return;
+  
+  try {
+    await api('/admin/broadcast-alert', { 
+      method: 'POST', 
+      body: JSON.stringify({ text }) 
+    });
+    input.value = '';
+    alert('Оповещение успешно отправлено всем пользователям!');
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
 function connectSocket() {
   if (state.socket) state.socket.disconnect();
   state.socket = io({ auth: { token: state.token } });
@@ -871,6 +929,23 @@ function connectSocket() {
     } else el.remove();
   });
   state.socket.on('chatCleared', ({ chatId }) => { if (state.currentChat && state.currentChat.id === chatId) document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; });
+
+  // Слушатель срочных оповещений
+  state.socket.on('urgentAlert', (data) => {
+    document.getElementById('urgent-alert-text').textContent = data.text;
+    document.getElementById('urgent-alert-sender').textContent = `Отправитель: @${data.sender}`;
+    document.getElementById('urgent-alert-modal').classList.add('visible');
+    // Звуковой сигнал
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+      oscillator.connect(audioCtx.destination);
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.5);
+    } catch (e) {}
+  });
 }
 
 async function loadChats() { state.chats = await api('/chats'); renderChatList(); }
