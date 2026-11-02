@@ -16,7 +16,7 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
-// #SECTION: S3_CONFIGURATION (ВАШИ КЛЮЧИ ВСТАВЛЕНЫ)
+// #SECTION: S3_CONFIGURATION
 const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://firsts3.ru').trim();
 const S3_BUCKET = (process.env.S3_BUCKET || 'scp-messenger').trim();
 const S3_REGION = (process.env.S3_REGION || 'default').trim();
@@ -180,6 +180,14 @@ const chatIsBlocked = (chatId, myId) => {
   const otherId = members.find(m => m.user_id !== myId)?.user_id;
   if (!otherId) return false;
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
+};
+
+// #NEW: проверка права писать в чат (для каналов только создатель)
+const canWriteToChat = (chatId, userId) => {
+  const chat = db.chats.find(c => c.id === chatId);
+  if (!chat) return false;
+  if (chat.is_channel) return chat.creator_id === userId;
+  return true;
 };
 
 // ================= ADMIN =================
@@ -445,18 +453,26 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       otherUserId: c.is_group ? null : (other ? other.id : null),
       role: otherRole, isBlocked: c.is_group ? false : (isSelf ? false : chatIsBlocked(c.id, req.userId)),
       ban_expires: banExpires, createdAt: c.created_at, isSelf: isSelf,
-      isGroup: !!c.is_group, creatorId: c.creator_id
+      isGroup: !!c.is_group, creatorId: c.creator_id,
+      isChannel: !!c.is_channel // #NEW
     };
   });
   res.json(chats);
 });
 
 app.post('/api/chats/group', authMiddleware, (req, res) => {
-  const { name, memberIds } = req.body;
+  const { name, memberIds, is_channel } = req.body;
   if (!name || !memberIds || !Array.isArray(memberIds)) return res.status(400).json({ error: 'Неверные данные группы' });
   
   const chatId = genId();
-  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: true, name, creator_id: req.userId });
+  db.chats.push({
+    id: chatId,
+    created_at: Math.floor(Date.now() / 1000),
+    is_group: true,
+    is_channel: !!is_channel, // #NEW
+    name,
+    creator_id: req.userId
+  });
   
   const uniqueMembers = [...new Set([req.userId, ...memberIds])];
   uniqueMembers.forEach(uid => {
@@ -509,7 +525,7 @@ app.post('/api/chats/:chatId/leave', authMiddleware, (req, res) => {
   const chat = db.chats.find(c => c.id === chatId);
 
   if (!chat || !chat.is_group) return res.status(404).json({ error: 'Группа не найдена' });
-  if (chat.creator_id === req.userId) return res.status(400).json({ error: 'Создатель не может выйти, удалите группу' });
+  if (chat.creator_id === req.userId) return res.status(400).json({ error: chat.is_channel ? 'Создатель не может покинуть канал, удалите канал' : 'Создатель не может выйти, удалите группу' });
 
   const isMember = db.chat_members.some(m => m.chat_id === chatId && m.user_id === req.userId);
   if (!isMember) return res.status(400).json({ error: 'Вы не в этой группе' });
@@ -616,6 +632,12 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
 
+  // #NEW: запрет писать в канал, если ты не создатель
+  const chatForCheck = db.chats.find(c => c.id === chatId);
+  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
+    return res.status(403).json({ error: 'Только создатель канала может писать сообщения' });
+  }
+
   const { text } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
@@ -644,6 +666,12 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
 
+  // #NEW: запрет загрузки в канал, если ты не создатель
+  const chatForCheck = db.chats.find(c => c.id === chatId);
+  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
+    return res.status(403).json({ error: 'Только создатель канала может загружать файлы' });
+  }
+
   const { fileName, fileType } = req.body;
   if (!fileName || !fileType) return res.status(400).json({ error: 'Нет данных о файле' });
 
@@ -662,6 +690,12 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
 app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
+
+  // #NEW: запрет отправки файлов в канал, если ты не создатель
+  const chatForCheck = db.chats.find(c => c.id === chatId);
+  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
+    return res.status(403).json({ error: 'Только создатель канала может отправлять файлы' });
+  }
 
   const { files, caption } = req.body;
   if (!files || !files.length) return res.status(400).json({ error: 'Нет файлов' });
@@ -786,6 +820,12 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   const { chatId } = req.body;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
+
+  // #NEW: нельзя пересылать в канал, если не создатель
+  const targetChat = db.chats.find(c => c.id === chatId);
+  if (targetChat && targetChat.is_channel && targetChat.creator_id !== req.userId) {
+    return res.status(403).json({ error: 'Только создатель канала может пересылать в него' });
+  }
 
   const newMsg = {
     id: genId(), chat_id: chatId, sender_id: req.userId, text: src.text,
