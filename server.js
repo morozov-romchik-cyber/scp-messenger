@@ -27,10 +27,7 @@ const s3 = new S3Client({
   region: S3_REGION,
   credentials: { accessKeyId: S3_ACCESS_KEY, secretAccessKey: S3_SECRET_KEY },
   forcePathStyle: true,
-  requestHandler: {
-    connectionTimeout: 5000,
-    socketTimeout: 10000
-  }
+  requestHandler: { connectionTimeout: 5000, socketTimeout: 10000 }
 });
 
 const serverLog = (type, text) => {
@@ -80,13 +77,8 @@ const saveDb = () => {
     const upload = async () => {
       isS3Syncing = true;
       try {
-        await s3.send(new PutObjectCommand({
-          Bucket: S3_BUCKET, Key: 'database/scp-db.json',
-          Body: JSON.stringify(db, null, 2), ContentType: 'application/json'
-        }));
-      } catch (err) { 
-        serverLog('error', 'Ошибка сохранения БД в S3: ' + err.message);
-      }
+        await s3.send(new PutObjectCommand({ Bucket: S3_BUCKET, Key: 'database/scp-db.json', Body: JSON.stringify(db, null, 2), ContentType: 'application/json' }));
+      } catch (err) { serverLog('error', 'Ошибка сохранения БД в S3: ' + err.message); }
       isS3Syncing = false;
       if (pendingS3Sync) { pendingS3Sync = false; upload(); }
     };
@@ -110,8 +102,7 @@ const signToken = (userId) => jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn:
 const publicUser = (u) => ({
   id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url,
   status: u.status, level: u.level || 1, read_deleted: u.read_deleted || false,
-  ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null,
-  ban_expires: u.ban_expires || 0
+  ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null, ban_expires: u.ban_expires || 0
 });
 
 const getRealIp = (req) => {
@@ -330,26 +321,34 @@ app.get('/api/me', authMiddleware, (req, res) => {
 
 app.get('/api/users/search', authMiddleware, (req, res) => {
   const q = (req.query.q || '').toString().toLowerCase().trim().replace(/^@/, '');
-  if (!q) return res.json([]);
-  const results = db.users.filter(u => u.id !== req.userId && u.id !== HELPER_ID && u.username.toLowerCase().includes(q)).slice(0, 20).map(u => ({
+  if (!q) return res.json({ users: [], chats: [] });
+
+  let chatQuery = q;
+  if (q.startsWith('scp.me/')) chatQuery = q.replace('scp.me/', '');
+  else if (q.startsWith('scp.group/')) chatQuery = q.replace('scp.group/', '');
+
+  const matchedChats = db.chats.filter(c => c.username && c.username.includes(chatQuery)).map(c => ({
+     id: c.id, name: c.name, username: c.username, isChannel: !!c.is_channel, isGroup: !!c.is_group, creatorId: c.creator_id
+  }));
+
+  const matchedUsers = db.users.filter(u => u.id !== req.userId && u.id !== HELPER_ID && u.username.toLowerCase().includes(q)).slice(0, 10).map(u => ({
       id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url,
       status: u.status, level: u.level || 1, role: u.role || 'user', ip: 'Скрыт', ban_expires: u.ban_expires || 0
   }));
-  res.json(results);
+
+  res.json({ users: matchedUsers, chats: matchedChats });
+});
+
+app.get('/api/chats/resolve/:username', authMiddleware, (req, res) => {
+    const chat = db.chats.find(c => c.username === req.params.username);
+    if (!chat) return res.status(404).json({ error: 'Чат не найден' });
+    res.json({ id: chat.id, name: chat.name, username: chat.username, isChannel: !!chat.is_channel, isGroup: !!chat.is_group, creatorId: chat.creator_id });
 });
 
 app.get('/api/users/all', authMiddleware, (req, res) => {
-  const users = db.users
-    .filter(u => u.id !== req.userId && u.id !== HELPER_ID)
-    .map(u => ({
-      id: u.id, 
-      username: u.username, 
-      displayName: u.display_name || null,
-      avatarUrl: u.avatar_url || null,
-      status: u.status || 'offline',
-      role: u.role || 'user'
-    }))
-    .sort((a, b) => a.username.localeCompare(b.username));
+  const users = db.users.filter(u => u.id !== req.userId && u.id !== HELPER_ID).map(u => ({
+      id: u.id, username: u.username, displayName: u.display_name || null, avatarUrl: u.avatar_url || null, status: u.status || 'offline', role: u.role || 'user'
+    })).sort((a, b) => a.username.localeCompare(b.username));
   res.json(users);
 });
 
@@ -374,8 +373,7 @@ app.put('/api/users/settings', authMiddleware, (req, res) => {
     if (!['sysadmin', 'admin'].includes(user.role)) return res.status(403).json({ error: 'Только Администраторы могут читать удаленные сообщения' });
     user.read_deleted = req.body.read_deleted;
   }
-  saveDb();
-  res.json(publicUser(user));
+  saveDb(); res.json(publicUser(user));
 });
 
 app.post('/api/users/avatar', authMiddleware, uploadSingle('avatar'), (req, res) => {
@@ -428,7 +426,6 @@ app.post('/api/users/:userId/unblock', authMiddleware, (req, res) => {
 app.get('/api/chats', authMiddleware, (req, res) => {
   let myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
   
-  // Очистка дубликатов "Избранного" (личек с самим собой)
   const selfChatIds = [];
   db.chats.forEach(c => {
      const members = db.chat_members.filter(m => m.chat_id === c.id);
@@ -443,7 +440,6 @@ app.get('/api/chats', authMiddleware, (req, res) => {
      myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
   }
 
-  // Ищем личный чат с SCP_Helper
   let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === req.userId) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
   
   if (!helperChat) {
@@ -468,12 +464,9 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     let chatAvatar = null;
     let otherRole = 'user';
 
-    if (c.is_group) {
-        chatName = c.name || 'Групповой чат';
-    } else if (isSelf) {
-        chatName = 'Избранное';
-        chatAvatar = other ? other.avatar_url : null;
-    } else if (other) {
+    if (c.is_group) { chatName = c.name || 'Групповой чат'; }
+    else if (isSelf) { chatName = 'Избранное'; chatAvatar = other ? other.avatar_url : null; }
+    else if (other) {
         chatName = other.id === HELPER_ID ? 'SCP_Helper' : other.username;
         chatAvatar = other.avatar_url;
         otherRole = other.role;
@@ -504,110 +497,89 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     if (!username) return res.status(400).json({ error: 'Для канала обязателен юзернейм' });
     cleanUsername = String(username).trim().toLowerCase().replace(/^@/, '');
     if (!/^[a-z0-9_]{3,32}$/.test(cleanUsername)) return res.status(400).json({ error: 'Юзернейм: 3-32 символа (a-z, 0-9, _)' });
-    if (db.chats.some(c => c.username === cleanUsername)) return res.status(400).json({ error: 'Этот scp.group/ адрес уже занят' });
+    if (db.chats.some(c => c.username === cleanUsername)) return res.status(400).json({ error: 'Этот адрес уже занят' });
   }
 
-  const chatId = genId();
+  const channelId = genId();
   db.chats.push({
-    id: chatId,
-    created_at: Math.floor(Date.now() / 1000),
-    is_group: true,
-    is_channel: !!is_channel,
-    username: cleanUsername,
-    name,
-    creator_id: req.userId
+    id: channelId, created_at: Math.floor(Date.now() / 1000),
+    is_group: true, is_channel: true, username: cleanUsername, name, creator_id: req.userId
+  });
+
+  const groupId = genId();
+  db.chats.push({
+    id: groupId, created_at: Math.floor(Date.now() / 1000),
+    is_group: true, is_channel: false, username: cleanUsername, name: `${name} (Группа)`, creator_id: req.userId
   });
   
   const uniqueMembers = [...new Set([req.userId, ...memberIds])];
   uniqueMembers.forEach(uid => {
-    db.chat_members.push({ id: genId(), chat_id: chatId, user_id: uid });
+    db.chat_members.push({ id: genId(), chat_id: channelId, user_id: uid });
+    db.chat_members.push({ id: genId(), chat_id: groupId, user_id: uid });
   });
+
+  if (is_channel) {
+    db.messages.push({
+      id: genId(), chat_id: channelId, sender_id: req.userId,
+      text: `Добро пожаловать в канал! Ссылка на группу обсуждения: scp.group/${cleanUsername}`,
+      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+    });
+    db.messages.push({
+      id: genId(), chat_id: groupId, sender_id: req.userId,
+      text: `Это группа для обсуждения канала. Ссылка на канал: scp.me/${cleanUsername}`,
+      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+    });
+  }
   
   saveDb();
   io.emit('refreshData');
-  res.json({ ok: true, chatId, username: cleanUsername });
+  res.json({ ok: true, chatId: channelId, username: cleanUsername });
 });
 
 app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
-  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) {
-    return res.status(403).json({ error: 'Not a member' });
-  }
-  const members = db.chat_members
-    .filter(m => m.chat_id === chatId)
-    .map(m => {
+  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
+  const members = db.chat_members.filter(m => m.chat_id === chatId).map(m => {
       const u = db.users.find(user => user.id === m.user_id);
       return u ? publicUser(u) : null;
-    })
-    .filter(Boolean);
+  }).filter(Boolean);
   res.json(members);
 });
 
 app.post('/api/chats/:chatId/leave', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   const chat = db.chats.find(c => c.id === chatId);
-
   if (!chat || !chat.is_group) return res.status(404).json({ error: 'Группа не найдена' });
-  if (chat.creator_id === req.userId) return res.status(400).json({ error: chat.is_channel ? 'Создатель не может покинуть канал, удалите канал' : 'Создатель не может выйти, удалите группу' });
-
+  if (chat.creator_id === req.userId) return res.status(400).json({ error: chat.is_channel ? 'Создатель не может покинуть канал' : 'Создатель не может выйти' });
   const isMember = db.chat_members.some(m => m.chat_id === chatId && m.user_id === req.userId);
   if (!isMember) return res.status(400).json({ error: 'Вы не в этой группе' });
-
   db.chat_members = db.chat_members.filter(m => !(m.chat_id === chatId && m.user_id === req.userId));
-  saveDb();
-  io.emit('refreshData');
-  res.json({ ok: true });
+  saveDb(); io.emit('refreshData'); res.json({ ok: true });
 });
 
 app.post('/api/chats/:chatId/remove-member', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   const { userId } = req.body;
   const chat = db.chats.find(c => c.id === chatId);
-  
   if (!chat || !chat.is_group) return res.status(404).json({ error: 'Группа не найдена' });
-  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может кикать участников' });
-  if (userId === req.userId) return res.status(400).json({ error: 'Нельзя кикнуть самого себя' });
-
+  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может кикать' });
+  if (userId === req.userId) return res.status(400).json({ error: 'Нельзя кикнуть себя' });
   db.chat_members = db.chat_members.filter(m => !(m.chat_id === chatId && m.user_id === userId));
-  saveDb();
-  io.emit('refreshData');
-  res.json({ ok: true });
+  saveDb(); io.emit('refreshData'); res.json({ ok: true });
 });
 
 app.delete('/api/chats/:chatId', authMiddleware, (req, res) => {
   const { chatId } = req.params;
   const chat = db.chats.find(c => c.id === chatId);
-  
   if (!chat) return res.status(404).json({ error: 'Чат не найден' });
   if (!chat.is_group) return res.status(400).json({ error: 'Это не групповой чат' });
-  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может удалить группу' });
-  
+  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может удалить' });
   db.chats = db.chats.filter(c => c.id !== chatId);
   db.chat_members = db.chat_members.filter(m => m.chat_id !== chatId);
   const msgIds = db.messages.filter(m => m.chat_id === chatId).map(m => m.id);
   db.attachments = db.attachments.filter(a => !msgIds.includes(a.message_id));
   db.messages = db.messages.filter(m => m.chat_id !== chatId);
-  
-  saveDb();
-  io.emit('refreshData');
-  res.json({ ok: true });
-});
-
-app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
-  const { chatId } = req.params;
-  const { username } = req.body;
-  const chat = db.chats.find(c => c.id === chatId);
-  if (!chat) return res.status(404).json({ error: 'Чат не найден' });
-  if (!chat.is_channel) return res.status(400).json({ error: 'Только для каналов' });
-  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может установить ссылку' });
-  if (chat.username) return res.status(400).json({ error: 'Ссылка уже установлена и не может быть изменена' });
-  const clean = String(username || '').trim().toLowerCase().replace(/^@/, '');
-  if (!/^[a-z0-9_]{3,32}$/.test(clean)) return res.status(400).json({ error: 'Юзернейм: 3-32 символа (a-z, 0-9, _)' });
-  if (db.chats.some(c => c.username === clean)) return res.status(400).json({ error: 'Этот юзернейм уже занят' });
-  chat.username = clean;
-  saveDb();
-  io.emit('refreshData');
-  res.json({ ok: true, username: clean });
+  saveDb(); io.emit('refreshData'); res.json({ ok: true });
 });
 
 app.post('/api/chats', authMiddleware, (req, res) => {
@@ -620,7 +592,6 @@ app.post('/api/chats', authMiddleware, (req, res) => {
   for (const chatId of myChatIds) {
     const chat = db.chats.find(c => c.id === chatId);
     if (chat && chat.is_group) continue;
-
     const members = db.chat_members.filter(m => m.chat_id === chatId);
     if (isSelf && members.length === 1 && members[0].user_id === req.userId) {
       return res.json({ id: chatId, name: 'Избранное', avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: true, ban_expires: 0, isGroup: false });
@@ -629,7 +600,6 @@ app.post('/api/chats', authMiddleware, (req, res) => {
       return res.json({ id: chatId, name: other.username, avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: chatIsBlocked(chatId, req.userId), isSelf: false, ban_expires: other.ban_expires || 0, isGroup: false });
     }
   }
-
   const chatId = genId();
   db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: false });
   db.chat_members.push({ id: genId(), chat_id: chatId, user_id: req.userId });
@@ -670,30 +640,17 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
-
   const chatForCheck = db.chats.find(c => c.id === chatId);
-  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
-    return res.status(403).json({ error: 'Только создатель канала может писать сообщения' });
-  }
+  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может писать сообщения' });
 
   const { text } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
   const msgId = genId();
-  const msg = {
-    id: msgId, chat_id: chatId, sender_id: req.userId, text: text.slice(0, 4000),
-    created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
-  };
-
+  const msg = { id: msgId, chat_id: chatId, sender_id: req.userId, text: text.slice(0, 4000), created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [] };
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
-  otherMembers.forEach(om => {
-    const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`);
-    if (room && room.size > 0) msg.delivered_to.push(om.user_id);
-  });
-
-  db.messages.push(msg);
-  saveDb();
-
+  otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) msg.delivered_to.push(om.user_id); });
+  db.messages.push(msg); saveDb();
   const payload = buildMessagePayload(msg);
   emitToChatMembers(chatId, 'newMessage', payload);
   res.json(payload);
@@ -703,63 +660,34 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
-
   const chatForCheck = db.chats.find(c => c.id === chatId);
-  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
-    return res.status(403).json({ error: 'Только создатель канала может загружать файлы' });
-  }
-
+  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может загружать файлы' });
   if (!S3_ENABLED) return res.status(503).json({ error: 'S3 отключён на сервере' });
 
   const { fileName, fileType } = req.body;
   if (!fileName || !fileType) return res.status(400).json({ error: 'Нет данных о файле' });
-
   const ext = path.extname(fileName).toLowerCase();
   if (!ALLOWED_EXT.has(ext)) return res.status(400).json({ error: 'Недопустимый тип файла: ' + ext });
-
   const key = `uploads/${genId()}${ext}`;
   const command = new PutObjectCommand({ Bucket: S3_BUCKET, Key: key, ContentType: fileType });
-
-  try {
-    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
-    res.json({ uploadUrl, key });
-  } catch (err) { res.status(500).json({ error: 'Ошибка создания ссылки S3: ' + err.message }); }
+  try { const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 }); res.json({ uploadUrl, key }); } catch (err) { res.status(500).json({ error: 'Ошибка S3' }); }
 });
 
 app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
-
   const chatForCheck = db.chats.find(c => c.id === chatId);
-  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
-    return res.status(403).json({ error: 'Только создатель канала может отправлять файлы' });
-  }
+  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может отправлять файлы' });
 
   const { files, caption } = req.body;
   if (!files || !files.length) return res.status(400).json({ error: 'Нет файлов' });
-
   const msgId = genId();
-  const msg = {
-    id: msgId, chat_id: chatId, sender_id: req.userId,
-    text: (caption || '').slice(0, 4000),
-    created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
-  };
-
+  const msg = { id: msgId, chat_id: chatId, sender_id: req.userId, text: (caption || '').slice(0, 4000), created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [] };
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
-  otherMembers.forEach(om => {
-    const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`);
-    if (room && room.size > 0) msg.delivered_to.push(om.user_id);
-  });
-
+  otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) msg.delivered_to.push(om.user_id); });
   db.messages.push(msg);
-  files.forEach(f => {
-    db.attachments.push({
-      id: genId(), message_id: msgId, storage_key: f.key,
-      url: `/api/files/${f.key}`, mime_type: f.type, original_name: f.name, size: f.size
-    });
-  });
+  files.forEach(f => { db.attachments.push({ id: genId(), message_id: msgId, storage_key: f.key, url: `/api/files/${f.key}`, mime_type: f.type, original_name: f.name, size: f.size }); });
   saveDb();
-
   const payload = buildMessagePayload(msg);
   emitToChatMembers(chatId, 'newMessage', payload);
   res.json(payload);
@@ -769,12 +697,8 @@ app.get('/api/files/*', (req, res, next) => {
   const header = req.headers.authorization || '';
   let token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token && req.query.token) token = req.query.token;
-
   if (!token) return res.status(401).send('No token');
-  try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.userId = payload.sub; next();
-  } catch (e) { res.status(401).send('Invalid token'); }
+  try { const payload = jwt.verify(token, JWT_SECRET); req.userId = payload.sub; next(); } catch (e) { res.status(401).send('Invalid token'); }
 }, async (req, res) => {
   try {
     const key = req.params[0];
@@ -784,12 +708,11 @@ app.get('/api/files/*', (req, res, next) => {
     if (!msg) return res.status(404).send('Сообщение не найдено');
     const isMember = db.chat_members.some(cm => cm.chat_id === msg.chat_id && cm.user_id === req.userId);
     if (!isMember) return res.status(403).send('Доступ запрещен');
-
     if (!S3_ENABLED) return res.status(503).send('S3 отключён');
     const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
     res.redirect(url);
-  } catch (err) { res.status(500).send('Ошибка скачивания: ' + err.message); }
+  } catch (err) { res.status(500).send('Ошибка скачивания'); }
 });
 
 app.post('/api/chats/:chatId/mark-read', authMiddleware, (req, res) => {
@@ -803,16 +726,11 @@ app.post('/api/chats/:chatId/mark-read', authMiddleware, (req, res) => {
     let changed = false;
     if (!m.delivered_to.includes(req.userId)) { m.delivered_to.push(req.userId); changed = true; }
     if (!m.read_by.includes(req.userId)) { m.read_by.push(req.userId); changed = true; }
-    if (changed) {
-      if (!senderMsgs[m.sender_id]) senderMsgs[m.sender_id] = [];
-      senderMsgs[m.sender_id].push(m.id);
-    }
+    if (changed) { if (!senderMsgs[m.sender_id]) senderMsgs[m.sender_id] = []; senderMsgs[m.sender_id].push(m.id); }
   });
   if (Object.keys(senderMsgs).length) {
     saveDb();
-    Object.entries(senderMsgs).forEach(([senderId, ids]) => {
-      io.to(`user:${senderId}`).emit('messagesRead', { chatId, readerId: req.userId, messageIds: ids });
-    });
+    Object.entries(senderMsgs).forEach(([senderId, ids]) => { io.to(`user:${senderId}`).emit('messagesRead', { chatId, readerId: req.userId, messageIds: ids }); });
   }
   res.json({ ok: true });
 });
@@ -831,8 +749,7 @@ app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
     } else {
       db.messages.filter(m => m.chat_id === chatId).forEach(m => m.is_deleted = true);
     }
-    saveDb();
-    emitToChatMembers(chatId, 'chatCleared', { chatId, scope: 'all' });
+    saveDb(); emitToChatMembers(chatId, 'chatCleared', { chatId, scope: 'all' });
   }
   res.json({ ok: true });
 });
@@ -847,8 +764,7 @@ app.delete('/api/messages/:messageId', authMiddleware, (req, res) => {
   if (scope === 'all') {
     if (!isOwn && !isAdmin) return res.status(403).json({ error: 'Недостаточно прав' });
     msg.is_deleted = true;
-    saveDb();
-    emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
+    saveDb(); emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
   }
   res.json({ ok: true });
 });
@@ -859,25 +775,14 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   const { chatId } = req.body;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
-
   const targetChat = db.chats.find(c => c.id === chatId);
-  if (targetChat && targetChat.is_channel && targetChat.creator_id !== req.userId) {
-    return res.status(403).json({ error: 'Только создатель канала может пересылать в него' });
-  }
+  if (targetChat && targetChat.is_channel && targetChat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может пересылать' });
 
-  const newMsg = {
-    id: genId(), chat_id: chatId, sender_id: req.userId, text: src.text,
-    created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
-  };
+  const newMsg = { id: genId(), chat_id: chatId, sender_id: req.userId, text: src.text, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [] };
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
-  otherMembers.forEach(om => {
-    const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`);
-    if (room && room.size > 0) newMsg.delivered_to.push(om.user_id);
-  });
+  otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) newMsg.delivered_to.push(om.user_id); });
   db.messages.push(newMsg);
-  db.attachments.filter(a => a.message_id === src.id).forEach(a => {
-    db.attachments.push({ id: genId(), message_id: newMsg.id, storage_key: a.storage_key, url: a.url, mime_type: a.mime_type, original_name: a.original_name, size: a.size });
-  });
+  db.attachments.filter(a => a.message_id === src.id).forEach(a => { db.attachments.push({ id: genId(), message_id: newMsg.id, storage_key: a.storage_key, url: a.url, mime_type: a.mime_type, original_name: a.original_name, size: a.size }); });
   saveDb();
   const payload = buildMessagePayload(newMsg);
   emitToChatMembers(chatId, 'newMessage', payload);
@@ -920,11 +825,7 @@ app.post('/api/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 12);
     const isAdmin = cleanUsername.toLowerCase() === 'admin';
 
-    const newUser = {
-      id, username: cleanUsername, password_hash: passwordHash, status: 'online',
-      created_at: Math.floor(Date.now()/1000), read_deleted: false, ip,
-      role: isAdmin ? 'sysadmin' : userRole, invited_by: inviter, ban_expires: 0
-    };
+    const newUser = { id, username: cleanUsername, password_hash: passwordHash, status: 'online', created_at: Math.floor(Date.now()/1000), read_deleted: false, ip, role: isAdmin ? 'sysadmin' : userRole, invited_by: inviter, ban_expires: 0 };
     db.users.push(newUser);
 
     const plainCodes = [];
@@ -934,8 +835,7 @@ app.post('/api/register', async (req, res) => {
       const hash = await bcrypt.hash(plain, 10);
       db.recovery_codes.push({ id: genId(), user_id: id, code_hash: hash, used_at: null });
     }
-    saveDb();
-    io.emit('refreshData');
+    saveDb(); io.emit('refreshData');
     res.json({ token: signToken(id), user: publicUser(newUser), recoveryCodes: plainCodes });
   } catch (e) { res.status(500).json({ error: 'Ошибка при регистрации' }); }
 });
@@ -955,36 +855,26 @@ app.post('/api/login', async (req, res) => {
       else user.ban_expires = 0;
     }
 
-    user.status = 'online';
-    user.ip = ip;
-    saveDb();
-    io.emit('refreshData');
+    user.status = 'online'; user.ip = ip;
+    saveDb(); io.emit('refreshData');
     res.json({ token: signToken(user.id), user: publicUser(user) });
   } catch (e) { res.status(500).json({ error: 'Ошибка при входе' }); }
 });
 
 // ================= SOCKET.IO =================
 io.use((socket, next) => {
-  try {
-    const payload = jwt.verify(socket.handshake.auth?.token, JWT_SECRET);
-    socket.userId = payload.sub; next();
-  } catch { next(new Error('invalid token')); }
+  try { const payload = jwt.verify(socket.handshake.auth?.token, JWT_SECRET); socket.userId = payload.sub; next(); }
+  catch { next(new Error('invalid token')); }
 });
 
 io.on('connection', (socket) => {
   try {
     const user = db.users.find(u => u.id === socket.userId);
     if (user) {
-        if (user.ban_expires && (user.ban_expires === -1 || user.ban_expires > Date.now())) {
-            socket.emit('forceLogout', { ban_expires: user.ban_expires });
-            return socket.disconnect();
-        }
-        user.status = 'online';
-        saveDb();
-        io.emit('refreshData');
+        if (user.ban_expires && (user.ban_expires === -1 || user.ban_expires > Date.now())) { socket.emit('forceLogout', { ban_expires: user.ban_expires }); return socket.disconnect(); }
+        user.status = 'online'; saveDb(); io.emit('refreshData');
     }
     socket.join(`user:${socket.userId}`);
-
     const myChatIds = db.chat_members.filter(cm => cm.user_id === socket.userId).map(cm => cm.chat_id);
     let changed = false;
     db.messages.forEach(m => {
@@ -1015,35 +905,27 @@ io.on('connection', (socket) => {
         const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: 'database/scp-db.json' });
         const response = await s3.send(command);
         const body = await response.Body.transformToString();
-        db = JSON.parse(body);
-        serverLog('info', 'База данных успешно загружена из S3');
-        break;
+        db = JSON.parse(body); serverLog('info', 'БД загружена из S3'); break;
       } catch (err) {
         retries--;
         if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
           serverLog('info', 'В S3 базы нет, проверяем локальную...');
           if (fs.existsSync(DB_FILE)) { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); saveDb(); }
-          else { serverLog('info', 'Создана новая пустая база данных'); }
+          else { serverLog('info', 'Создана новая пустая БД'); }
           break;
         } else {
-          serverLog('error', `Ошибка загрузки БД из S3 (попытка ${4 - retries}/3): ${err.message}`);
-          if (retries === 0) {
-            serverLog('error', 'Все попытки исчерпаны, используем локальную БД');
-            if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-          } else {
-            await new Promise(r => setTimeout(r, 2000));
-          }
+          serverLog('error', `Ошибка БД S3 (попытка ${4 - retries}/3): ${err.message}`);
+          if (retries === 0) { serverLog('error', 'Все попытки исчерпаны, локальная БД'); if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); }
+          else { await new Promise(r => setTimeout(r, 2000)); }
         }
       }
     }
   } else {
-    serverLog('info', 'S3 отключён через S3_ENABLED=false, используем локальную БД');
+    serverLog('info', 'S3 отключён, используем локальную БД');
     if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
   }
 
-  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments'].forEach(key => {
-    if (!db[key]) db[key] = [];
-  });
+  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments'].forEach(key => { if (!db[key]) db[key] = []; });
 
   let migrated = false;
   db.users.forEach(u => {
@@ -1052,27 +934,13 @@ io.on('connection', (socket) => {
   });
   if (migrated) saveDb();
 
-  // Создаем/обновляем системного бота SCP_Helper (Теперь он SysAdmin)
   let helperUser = db.users.find(u => u.id === HELPER_ID);
   if (!helperUser) {
-    helperUser = {
-      id: HELPER_ID,
-      username: 'SCP_Helper',
-      password_hash: 'bot',
-      role: 'sysadmin',
-      status: 'online',
-      created_at: Math.floor(Date.now() / 1000),
-      ban_expires: 0
-    };
-    db.users.push(helperUser);
-    saveDb();
-    serverLog('info', 'Создан системный аккаунт SCP_Helper (SysAdmin)');
+    helperUser = { id: HELPER_ID, username: 'SCP_Helper', password_hash: 'bot', role: 'sysadmin', status: 'online', created_at: Math.floor(Date.now() / 1000), ban_expires: 0 };
+    db.users.push(helperUser); saveDb(); serverLog('info', 'Создан SCP_Helper (SysAdmin)');
   } else {
-    helperUser.role = 'sysadmin';
-    saveDb();
+    helperUser.role = 'sysadmin'; saveDb();
   }
 
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n⬛ SCP Foundation Messenger запущен: http://localhost:${PORT}\n`);
-  });
+  server.listen(PORT, '0.0.0.0', () => { console.log(`\n⬛ SCP Foundation Messenger запущен: http://localhost:${PORT}\n`); });
 })();
