@@ -62,7 +62,6 @@ const ALLOWED_EXT = new Set([
 const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
 const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
 
-// ID системного аккаунта
 const HELPER_ID = 'system_scp_helper_id';
 
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
@@ -186,7 +185,7 @@ const chatIsBlocked = (chatId, myId) => {
   if (chat && chat.is_group) return false; 
   const members = db.chat_members.filter(m => m.chat_id === chatId);
   const otherId = members.find(m => m.user_id !== myId)?.user_id;
-  if (!otherId || otherId === HELPER_ID) return false; // Нельзя заблокировать SCP_Helper
+  if (!otherId || otherId === HELPER_ID) return false; 
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
@@ -427,7 +426,22 @@ app.post('/api/users/:userId/unblock', authMiddleware, (req, res) => {
 
 // ================= CHATS & MESSAGES =================
 app.get('/api/chats', authMiddleware, (req, res) => {
-  const myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
+  let myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
+  
+  // Очистка дубликатов "Избранного" (личек с самим собой)
+  const selfChatIds = [];
+  db.chats.forEach(c => {
+     const members = db.chat_members.filter(m => m.chat_id === c.id);
+     if (!c.is_group && members.length === 1 && members[0].user_id === req.userId) selfChatIds.push(c.id);
+  });
+  if (selfChatIds.length > 1) {
+     const toDelete = selfChatIds.slice(1);
+     db.chats = db.chats.filter(c => !toDelete.includes(c.id));
+     db.chat_members = db.chat_members.filter(m => !toDelete.includes(m.chat_id));
+     db.messages = db.messages.filter(m => !toDelete.includes(m.chat_id));
+     saveDb();
+     myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
+  }
 
   // Ищем личный чат с SCP_Helper
   let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === req.userId) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
@@ -1037,21 +1051,24 @@ io.on('connection', (socket) => {
   });
   if (migrated) saveDb();
 
-  // Создаем системного бота SCP_Helper, если его нет
+  // Создаем/обновляем системного бота SCP_Helper (Теперь он SysAdmin)
   let helperUser = db.users.find(u => u.id === HELPER_ID);
   if (!helperUser) {
     helperUser = {
       id: HELPER_ID,
       username: 'SCP_Helper',
       password_hash: 'bot',
-      role: 'helper',
+      role: 'sysadmin',
       status: 'online',
       created_at: Math.floor(Date.now() / 1000),
       ban_expires: 0
     };
     db.users.push(helperUser);
     saveDb();
-    serverLog('info', 'Создан системный аккаунт SCP_Helper');
+    serverLog('info', 'Создан системный аккаунт SCP_Helper (SysAdmin)');
+  } else {
+    helperUser.role = 'sysadmin';
+    saveDb();
   }
 
   server.listen(PORT, '0.0.0.0', () => {
