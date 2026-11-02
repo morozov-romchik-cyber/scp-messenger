@@ -503,6 +503,22 @@ app.post('/api/chats/:chatId/add-member', authMiddleware, (req, res) => {
   io.emit('refreshData');
   res.json({ ok: true });
 });
+// Выход из группы (для обычных участников)
+app.post('/api/chats/:chatId/leave', authMiddleware, (req, res) => {
+  const chatId = req.params.chatId;
+  const chat = db.chats.find(c => c.id === chatId);
+
+  if (!chat || !chat.is_group) return res.status(404).json({ error: 'Группа не найдена' });
+  if (chat.creator_id === req.userId) return res.status(400).json({ error: 'Создатель не может выйти, удалите группу' });
+
+  const isMember = db.chat_members.some(m => m.chat_id === chatId && m.user_id === req.userId);
+  if (!isMember) return res.status(400).json({ error: 'Вы не в этой группе' });
+
+  db.chat_members = db.chat_members.filter(m => !(m.chat_id === chatId && m.user_id === req.userId));
+  saveDb();
+  io.emit('refreshData');
+  res.json({ ok: true });
+});
 
 // Удаление участника из группы (только создатель)
 app.post('/api/chats/:chatId/remove-member', authMiddleware, (req, res) => {
