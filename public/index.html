@@ -247,6 +247,7 @@
   <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
 
+<!-- Модальное окно профиля -->
 <div class="modal" id="profile-modal">
   <div class="modal-content">
     <h3>ПРОФИЛЬ</h3>
@@ -266,6 +267,7 @@
   </div>
 </div>
 
+<!-- Модальное окно админки -->
 <div class="modal" id="admin-dashboard-modal">
   <div class="modal-content">
     <div class="admin-sidebar">
@@ -301,7 +303,6 @@
             🗑️ УДАЛИТЬ ВСЕ ПЕРЕПИСКИ И ФАЙЛЫ
           </button>
         </div>
-
       </div>
 
       <div id="tab-moderation" class="admin-tab-content" style="display: none;">
@@ -360,8 +361,7 @@
         <div class="admin-section">
           <h4>Удаление пользователя</h4>
           <div class="admin-input-group">
-            <input type="text" placeholder="Username (с @ или без )
-              " id="user-action-input">
+            <input type="text" placeholder="Username (с @ или без)" id="user-action-input">
             <button class="admin-btn admin-btn-danger" onclick="deleteUser()">Удалить навсегда</button>
           </div>
         </div>
@@ -407,8 +407,16 @@
           </div>
         </div>
       </div>
-
     </div>
+  </div>
+</div>
+
+<!-- Модальное окно просмотра участников группы -->
+<div class="modal" id="group-members-modal">
+  <div class="modal-content">
+    <h3>УЧАСТНИКИ ГРУППЫ</h3>
+    <div id="group-members-list" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;"></div>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('group-members-modal').classList.remove('visible')">Закрыть</button>
   </div>
 </div>
 
@@ -424,12 +432,11 @@
   </div>
 </div>
 
-<!-- Модальное окно добавления в группу -->
+<!-- Модальное окно добавления в группу из списка чатов -->
 <div class="modal" id="add-to-group-modal">
   <div class="modal-content">
-    <h3>ДОБАВИТЬ УЧАСТНИКА</h3>
-    <input type="text" id="add-user-search" placeholder="Поиск пользователей..." style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none;" />
-    <div id="add-user-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
+    <h3>ДОБАВИТЬ В ГРУППУ</h3>
+    <div id="add-user-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('add-to-group-modal').classList.remove('visible')">Закрыть</button>
   </div>
 </div>
@@ -601,6 +608,7 @@
         <button class="back-btn" id="back-btn">←</button>
         <img id="header-avatar" src="/favicon.png" class="chat-avatar" style="display: none; flex-shrink: 0; cursor: pointer;" title="Профиль" />
         <h2><span id="chat-title">Выберите чат</span><button class="clear-chat-btn" id="clear-chat-btn" title="Clear" style="display: none;">🔥</button></h2>
+        <button class="header-btn" id="group-members-btn" style="display: none; font-size: 18px;" title="Участники группы">👥</button>
       </div>
       <div id="my-role-badge" style="font-size: 12px; font-family: 'Fira Code'; margin-right: 15px; font-weight: bold; color: var(--muted);"></div>
       <button class="header-btn" id="chat-options-btn" style="display: none;" title="Options">⋮</button>
@@ -982,40 +990,64 @@ window.createGroup = async function() {
     const res = await api('/chats/group', { method: 'POST', body: JSON.stringify({ name, memberIds }) });
     document.getElementById('create-group-modal').classList.remove('visible');
     await loadChats();
-    openChat(res.chatId, name, null, false, null, 0);
+    openChat(res.chatId, name, null, false, null, 0, true, state.me.id);
   } catch (e) {
     alert(e.message);
   }
 };
 
-window.openAddMemberModal = function() {
-  document.getElementById('add-user-search').value = '';
-  document.getElementById('add-user-list').innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Введите имя для поиска</div>';
-  document.getElementById('add-to-group-modal').classList.add('visible');
-};
-
-let addSearchTimeout = null;
-document.getElementById('add-user-search').addEventListener('input', (e) => {
-  const q = e.target.value.trim(); clearTimeout(addSearchTimeout);
-  if (!q) {
-    document.getElementById('add-user-list').innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Введите имя для поиска</div>';
-    return;
-  }
-  addSearchTimeout = setTimeout(async () => {
-    try {
-      const users = await api('/users/search?q=' + encodeURIComponent(q));
-      const list = document.getElementById('add-user-list');
-      if (!users.length) { list.innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Не найдено</div>'; return; }
-      list.innerHTML = users.map(u => `
-        <div style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
-          <div class="chat-avatar" style="width:28px; height:28px; font-size:11px;">${esc((u.username || '?')[0].toUpperCase())}</div>
-          <div style="font-size:14px; font-weight:600; flex:1;">@${esc(u.username)}</div>
-          <button class="admin-btn" onclick="addMemberToGroup('${u.id}')" style="padding:4px 8px; font-size:11px;">Добавить</button>
+// Показ участников группы
+document.getElementById('group-members-btn').addEventListener('click', async () => {
+  if (!state.currentChat || !state.currentChat.isGroup) return;
+  const modal = document.getElementById('group-members-modal');
+  const list = document.getElementById('group-members-list');
+  list.innerHTML = 'Загрузка...';
+  modal.classList.add('visible');
+  
+  try {
+    const members = await api('/chats/' + state.currentChat.id + '/members');
+    list.innerHTML = members.map(u => `
+      <div style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
+        <div class="chat-avatar" style="width:32px; height:32px; font-size:14px;" onclick="document.getElementById('group-members-modal').classList.remove('visible'); openProfile('${u.id}')">${esc((u.username || '?')[0].toUpperCase())}</div>
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:14px; cursor:pointer;" onclick="document.getElementById('group-members-modal').classList.remove('visible'); openProfile('${u.id}')">@${esc(u.username)}</div>
+          <div style="font-size:11px; color:var(--muted); font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]}</div>
         </div>
-      `).join('');
-    } catch (err) {}
-  }, 300);
+        ${u.id === state.currentChat.creatorId ? '<span style="font-size:10px; background:var(--accent); color:#000; padding:2px 6px; border-radius:4px; font-weight:bold;">СОЗДАТЕЛЬ</span>' : ''}
+      </div>
+    `).join('');
+  } catch (e) {
+    list.innerHTML = `<div style="color:#ff4d4d; text-align:center;">Ошибка: ${e.message}</div>`;
+  }
 });
+
+// Добавление участников из списка чатов
+window.openAddMemberModal = function() {
+  const list = document.getElementById('add-user-list');
+  list.innerHTML = 'Загрузка...';
+  document.getElementById('add-to-group-modal').classList.add('visible');
+  
+  api('/chats/' + state.currentChat.id + '/members').then(members => {
+    const memberIds = members.map(m => m.id);
+    const personalChats = state.chats.filter(c => !c.isGroup && !c.isSelf);
+    const availableChats = personalChats.filter(c => !memberIds.includes(c.otherUserId));
+    
+    if (availableChats.length === 0) {
+      list.innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center; padding: 20px;">Нет доступных контактов для добавления</div>';
+      return;
+    }
+
+    list.innerHTML = availableChats.map(c => `
+      <div style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
+        <div class="chat-avatar" style="width:32px; height:32px; font-size:14px;">${esc((c.name || '?')[0].toUpperCase())}</div>
+        <div style="font-size:14px; font-weight:600; flex:1;">@${esc(c.name)}</div>
+        <button class="admin-btn" onclick="addMemberToGroup('${c.otherUserId}')" style="padding:4px 8px; font-size:11px;">Добавить</button>
+      </div>
+    `).join('');
+  }).catch(err => {
+    list.innerHTML = `<div style="color:#ff4d4d; text-align:center;">Ошибка: ${err.message}</div>`;
+  });
+};
 
 window.addMemberToGroup = async function(userId) {
   if (!state.currentChat || !state.currentChat.isGroup) return;
@@ -1037,6 +1069,7 @@ window.deleteGroup = async function() {
     document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
     document.getElementById('chat-title').textContent = 'Выберите чат'; document.getElementById('composer').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible');
     document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar').style.display = 'none';
+    document.getElementById('group-members-btn').style.display = 'none';
     loadChats();
   } catch (e) {
     alert(e.message);
@@ -1176,6 +1209,9 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   document.getElementById('clear-chat-btn').style.display = 'inline-block';
   document.getElementById('chat-options-btn').style.display = 'inline-block';
   
+  // Показываем кнопку участников для групп
+  document.getElementById('group-members-btn').style.display = isGroup ? 'block' : 'none';
+
   document.getElementById('view-profile-btn').style.display = isGroup ? 'none' : 'block';
   document.getElementById('block-user-btn').style.display = isGroup ? 'none' : (isBlocked ? 'none' : 'block');
   document.getElementById('unblock-user-btn').style.display = isGroup ? 'none' : (isBlocked ? 'block' : 'none');
@@ -1538,7 +1574,8 @@ function renderAttViewer() {
   document.getElementById('att-viewer-meta').textContent = `От: @${senderName} → Чат: @${chatName} • ${index + 1} / ${attachments.length}`;
   const body = document.getElementById('att-viewer-body'); const url = a.url || ''; const mime = a.mime || '';
   if (mime.startsWith('image/')) {
-    body.innerHTML = `<img src="${escAttr(url)}" alt="" onerror="this.outerHTML='<div style=\\'color:#ff4d4d;font-size:14px;text-align:center;padding:20px;\\'>Ошибка загрузки изображения.<br>Файл мог быть удалён из S3 или ссылка недействительна.</div>'">`;
+    body.innerHTML = `<img src="${escAttr(url)}"
+    " alt="" onerror="this.outerHTML='<div style=\\'color:#ff4d4d;font-size:14px;text-align:center;padding:20px;\\'>Ошибка загрузки изображения.<br>Файл мог быть удалён из S3 или ссылка недействительна.</div>'">`;
   }
   else if (mime.startsWith('video/')) body.innerHTML = `<video src="${escAttr(url)}" controls autoplay></video>`;
   else if (mime.startsWith('audio/')) body.innerHTML = `<audio src="${escAttr(url)}" controls autoplay></audio>`;
