@@ -747,6 +747,30 @@ app.post('/api/login', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка при входе' }); }
 });
 
+// #SECTION: API_ADMIN_BROADCAST_ALERT
+app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
+  const me = db.users.find(u => u.id === req.userId);
+  // Проверка, что это именно SysAdmin
+  if (!me || me.role !== 'sysadmin') {
+    return res.status(403).json({ error: 'Только SysAdmin может отправлять срочные оповещения' });
+  }
+
+  const { text } = req.body;
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    return res.status(400).json({ error: 'Текст оповещения пуст' });
+  }
+
+  // Рассылаем оповещение абсолютно всем подключенным пользователям
+  io.emit('urgentAlert', { 
+    text: text.trim(), 
+    sender: me.username,
+    timestamp: Date.now()
+  });
+
+  serverLog('info', `SysAdmin ${me.username} отправил срочное оповещение!`);
+  res.json({ ok: true });
+});
+
 // ================= SOCKET.IO =================
 io.use((socket, next) => {
   try {
