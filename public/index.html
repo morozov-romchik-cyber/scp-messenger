@@ -632,7 +632,10 @@
     <div class="chat-header">
       <div class="chat-header-left">
         <button class="back-btn" id="back-btn">←</button>
-        <img id="header-avatar" src="/favicon.png" class="chat-avatar" style="display: none; flex-shrink: 0; cursor: pointer;" title="Профиль" />
+        <div id="header-avatar-container" style="position: relative; display: none; flex-shrink: 0;">
+          <img id="header-avatar" src="/favicon.png" class="chat-avatar" style="cursor: pointer;" title="Профиль" />
+          <svg id="header-verified-star" style="display: none; position: absolute; bottom: -2px; right: -2px; width: 16px; height: 16px; fill: #1d9bf0; background: var(--panel); border-radius: 50%;" viewBox="0 0 24 24"><path d="M12 2l2.4 2.8 3.7-.6 1 3.6 3.5 1.4-.2 3.8 2.6 2.8-2.2 3.1.6 3.7-3.6 1.1-1.6 3.4-3.7-.2-2.8 2.5-3.4-1.5-3.1 2.1-3.6-1.2-.8-3.6-3.6-.8-.4-3.7 2.3-3-1.8-3.2 1.3-3.5-2.5-1.5 2.1z"/></svg>
+        </div>
         <div style="display: flex; flex-direction: column; min-width: 0;">
           <h2>
             <span id="chat-title">SCP_Helper</span>
@@ -651,7 +654,7 @@
     <div id="user-banned-banner">⛔ Пользователь заблокирован</div>
     <div id="blocked-banner" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; z-index: 10;">Пользователь заблокирован вами</div>
 
-    <div id="messages"><div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div></div>
+    <div id="messages"><div class="empty">⚠ ЧАТ НЕ ВЫБРАН</div></div>
     
     <div class="file-progress" id="file-progress">
       <span id="file-progress-text">⏳ Загрузка... 0%</span>
@@ -677,7 +680,6 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// Глобальные переменные инициализируются в самом начале
 let favoriteChats = JSON.parse(localStorage.getItem('scp_fav_chats') || '[]');
 const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false };
 
@@ -735,12 +737,6 @@ document.getElementById('a-submit').addEventListener('click', async () => {
   } catch (e) { if (e.message !== 'Banned') errEl.textContent = e.message; } finally { btn.disabled = false; btn.textContent = orig; }
 });
 
-function updateReadDeletedStatusLabel(isChecked) {
-  const label = document.getElementById('read-deleted-status-label'); if (!label) return;
-  label.textContent = isChecked ? 'Статус: Функция чтения удаленных сообщений ВКЛЮЧЕНА' : 'Статус: Функция чтения удаленных сообщений ВЫКЛЮЧЕНА';
-  label.style.color = isChecked ? '#00ff9d' : '#ff4d4d';
-}
-
 function enterChat() {
   authScreen.style.display = 'none'; chatScreen.classList.add('visible');
   connectSocket(); loadChats();
@@ -750,7 +746,7 @@ function enterChat() {
   document.getElementById('set-my-id').textContent = state.me.id;
   document.getElementById('set-my-ip').textContent = state.me.ip || 'Скрыт';
   const roleBadge = document.getElementById('my-role-badge');
-  roleBadge.innerHTML = `<span style="color:${ROLE_COLOR[state.me.role] || 'var(--muted)'}">${ROLE_ICON[state.me.role] || '👤'} ${ROLE_LABEL[state.me.role] || 'user'}</span>`;
+  roleBadge.innerHTML = `<span class="rotating-badge badge-${state.me.role}">${(ROLE_LABEL[state.me.role] || state.me.role).toUpperCase()}</span>`;
   
   if (['sysadmin', 'admin', 'moderator', 'helper'].includes(state.me.role)) {
     document.getElementById('admin-header-btn').style.display = 'block';
@@ -828,7 +824,7 @@ window.openProfile = async function(userId) {
 
 document.getElementById('header-avatar').addEventListener('click', () => {
   if (state.currentChat) {
-    if (state.currentChat.isGroup) return;
+    if (state.currentChat.isGroup || state.currentChat.isHelper) return;
     openProfile(state.currentChat.otherUserId || state.me.id);
   }
 });
@@ -893,7 +889,7 @@ window.toggleReadDeleted = async function(isChecked) {
   try {
     await api('/users/settings', { method: 'PUT', body: JSON.stringify({ read_deleted: isChecked }) });
     state.read_deleted = isChecked; state.me.read_deleted = isChecked; updateReadDeletedStatusLabel(isChecked);
-    if (state.currentChat) openChat(state.currentChat.id, state.currentChat.name, state.currentChat.avatarUrl, state.currentChat.isBlocked, state.currentChat.otherUserId, state.currentChat.ban_expires);
+    if (state.currentChat) openChat(state.currentChat.id, state.currentChat.name, state.currentChat.avatarUrl, state.currentChat.isBlocked, state.currentChat.otherUserId, state.currentChat.ban_expires, state.currentChat.isGroup, state.currentChat.creatorId, state.currentChat.isChannel, state.currentChat.username, state.currentChat.isHelper);
   } catch (e) { alert(e.message); document.getElementById('read-deleted-toggle').checked = !isChecked; updateReadDeletedStatusLabel(!isChecked); }
 };
 
@@ -981,7 +977,6 @@ window.wipeAllMessages = async function(e) {
   }
 };
 
-// --- FAB МЕНЮ (ПЛЮС С КРУЖОЧКАМИ) ---
 function toggleFabMenu() {
   document.getElementById('fab-container').classList.toggle('open');
 }
@@ -1038,7 +1033,7 @@ window.createGroup = async function() {
     });
     document.getElementById('create-group-modal').classList.remove('visible');
     await loadChats();
-    openChat(res.chatId, name, null, false, null, 0, true, state.me.id, isCreatingChannel, res.username);
+    openChat(res.chatId, name, null, false, null, 0, true, state.me.id, isCreatingChannel, res.username, false);
   } catch (e) {
     alert(e.message);
   }
@@ -1053,7 +1048,7 @@ window.toggleFavorite = function(chatId, event) {
 window.openSavedMessages = async function() {
   try {
     const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId: state.me.id }) });
-    await loadChats(); openChat(chat.id, 'Избранное ⭐', state.me.avatarUrl, false, state.me.id, 0);
+    await loadChats(); openChat(chat.id, 'Избранное ⭐', state.me.avatarUrl, false, state.me.id, 0, false, '', false, '', false);
   } catch (e) { alert(e.message); }
 };
 
@@ -1070,28 +1065,28 @@ function renderChatList() {
     const active = state.currentChat && state.currentChat.id === c.id ? ' active' : '';
     const starBtn = visualSettings.favorites ? `<div onclick="toggleFavorite('${escAttr(c.id)}', event)" style="font-size: 18px; cursor: pointer; color: ${isFav ? '#ffd700' : 'var(--border)'}; margin-left: auto; padding: 0 5px;">★</div>` : '';
     let roleBadgeHtml = '';
-    if (c.role && c.role !== 'user' && !c.isGroup) roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 6px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
+    if (c.role && c.role !== 'user' && !c.isGroup && !c.isHelper) roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 6px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
     const isBanned = c.ban_expires && c.ban_expires !== 0 && (c.ban_expires === -1 || c.ban_expires > Date.now());
-    return `<div class="chat-item${active}" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0}, ${c.isGroup ? 'true' : 'false'}, '${escAttr(c.creatorId || '')}', ${c.isChannel ? 'true' : 'false'}, '${escAttr(c.username || '')}')">
+    return `<div class="chat-item${active}" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0}, ${c.isGroup ? 'true' : 'false'}, '${escAttr(c.creatorId || '')}', ${c.isChannel ? 'true' : 'false'}, '${escAttr(c.username || '')}', ${c.isHelper ? 'true' : 'false'})">
       ${avatar}
       <div class="chat-info" style="flex: 1; min-width: 0;">
         <div class="name">${esc(c.name)} ${roleBadgeHtml}</div>
-        <div class="preview">${isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован вами' : (c.isSelf ? 'Личные заметки' : (c.isChannel ? 'Канал' : 'Открыть чат')))}${unread ? ` <span class="badge">${unread}</span>` : ''}</div>
+        <div class="preview">${isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован вами' : (c.isSelf ? 'Личные заметки' : (c.isHelper ? 'Служебные уведомления' : (c.isChannel ? 'Канал' : 'Открыть чат'))))}${unread ? ` <span class="badge">${unread}</span>` : ''}</div>
       </div>
       ${starBtn}
     </div>`;
   }).join('');
 }
 
-async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires = 0, isGroup = false, creatorId = '', isChannel = false, username = '') {
-  state.currentChat = { id: chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires, isGroup, creatorId, isChannel, username };
+async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires = 0, isGroup = false, creatorId = '', isChannel = false, username = '', isHelper = false) {
+  state.currentChat = { id: chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires, isGroup, creatorId, isChannel, username, isHelper };
   state.unreadCounts[chatId] = 0; updatePageTitle();
   
   document.getElementById('chat-title').textContent = name;
-  document.getElementById('chat-subtitle').textContent = isChannel ? (username ? `scp.me/${username}` : 'Канал (без ссылки)') : 'Служебные уведомления';
+  document.getElementById('chat-subtitle').textContent = isHelper ? 'Служебные уведомления' : (isChannel ? (username ? `scp.me/${username}` : 'Канал (без ссылки)') : 'Личный чат');
 
   const isCreator = !isGroup || (creatorId === state.me.id);
-  const showComposer = !isBlocked && (!isChannel || isCreator);
+  const showComposer = !isBlocked && (!isChannel || isCreator) && !isHelper;
 
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
   document.getElementById('blocked-banner').style.display = isBlocked ? 'block' : 'none';
@@ -1101,17 +1096,17 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   if (isBanned) { userBannedBanner.style.display = 'block'; userBannedBanner.textContent = `⛔ Заблокирован (${ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(ban_expires).toLocaleString()})`; }
   else userBannedBanner.style.display = 'none';
   
-  document.getElementById('clear-chat-btn').style.display = 'inline-block';
-  document.getElementById('chat-options-btn').style.display = 'inline-block';
+  document.getElementById('clear-chat-btn').style.display = isHelper ? 'none' : 'inline-block';
+  document.getElementById('chat-options-btn').style.display = isHelper ? 'none' : 'inline-block';
   document.getElementById('group-members-btn').style.display = isGroup ? 'block' : 'none';
 
-  document.getElementById('view-profile-btn').style.display = isGroup ? 'none' : 'block';
-  document.getElementById('block-user-btn').style.display = isGroup ? 'none' : (isBlocked ? 'none' : 'block');
-  document.getElementById('unblock-user-btn').style.display = isGroup ? 'none' : (isBlocked ? 'block' : 'none');
+  document.getElementById('view-profile-btn').style.display = (isGroup || isHelper) ? 'none' : 'block';
+  document.getElementById('block-user-btn').style.display = (isGroup || isHelper) ? 'none' : (isBlocked ? 'none' : 'block');
+  document.getElementById('unblock-user-btn').style.display = (isGroup || isHelper) ? 'none' : (isBlocked ? 'block' : 'none');
   
   document.getElementById('leave-group-btn').style.display = (isGroup && !isCreator) ? 'block' : 'none';
   document.getElementById('delete-group-btn').style.display = (isGroup && isCreator) ? 'block' : 'none';
-  document.getElementById('delete-chat-btn').style.display = isGroup ? 'none' : 'block';
+  document.getElementById('delete-chat-btn').style.display = (isGroup || isHelper) ? 'none' : 'block';
 
   const channelLinkBox = document.getElementById('channel-link-box');
   const setChannelUsernameSection = document.getElementById('set-channel-username-section');
@@ -1129,8 +1124,23 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
     setChannelUsernameSection.style.display = 'none';
   }
 
+  const headerAvatarContainer = document.getElementById('header-avatar-container');
   const headerAvatar = document.getElementById('header-avatar');
-  if (avatarUrl && !isGroup) { headerAvatar.src = avatarUrl; headerAvatar.style.display = 'block'; } else headerAvatar.style.display = 'none';
+  const headerVerifiedStar = document.getElementById('header-verified-star');
+  
+  if (isHelper) {
+    headerAvatar.src = '/favicon.png';
+    headerAvatarContainer.style.display = 'block';
+    headerVerifiedStar.style.display = 'block';
+  } else if (avatarUrl && !isGroup) {
+    headerAvatar.src = avatarUrl;
+    headerAvatarContainer.style.display = 'block';
+    headerVerifiedStar.style.display = 'none';
+  } else {
+    headerAvatarContainer.style.display = 'none';
+    headerVerifiedStar.style.display = 'none';
+  }
+
   const msgsEl = document.getElementById('messages'); msgsEl.innerHTML = 'Загрузка...';
   if (state.socket) state.socket.emit('joinChat', chatId);
   try {
@@ -1452,12 +1462,12 @@ document.getElementById('leave-group-btn').addEventListener('click', async () =>
     await api('/chats/' + state.currentChat.id + '/leave', { method: 'POST' });
     document.getElementById('chat-settings-modal').classList.remove('visible');
     state.currentChat = null;
-    document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
+    document.getElementById('messages').innerHTML = '<div class="empty">⚠ ЧАТ НЕ ВЫБРАН</div>';
     document.getElementById('chat-title').textContent = 'SCP_Helper';
     document.getElementById('composer').style.display = 'none';
     document.getElementById('chat-options-btn').style.display = 'none';
     document.getElementById('clear-chat-btn').style.display = 'none';
-    document.getElementById('header-avatar').style.display = 'none';
+    document.getElementById('header-avatar-container').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
     loadChats();
   } catch (e) {
@@ -1471,9 +1481,9 @@ document.getElementById('delete-group-btn').addEventListener('click', async () =
   try {
     await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
     state.currentChat = null;
-    document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
+    document.getElementById('messages').innerHTML = '<div class="empty">⚠ ЧАТ НЕ ВЫБРАН</div>';
     document.getElementById('chat-title').textContent = 'SCP_Helper'; document.getElementById('composer').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible');
-    document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar').style.display = 'none';
+    document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar-container').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
     loadChats();
   } catch (e) {
@@ -1491,7 +1501,7 @@ window.setChannelUsername = async function() {
     alert('Ссылка успешно установлена: scp.me/' + res.username);
     document.getElementById('chat-settings-modal').classList.remove('visible');
     loadChats();
-    openChat(state.currentChat.id, state.currentChat.name, state.currentChat.avatarUrl, state.currentChat.isBlocked, state.currentChat.otherUserId, state.currentChat.ban_expires, true, state.currentChat.creatorId, true, res.username);
+    openChat(state.currentChat.id, state.currentChat.name, state.currentChat.avatarUrl, state.currentChat.isBlocked, state.currentChat.otherUserId, state.currentChat.ban_expires, true, state.currentChat.creatorId, true, res.username, false);
   } catch (e) {
     alert(e.message);
   }
@@ -1511,7 +1521,7 @@ function connectSocket() {
       state.me = await api('/me'); await loadChats();
       if (state.currentChat) {
         const updatedChat = state.chats.find(c => c.id === state.currentChat.id);
-        if (updatedChat) openChat(updatedChat.id, updatedChat.name, updatedChat.avatarUrl, updatedChat.isBlocked, updatedChat.otherUserId, updatedChat.ban_expires, updatedChat.isGroup, updatedChat.creatorId, updatedChat.isChannel, updatedChat.username);
+        if (updatedChat) openChat(updatedChat.id, updatedChat.name, updatedChat.avatarUrl, updatedChat.isBlocked, updatedChat.otherUserId, updatedChat.ban_expires, updatedChat.isGroup, updatedChat.creatorId, updatedChat.isChannel, updatedChat.username, updatedChat.isHelper);
       }
       if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList();
     } catch (e) {}
