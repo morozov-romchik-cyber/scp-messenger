@@ -16,12 +16,11 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
-// #SECTION: S3_CONFIGURATION (ВАШИ КЛЮЧИ)
 const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://firsts3.ru').trim();
 const S3_BUCKET = (process.env.S3_BUCKET || 'scp-messenger').trim();
 const S3_REGION = (process.env.S3_REGION || 'default').trim();
-const S3_ACCESS_KEY = (process.env.S3_ACCESS_KEY || '5N9ER3SW21Z8MXWG75DJ').trim();
-const S3_SECRET_KEY = (process.env.S3_SECRET_KEY || 'n01UxvY1IsuUEmY1vBx8Eu2yXPKpW05r6dzBI5Q9').trim();
+const S3_ACCESS_KEY = (process.env.S3_ACCESS_KEY || 'ВАШ_ACCESS_KEY').trim();
+const S3_SECRET_KEY = (process.env.S3_SECRET_KEY || 'ВАШ_SECRET_KEY').trim();
 
 const s3 = new S3Client({
   endpoint: S3_ENDPOINT,
@@ -175,7 +174,7 @@ const findUserByUsername = (username) => {
 
 const chatIsBlocked = (chatId, myId) => {
   const chat = db.chats.find(c => c.id === chatId);
-  if (chat && chat.is_group) return false; // В группах блокировки не работают
+  if (chat && chat.is_group) return false; 
   const members = db.chat_members.filter(m => m.chat_id === chatId);
   const otherId = members.find(m => m.user_id !== myId)?.user_id;
   if (!otherId) return false;
@@ -434,7 +433,6 @@ app.get('/api/chats', authMiddleware, (req, res) => {
   res.json(chats);
 });
 
-// Создание группы
 app.post('/api/chats/group', authMiddleware, (req, res) => {
   const { name, memberIds } = req.body;
   if (!name || !memberIds || !Array.isArray(memberIds)) return res.status(400).json({ error: 'Неверные данные группы' });
@@ -452,7 +450,6 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   res.json({ ok: true, chatId });
 });
 
-// Добавление участника в группу
 app.post('/api/chats/:chatId/add-member', authMiddleware, (req, res) => {
   const { chatId } = req.params;
   const { userId } = req.body;
@@ -471,7 +468,6 @@ app.post('/api/chats/:chatId/add-member', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-// Удаление группы (только создатель)
 app.delete('/api/chats/:chatId', authMiddleware, (req, res) => {
   const { chatId } = req.params;
   const chat = db.chats.find(c => c.id === chatId);
