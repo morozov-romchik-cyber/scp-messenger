@@ -500,10 +500,11 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   if (!name || !memberIds || !Array.isArray(memberIds)) return res.status(400).json({ error: 'Неверные данные группы' });
   
   let cleanUsername = null;
-  if (is_channel && username) {
+  if (is_channel) {
+    if (!username) return res.status(400).json({ error: 'Для канала обязателен юзернейм' });
     cleanUsername = String(username).trim().toLowerCase().replace(/^@/, '');
     if (!/^[a-z0-9_]{3,32}$/.test(cleanUsername)) return res.status(400).json({ error: 'Юзернейм: 3-32 символа (a-z, 0-9, _)' });
-    if (db.chats.some(c => c.username === cleanUsername)) return res.status(400).json({ error: 'Этот scp.me/ адрес уже занят' });
+    if (db.chats.some(c => c.username === cleanUsername)) return res.status(400).json({ error: 'Этот scp.group/ адрес уже занят' });
   }
 
   const chatId = genId();
