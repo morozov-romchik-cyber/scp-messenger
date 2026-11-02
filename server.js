@@ -10,18 +10,18 @@ const multer = require('multer');
 const { Server } = require('socket.io');
 
 // #SECTION: S3_IMPORTS
-const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
-// #SECTION: S3_CONFIGURATION (ЗАМЕНИТЕ НА СВОИ ДАННЫЕ)
-const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://firsts3.ru';
-const S3_BUCKET = process.env.S3_BUCKET || 'scp-messenger';
-const S3_REGION = process.env.S3_REGION || 'default';
-const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || '5N9ER3SW21Z8MXWG75DJ';
-const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'n01UxvY1IsuUEmY1vBx8Eu2yXPKpW05r6dzBI5Q9';
+// #SECTION: S3_CONFIGURATION (ВАШИ КЛЮЧИ ВСТАВЛЕНЫ)
+const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://firsts3.ru').trim();
+const S3_BUCKET = (process.env.S3_BUCKET || 'scp-messenger').trim();
+const S3_REGION = (process.env.S3_REGION || 'default').trim();
+const S3_ACCESS_KEY = (process.env.S3_ACCESS_KEY || '5N9ER3SW21Z8MXWG75DJ').trim();
+const S3_SECRET_KEY = (process.env.S3_SECRET_KEY || 'n01UxvY1IsuUEmY1vBx8Eu2yXPKpW05r6dzBI5Q9').trim();
 
 const s3 = new S3Client({
   endpoint: S3_ENDPOINT,
@@ -68,7 +68,6 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const DB_FILE = path.join(__dirname, 'scp-db.json');
 let db = { users: [], recovery_codes: [], chats: [], chat_members: [], messages: [], attachments: [], blocks: [], banned_ips: [], invite_codes: [] };
 
-// #SECTION: DB_SYNC_TO_S3_QUEUE
 let isS3Syncing = false;
 let pendingS3Sync = false;
 
@@ -308,6 +307,57 @@ app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   io.emit('urgentAlert', { text: text.trim(), sender: me.username, timestamp: Date.now() });
   serverLog('info', `SysAdmin ${me.username} отправил срочное оповещение!`);
   res.json({ ok: true });
+});
+
+// #SECTION: ADMIN_WIPE_MESSAGES_AND_FILES
+app.post('/api/admin/wipe-messages-and-files', authMiddleware, async (req, res) => {
+  const me = db.users.find(u => u.id === req.userId);
+  if (!me || me.role !== 'sysadmin') {
+    return res.status(403).json({ error: 'Только SysAdmin может выполнить эту операцию' });
+  }
+
+  try {
+    serverLog('info', `SysAdmin ${me.username} запустил глобальную очистку сообщений и файлов.`);
+
+    db.messages = [];
+    db.attachments = [];
+
+    let isTruncated = true;
+    let continuationToken = undefined;
+    let deletedCount = 0;
+
+    while (isTruncated) {
+      const listCommand = new ListObjectsV2Command({
+        Bucket: S3_BUCKET,
+        Prefix: 'uploads/',
+        ContinuationToken: continuationToken
+      });
+      const listResponse = await s3.send(listCommand);
+
+      if (listResponse.Contents && listResponse.Contents.length > 0) {
+        const objectsToDelete = listResponse.Contents.map(item => ({ Key: item.Key }));
+        const deleteCommand = new DeleteObjectsCommand({
+          Bucket: S3_BUCKET,
+          Delete: { Objects: objectsToDelete }
+        });
+        await s3.send(deleteCommand);
+        deletedCount += objectsToDelete.length;
+      }
+
+      isTruncated = listResponse.IsTruncated;
+      continuationToken = listResponse.NextContinuationToken;
+    }
+
+    saveDb();
+    io.emit('allMessagesWiped');
+
+    serverLog('info', `Очистка завершена. Удалено файлов: ${deletedCount}`);
+    res.json({ ok: true, deletedFiles: deletedCount });
+
+  } catch (err) {
+    serverLog('error', 'Ошибка при глобальной очистке: ' + err.message);
+    res.status(500).json({ error: 'Ошибка сервера при очистке: ' + err.message });
+  }
 });
 
 // ================= USERS =================
@@ -560,7 +610,6 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   res.json(payload);
 });
 
-// #SECTION: S3_DOWNLOAD_FILE (ИСПРАВЛЕНА МАРШРУТИЗАЦИЯ)
 app.get('/api/files/*', (req, res, next) => {
   const header = req.headers.authorization || '';
   let token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -576,7 +625,7 @@ app.get('/api/files/*', (req, res, next) => {
   }
 }, async (req, res) => {
   try {
-    const key = req.params[0]; // Забираем полный путь (uploads/...)
+    const key = req.params[0];
     
     const att = db.attachments.find(a => a.storage_key === key);
     if (!att) return res.status(404).send('Файл не найден');
