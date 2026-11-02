@@ -16,11 +16,10 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
-// #SECTION: S3_CONFIGURATION (ВАШИ КЛЮЧИ)
+// #SECTION: S3_CONFIGURATION (ЗАМЕНИТЕ НА СВОИ ДАННЫЕ)
 const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://firsts3.ru';
 const S3_BUCKET = process.env.S3_BUCKET || 'scp-messenger';
 const S3_REGION = process.env.S3_REGION || 'default';
-// Вставьте сюда ваши Access Key и Secret Key от FirstVDS
 const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || 'ВАШ_ACCESS_KEY';
 const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'ВАШ_SECRET_KEY';
 
@@ -69,7 +68,7 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const DB_FILE = path.join(__dirname, 'scp-db.json');
 let db = { users: [], recovery_codes: [], chats: [], chat_members: [], messages: [], attachments: [], blocks: [], banned_ips: [], invite_codes: [] };
 
-// #SECTION: DB_SYNC_TO_S3_QUEUE (Фоновая синхронизация)
+// #SECTION: DB_SYNC_TO_S3_QUEUE
 let isS3Syncing = false;
 let pendingS3Sync = false;
 
@@ -301,16 +300,11 @@ app.get('/api/admin/users-list', authMiddleware, (req, res) => {
   res.json(users);
 });
 
-// НОВЫЙ ЭНДПОИНТ ДЛЯ СРОЧНЫХ ОПОВЕЩЕНИЙ
 app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
-  if (!me || me.role !== 'sysadmin') {
-    return res.status(403).json({ error: 'Только SysAdmin может отправлять срочные оповещения' });
-  }
+  if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может отправлять срочные оповещения' });
   const { text } = req.body;
-  if (!text || typeof text !== 'string' || !text.trim()) {
-    return res.status(400).json({ error: 'Текст оповещения пуст' });
-  }
+  if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Текст оповещения пуст' });
   io.emit('urgentAlert', { text: text.trim(), sender: me.username, timestamp: Date.now() });
   serverLog('info', `SysAdmin ${me.username} отправил срочное оповещение!`);
   res.json({ ok: true });
@@ -509,7 +503,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   res.json(payload);
 });
 
-// #SECTION: S3_GET_UPLOAD_URL
 app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
@@ -533,7 +526,6 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   }
 });
 
-// #SECTION: S3_CONFIRM_UPLOAD
 app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
@@ -568,9 +560,8 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   res.json(payload);
 });
 
-// #SECTION: S3_DOWNLOAD_FILE (ИСПРАВЛЕНА АВТОРИЗАЦИЯ ЧЕРЕЗ URL)
-app.get('/api/files/:key', (req, res, next) => {
-  // Разрешаем передачу токена через URL для картинок и видео
+// #SECTION: S3_DOWNLOAD_FILE (ИСПРАВЛЕНА МАРШРУТИЗАЦИЯ)
+app.get('/api/files/*', (req, res, next) => {
   const header = req.headers.authorization || '';
   let token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token && req.query.token) token = req.query.token;
@@ -585,14 +576,16 @@ app.get('/api/files/:key', (req, res, next) => {
   }
 }, async (req, res) => {
   try {
-    const att = db.attachments.find(a => a.storage_key === req.params.key);
+    const key = req.params[0]; // Забираем полный путь (uploads/...)
+    
+    const att = db.attachments.find(a => a.storage_key === key);
     if (!att) return res.status(404).send('Файл не найден');
     const msg = db.messages.find(m => m.id === att.message_id);
     if (!msg) return res.status(404).send('Сообщение не найдено');
     const isMember = db.chat_members.some(cm => cm.chat_id === msg.chat_id && cm.user_id === req.userId);
     if (!isMember) return res.status(403).send('Доступ запрещен');
 
-    const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: req.params.key });
+    const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
     res.redirect(url);
   } catch (err) {
