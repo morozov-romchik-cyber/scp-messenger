@@ -970,15 +970,22 @@ function connectSocket() {
     document.getElementById('urgent-alert-text').textContent = data.text;
     document.getElementById('urgent-alert-sender').textContent = `Отправитель: @${data.sender}`;
     document.getElementById('urgent-alert-modal').classList.add('visible');
+    // ТИХИЙ И ДОЛГИЙ ЗВУК (30 СЕКУНД)
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioCtx.createOscillator();
-      oscillator.type = 'square';
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
-      oscillator.connect(audioCtx.destination);
+      gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
       oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.5);
-    } catch (e) {}
+      oscillator.stop(audioCtx.currentTime + 30);
+    } catch (e) { console.error('Audio error', e); }
   });
 }
 
