@@ -15,15 +15,14 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
-// Ограничение размера файла оставляем только для аватарок (для чатов ограничений нет, они идут в S3)
-const MAX_FILE_MB = parseInt(process.env.MAX_FILE_SIZE_MB || '10', 10);
 
-// #SECTION: S3_CONFIGURATION (ЗАМЕНИТЕ НА СВОИ ДАННЫЕ)
+// #SECTION: S3_CONFIGURATION (ВАШИ КЛЮЧИ)
 const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://firsts3.ru';
 const S3_BUCKET = process.env.S3_BUCKET || 'scp-messenger';
 const S3_REGION = process.env.S3_REGION || 'default';
-const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || 'ВАШ_ACCESS_KEY';
-const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'ВАШ_SECRET_KEY';
+// Вставьте сюда ваши Access Key и Secret Key от FirstVDS
+const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || '5N9ER3SW21Z8MXWG75DJ';
+const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'n01UxvY1IsuUEmY1vBx8Eu2yXPKpW05r6dzBI5Q9';
 
 const s3 = new S3Client({
   endpoint: S3_ENDPOINT,
@@ -32,7 +31,7 @@ const s3 = new S3Client({
     accessKeyId: S3_ACCESS_KEY,
     secretAccessKey: S3_SECRET_KEY
   },
-  forcePathStyle: true // Обязательно для FirstVDS
+  forcePathStyle: true
 });
 
 const serverLog = (type, text) => {
@@ -43,7 +42,6 @@ const serverLog = (type, text) => {
 process.on('uncaughtException', (err) => serverLog('error', 'Поймана необработанная ошибка: ' + err.stack));
 process.on('unhandledRejection', (err) => serverLog('error', 'Необработанный промис: ' + err));
 
-// #SECTION: ALLOWED_EXT (Добавлены .ppt и .pptx)
 const ALLOWED_EXT = new Set([
   '.ai', '.all', '.apk', '.accdb', '.asm', '.app', '.arj', '.avi', '.bak', '.bat', 
   '.bin', '.bmp', '.bz2', '.c', '.cab', '.cc', '.cfg', '.class', '.cmd', '.conf', 
@@ -70,28 +68,47 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const DB_FILE = path.join(__dirname, 'scp-db.json');
 let db = { users: [], recovery_codes: [], chats: [], chat_members: [], messages: [], attachments: [], blocks: [], banned_ips: [], invite_codes: [] };
-if (fs.existsSync(DB_FILE)) {
-  try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch (e) { serverLog('error', 'Ошибка чтения БД: ' + e.message); }
-}
-['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments'].forEach(key => {
-  if (!db[key]) db[key] = [];
-});
+
+// #SECTION: DB_SYNC_TO_S3_QUEUE (Фоновая синхронизация)
+let isS3Syncing = false;
+let pendingS3Sync = false;
 
 const saveDb = () => {
-  try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch (e) { serverLog('error', 'Ошибка записи БД: ' + e.message); }
-};
+  try {
+    // 1. Мгновенно сохраняем локально (для скорости работы)
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 
-(() => {
-  let migrated = false;
-  db.users.forEach(u => {
-    if (u.username.toLowerCase() === 'admin' && u.role === 'admin') {
-      u.role = 'sysadmin';
-      migrated = true;
+    // 2. Отправляем в облако S3 (в фоне, чтобы не тормозить сервер)
+    if (isS3Syncing) {
+      pendingS3Sync = true;
+      return;
     }
-    if (!u.role) u.role = 'user';
-  });
-  if (migrated) saveDb();
-})();
+
+    const upload = async () => {
+      isS3Syncing = true;
+      try {
+        await s3.send(new PutObjectCommand({
+          Bucket: S3_BUCKET,
+          Key: 'database/scp-db.json',
+          Body: JSON.stringify(db, null, 2),
+          ContentType: 'application/json'
+        }));
+        serverLog('info', 'База данных успешно сохранена в S3');
+      } catch (err) {
+        serverLog('error', 'Ошибка сохранения БД в S3: ' + err.message);
+      }
+      isS3Syncing = false;
+
+      if (pendingS3Sync) {
+        pendingS3Sync = false;
+        upload();
+      }
+    };
+    upload();
+  } catch (e) {
+    serverLog('error', 'Ошибка локальной записи БД: ' + e.message);
+  }
+};
 
 const app = express();
 const server = http.createServer(app);
@@ -122,7 +139,6 @@ const getRealIp = (req) => {
   return ip.replace('::ffff:', '');
 };
 
-// #SECTION: DECODE_RUSSIAN_FILENAME (Для аватарок)
 const decodeFilename = (name) => {
   if (!name) return name;
   if (/[^\x00-\xFF]/.test(name)) return name;
@@ -133,7 +149,6 @@ const decodeFilename = (name) => {
   } catch (e) { return name; }
 };
 
-// #SECTION: MULTER (Только для аватарок)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
@@ -144,7 +159,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: MAX_FILE_MB * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const originalName = decodeFilename(file.originalname);
     const ext = path.extname(originalName).toLowerCase();
@@ -154,10 +169,7 @@ const upload = multer({
 });
 const uploadSingle = (field) => (req, res, next) => {
   upload.single(field)(req, res, (err) => {
-    if (err) {
-      if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: `Файл больше ${MAX_FILE_MB} MB` });
-      return res.status(400).json({ error: err.message || 'Ошибка загрузки' });
-    }
+    if (err) return res.status(400).json({ error: err.message || 'Ошибка загрузки' });
     next();
   });
 };
@@ -230,7 +242,6 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   if (target.role === 'sysadmin') return res.status(400).json({ error: 'Нельзя удалить SysAdmin' });
   if (target.role === 'admin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может удалять админов' });
-
   if (target.avatar_url) {
     try { const p = path.join(UPLOAD_DIR, target.avatar_url.split('?')[0].replace('/uploads/', '')); if (fs.existsSync(p)) fs.unlinkSync(p); } catch (e) {}
   }
@@ -401,7 +412,6 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     const other = otherId ? db.users.find(u => u.id === otherId) : null;
     let banExpires = other ? (other.ban_expires || 0) : 0;
     if (banExpires > 0 && banExpires <= Date.now()) banExpires = 0;
-
     return {
       id: c.id, name: isSelf ? 'Избранное' : (other ? other.username : (c.name || 'Chat')),
       avatarUrl: other ? other.avatar_url : null, otherUserId: other ? other.id : null,
@@ -493,7 +503,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   res.json(payload);
 });
 
-// #SECTION: S3_GET_UPLOAD_URL (Шаг 2 и 3)
+// #SECTION: S3_GET_UPLOAD_URL
 app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
@@ -503,18 +513,12 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   if (!fileName || !fileType) return res.status(400).json({ error: 'Нет данных о файле' });
 
   const ext = path.extname(fileName).toLowerCase();
-  // Проверка расширений больше не критична, так как файл идет в S3, но оставим базовую защиту
   if (!ALLOWED_EXT.has(ext)) return res.status(400).json({ error: 'Недопустимый тип файла: ' + ext });
 
   const key = `uploads/${genId()}${ext}`;
-  const command = new PutObjectCommand({
-    Bucket: S3_BUCKET,
-    Key: key,
-    ContentType: fileType
-  });
+  const command = new PutObjectCommand({ Bucket: S3_BUCKET, Key: key, ContentType: fileType });
 
   try {
-    // Ссылка на загрузку живет 15 минут
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
     res.json({ uploadUrl, key });
   } catch (err) {
@@ -523,7 +527,7 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   }
 });
 
-// #SECTION: S3_CONFIRM_UPLOAD (Шаг 2 и 3)
+// #SECTION: S3_CONFIRM_UPLOAD
 app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
@@ -548,8 +552,7 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   files.forEach(f => {
     db.attachments.push({
       id: genId(), message_id: msgId, storage_key: f.key,
-      url: `/api/files/${f.key}`, // Ссылка на скачивание через наш сервер
-      mime_type: f.type, original_name: f.name, size: f.size
+      url: `/api/files/${f.key}`, mime_type: f.type, original_name: f.name, size: f.size
     });
   });
   saveDb();
@@ -559,15 +562,13 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   res.json(payload);
 });
 
-// #SECTION: S3_DOWNLOAD_FILE (Шаг 4)
+// #SECTION: S3_DOWNLOAD_FILE
 app.get('/api/files/:key', authMiddleware, async (req, res) => {
   try {
     const att = db.attachments.find(a => a.storage_key === req.params.key);
     if (!att) return res.status(404).send('Файл не найден');
-    
     const msg = db.messages.find(m => m.id === att.message_id);
     if (!msg) return res.status(404).send('Сообщение не найдено');
-    
     const isMember = db.chat_members.some(cm => cm.chat_id === msg.chat_id && cm.user_id === req.userId);
     if (!isMember) return res.status(403).send('Доступ запрещен');
 
@@ -582,9 +583,7 @@ app.get('/api/files/:key', authMiddleware, async (req, res) => {
 
 app.post('/api/chats/:chatId/mark-read', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
-  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) {
-    return res.status(403).json({ error: 'Not a member' });
-  }
+  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   const senderMsgs = {};
   db.messages.forEach(m => {
     if (m.chat_id !== chatId || m.sender_id === req.userId) return;
@@ -791,6 +790,45 @@ io.on('connection', (socket) => {
   } catch (e) {}
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n⬛ SCP Foundation Messenger запущен: http://localhost:${PORT}\n`);
-});
+// ================= ИНИЦИАЛИЗАЦИЯ И ЗАПУСК СЕРВЕРА =================
+(async () => {
+  // Загружаем базу из S3 при старте
+  try {
+    const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: 'database/scp-db.json' });
+    const response = await s3.send(command);
+    const body = await response.Body.transformToString();
+    db = JSON.parse(body);
+    serverLog('info', 'База данных успешно загружена из S3');
+  } catch (err) {
+    if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+      serverLog('info', 'В S3 базы нет, проверяем локальную...');
+      if (fs.existsSync(DB_FILE)) {
+        db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+        saveDb(); // Сразу закидываем локальную базу в S3
+      } else {
+        serverLog('info', 'Создана новая пустая база данных');
+      }
+    } else {
+      serverLog('error', 'Ошибка загрузки БД из S3: ' + err.message);
+      if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    }
+  }
+
+  // Инициализируем массивы, если их нет
+  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments'].forEach(key => {
+    if (!db[key]) db[key] = [];
+  });
+
+  // Миграция ролей
+  let migrated = false;
+  db.users.forEach(u => {
+    if (u.username.toLowerCase() === 'admin' && u.role === 'admin') { u.role = 'sysadmin'; migrated = true; }
+    if (!u.role) u.role = 'user';
+  });
+  if (migrated) saveDb();
+
+  // Теперь запускаем сервер
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n⬛ SCP Foundation Messenger запущен: http://localhost:${PORT}\n`);
+  });
+})();
