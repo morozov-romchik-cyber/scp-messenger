@@ -16,7 +16,7 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
-// #SECTION: S3_CONFIGURATION (ВАШИ КЛЮЧИ ВСТАВЛЕНЫ)
+// #SECTION: S3_CONFIGURATION (ВАШИ КЛЮЧИ)
 const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://firsts3.ru').trim();
 const S3_BUCKET = (process.env.S3_BUCKET || 'scp-messenger').trim();
 const S3_REGION = (process.env.S3_REGION || 'default').trim();
@@ -26,10 +26,7 @@ const S3_SECRET_KEY = (process.env.S3_SECRET_KEY || 'n01UxvY1IsuUEmY1vBx8Eu2yXPK
 const s3 = new S3Client({
   endpoint: S3_ENDPOINT,
   region: S3_REGION,
-  credentials: {
-    accessKeyId: S3_ACCESS_KEY,
-    secretAccessKey: S3_SECRET_KEY
-  },
+  credentials: { accessKeyId: S3_ACCESS_KEY, secretAccessKey: S3_SECRET_KEY },
   forcePathStyle: true
 });
 
@@ -74,44 +71,27 @@ let pendingS3Sync = false;
 const saveDb = () => {
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-
-    if (isS3Syncing) {
-      pendingS3Sync = true;
-      return;
-    }
-
+    if (isS3Syncing) { pendingS3Sync = true; return; }
     const upload = async () => {
       isS3Syncing = true;
       try {
         await s3.send(new PutObjectCommand({
-          Bucket: S3_BUCKET,
-          Key: 'database/scp-db.json',
-          Body: JSON.stringify(db, null, 2),
-          ContentType: 'application/json'
+          Bucket: S3_BUCKET, Key: 'database/scp-db.json',
+          Body: JSON.stringify(db, null, 2), ContentType: 'application/json'
         }));
-      } catch (err) {
-        serverLog('error', 'Ошибка сохранения БД в S3: ' + err.message);
-      }
+      } catch (err) { serverLog('error', 'Ошибка сохранения БД в S3: ' + err.message); }
       isS3Syncing = false;
-
-      if (pendingS3Sync) {
-        pendingS3Sync = false;
-        upload();
-      }
+      if (pendingS3Sync) { pendingS3Sync = false; upload(); }
     };
     upload();
-  } catch (e) {
-    serverLog('error', 'Ошибка локальной записи БД: ' + e.message);
-  }
+  } catch (e) { serverLog('error', 'Ошибка локальной записи БД: ' + e.message); }
 };
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
-server.requestTimeout = 0;
-server.headersTimeout = 0;
-server.timeout = 0;
+server.requestTimeout = 0; server.headersTimeout = 0; server.timeout = 0;
 
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -128,9 +108,7 @@ const publicUser = (u) => ({
 });
 
 const getRealIp = (req) => {
-  let ip = req.headers['cf-connecting-ip'] ||
-           (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) ||
-           'unknown';
+  let ip = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) || 'unknown';
   return ip.replace('::ffff:', '');
 };
 
@@ -153,8 +131,7 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  storage, limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const originalName = decodeFilename(file.originalname);
     const ext = path.extname(originalName).toLowerCase();
@@ -176,16 +153,11 @@ function authMiddleware(req, res, next) {
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     req.userId = payload.sub;
-
     const user = db.users.find(u => u.id === req.userId);
     if (user && user.ban_expires && user.ban_expires !== 0) {
       const now = Date.now();
-      if (user.ban_expires === -1 || user.ban_expires > now) {
-        return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires });
-      } else {
-        user.ban_expires = 0;
-        saveDb();
-      }
+      if (user.ban_expires === -1 || user.ban_expires > now) return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires });
+      else { user.ban_expires = 0; saveDb(); }
     }
     next();
   } catch { res.status(401).json({ error: 'Invalid token' }); }
@@ -202,6 +174,8 @@ const findUserByUsername = (username) => {
 };
 
 const chatIsBlocked = (chatId, myId) => {
+  const chat = db.chats.find(c => c.id === chatId);
+  if (chat && chat.is_group) return false; // В группах блокировки не работают
   const members = db.chat_members.filter(m => m.chat_id === chatId);
   const otherId = members.find(m => m.user_id !== myId)?.user_id;
   if (!otherId) return false;
@@ -309,51 +283,26 @@ app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-// #SECTION: ADMIN_WIPE_MESSAGES_AND_FILES
 app.post('/api/admin/wipe-messages-and-files', authMiddleware, async (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
-  if (!me || me.role !== 'sysadmin') {
-    return res.status(403).json({ error: 'Только SysAdmin может выполнить эту операцию' });
-  }
-
+  if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может выполнить эту операцию' });
   try {
     serverLog('info', `SysAdmin ${me.username} запустил глобальную очистку сообщений и файлов.`);
-
-    db.messages = [];
-    db.attachments = [];
-
-    let isTruncated = true;
-    let continuationToken = undefined;
-    let deletedCount = 0;
-
+    db.messages = []; db.attachments = [];
+    let isTruncated = true; let continuationToken = undefined; let deletedCount = 0;
     while (isTruncated) {
-      const listCommand = new ListObjectsV2Command({
-        Bucket: S3_BUCKET,
-        Prefix: 'uploads/',
-        ContinuationToken: continuationToken
-      });
+      const listCommand = new ListObjectsV2Command({ Bucket: S3_BUCKET, Prefix: 'uploads/', ContinuationToken: continuationToken });
       const listResponse = await s3.send(listCommand);
-
       if (listResponse.Contents && listResponse.Contents.length > 0) {
         const objectsToDelete = listResponse.Contents.map(item => ({ Key: item.Key }));
-        const deleteCommand = new DeleteObjectsCommand({
-          Bucket: S3_BUCKET,
-          Delete: { Objects: objectsToDelete }
-        });
-        await s3.send(deleteCommand);
+        await s3.send(new DeleteObjectsCommand({ Bucket: S3_BUCKET, Delete: { Objects: objectsToDelete } }));
         deletedCount += objectsToDelete.length;
       }
-
-      isTruncated = listResponse.IsTruncated;
-      continuationToken = listResponse.NextContinuationToken;
+      isTruncated = listResponse.IsTruncated; continuationToken = listResponse.NextContinuationToken;
     }
-
-    saveDb();
-    io.emit('allMessagesWiped');
-
+    saveDb(); io.emit('allMessagesWiped');
     serverLog('info', `Очистка завершена. Удалено файлов: ${deletedCount}`);
     res.json({ ok: true, deletedFiles: deletedCount });
-
   } catch (err) {
     serverLog('error', 'Ошибка при глобальной очистке: ' + err.message);
     res.status(500).json({ error: 'Ошибка сервера при очистке: ' + err.message });
@@ -411,9 +360,7 @@ app.post('/api/users/avatar', authMiddleware, uploadSingle('avatar'), (req, res)
       try { const oldPath = path.join(UPLOAD_DIR, user.avatar_url.split('?')[0].replace('/uploads/', '')); if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch (e) {}
     }
     user.avatar_url = '/uploads/' + req.file.filename + '?v=' + Date.now();
-    saveDb();
-    io.emit('refreshData');
-    res.json(publicUser(user));
+    saveDb(); io.emit('refreshData'); res.json(publicUser(user));
   } catch (e) { res.status(500).json({ error: 'Ошибка загрузки аватара' }); }
 });
 
@@ -430,9 +377,7 @@ app.delete('/api/users/me', authMiddleware, (req, res) => {
   db.chat_members = db.chat_members.filter(m => m.user_id !== req.userId);
   db.blocks = db.blocks.filter(b => b.blocker !== req.userId && b.blocked !== req.userId);
   db.users.splice(idx, 1);
-  saveDb();
-  io.emit('refreshData');
-  res.json({ ok: true });
+  saveDb(); io.emit('refreshData'); res.json({ ok: true });
 });
 
 app.post('/api/users/:userId/block', authMiddleware, (req, res) => {
@@ -448,8 +393,7 @@ app.post('/api/users/:userId/block', authMiddleware, (req, res) => {
 
 app.post('/api/users/:userId/unblock', authMiddleware, (req, res) => {
   db.blocks = db.blocks.filter(b => !(b.blocker === req.userId && b.blocked === req.params.userId));
-  saveDb();
-  res.json({ ok: true });
+  saveDb(); res.json({ ok: true });
 });
 
 // ================= CHATS & MESSAGES =================
@@ -457,19 +401,94 @@ app.get('/api/chats', authMiddleware, (req, res) => {
   const myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
   const chats = db.chats.filter(c => myChatIds.includes(c.id)).map(c => {
     const members = db.chat_members.filter(m => m.chat_id === c.id);
-    const isSelf = members.length === 1 && members[0].user_id === req.userId;
+    const isSelf = !c.is_group && members.length === 1 && members[0].user_id === req.userId;
     const otherId = isSelf ? req.userId : members.find(m => m.user_id !== req.userId)?.user_id;
     const other = otherId ? db.users.find(u => u.id === otherId) : null;
+    
+    let chatName = 'Chat';
+    let chatAvatar = null;
+    let otherRole = 'user';
+
+    if (c.is_group) {
+        chatName = c.name || 'Групповой чат';
+    } else if (isSelf) {
+        chatName = 'Избранное';
+        chatAvatar = other ? other.avatar_url : null;
+    } else if (other) {
+        chatName = other.username;
+        chatAvatar = other.avatar_url;
+        otherRole = other.role;
+    }
+
     let banExpires = other ? (other.ban_expires || 0) : 0;
     if (banExpires > 0 && banExpires <= Date.now()) banExpires = 0;
+
     return {
-      id: c.id, name: isSelf ? 'Избранное' : (other ? other.username : (c.name || 'Chat')),
-      avatarUrl: other ? other.avatar_url : null, otherUserId: other ? other.id : null,
-      role: other ? other.role : 'user', isBlocked: isSelf ? false : chatIsBlocked(c.id, req.userId),
-      ban_expires: banExpires, createdAt: c.created_at, isSelf: isSelf
+      id: c.id, name: chatName, avatarUrl: chatAvatar,
+      otherUserId: c.is_group ? null : (other ? other.id : null),
+      role: otherRole, isBlocked: c.is_group ? false : (isSelf ? false : chatIsBlocked(c.id, req.userId)),
+      ban_expires: banExpires, createdAt: c.created_at, isSelf: isSelf,
+      isGroup: !!c.is_group, creatorId: c.creator_id
     };
   });
   res.json(chats);
+});
+
+// Создание группы
+app.post('/api/chats/group', authMiddleware, (req, res) => {
+  const { name, memberIds } = req.body;
+  if (!name || !memberIds || !Array.isArray(memberIds)) return res.status(400).json({ error: 'Неверные данные группы' });
+  
+  const chatId = genId();
+  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: true, name, creator_id: req.userId });
+  
+  const uniqueMembers = [...new Set([req.userId, ...memberIds])];
+  uniqueMembers.forEach(uid => {
+    db.chat_members.push({ id: genId(), chat_id: chatId, user_id: uid });
+  });
+  
+  saveDb();
+  io.emit('refreshData');
+  res.json({ ok: true, chatId });
+});
+
+// Добавление участника в группу
+app.post('/api/chats/:chatId/add-member', authMiddleware, (req, res) => {
+  const { chatId } = req.params;
+  const { userId } = req.body;
+  
+  const chat = db.chats.find(c => c.id === chatId);
+  if (!chat || !chat.is_group) return res.status(404).json({ error: 'Группа не найдена' });
+  
+  const isMember = db.chat_members.some(m => m.chat_id === chatId && m.user_id === req.userId);
+  if (!isMember) return res.status(403).json({ error: 'Вы не участник этой группы' });
+  
+  if (db.chat_members.some(m => m.chat_id === chatId && m.user_id === userId)) return res.status(400).json({ error: 'Пользователь уже в группе' });
+  
+  db.chat_members.push({ id: genId(), chat_id: chatId, user_id: userId });
+  saveDb();
+  io.emit('refreshData');
+  res.json({ ok: true });
+});
+
+// Удаление группы (только создатель)
+app.delete('/api/chats/:chatId', authMiddleware, (req, res) => {
+  const { chatId } = req.params;
+  const chat = db.chats.find(c => c.id === chatId);
+  
+  if (!chat) return res.status(404).json({ error: 'Чат не найден' });
+  if (!chat.is_group) return res.status(400).json({ error: 'Это не групповой чат' });
+  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может удалить группу' });
+  
+  db.chats = db.chats.filter(c => c.id !== chatId);
+  db.chat_members = db.chat_members.filter(m => m.chat_id !== chatId);
+  const msgIds = db.messages.filter(m => m.chat_id === chatId).map(m => m.id);
+  db.attachments = db.attachments.filter(a => !msgIds.includes(a.message_id));
+  db.messages = db.messages.filter(m => m.chat_id !== chatId);
+  
+  saveDb();
+  io.emit('refreshData');
+  res.json({ ok: true });
 });
 
 app.post('/api/chats', authMiddleware, (req, res) => {
@@ -480,21 +499,24 @@ app.post('/api/chats', authMiddleware, (req, res) => {
 
   const myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
   for (const chatId of myChatIds) {
+    const chat = db.chats.find(c => c.id === chatId);
+    if (chat && chat.is_group) continue;
+
     const members = db.chat_members.filter(m => m.chat_id === chatId);
     if (isSelf && members.length === 1 && members[0].user_id === req.userId) {
-      return res.json({ id: chatId, name: 'Избранное', avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: true, ban_expires: 0 });
+      return res.json({ id: chatId, name: 'Избранное', avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: true, ban_expires: 0, isGroup: false });
     }
     if (!isSelf && members.length === 2 && members.some(m => m.user_id === userId)) {
-      return res.json({ id: chatId, name: other.username, avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: chatIsBlocked(chatId, req.userId), isSelf: false, ban_expires: other.ban_expires || 0 });
+      return res.json({ id: chatId, name: other.username, avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: chatIsBlocked(chatId, req.userId), isSelf: false, ban_expires: other.ban_expires || 0, isGroup: false });
     }
   }
 
   const chatId = genId();
-  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000) });
+  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: false });
   db.chat_members.push({ id: genId(), chat_id: chatId, user_id: req.userId });
   if (!isSelf) db.chat_members.push({ id: genId(), chat_id: chatId, user_id: other.id });
   saveDb();
-  res.json({ id: chatId, name: isSelf ? 'Избранное' : other.username, avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: isSelf, ban_expires: isSelf ? 0 : (other.ban_expires || 0) });
+  res.json({ id: chatId, name: isSelf ? 'Избранное' : other.username, avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: isSelf, ban_expires: isSelf ? 0 : (other.ban_expires || 0), isGroup: false });
 });
 
 function buildMessagePayload(m) {
@@ -502,9 +524,9 @@ function buildMessagePayload(m) {
   const atts = db.attachments.filter(a => a.message_id === m.id);
   const members = db.chat_members.filter(cm => cm.chat_id === m.chat_id);
   const otherMembers = members.filter(cm => cm.user_id !== m.sender_id);
-  const isSelfChat = otherMembers.length === 0;
+  const isSelfChat = otherMembers.length === 0 && !db.chats.find(c => c.id === m.chat_id)?.is_group;
   let delivered = false, read = false;
-  if (!isSelfChat) {
+  if (members.length > 1) {
     const deliveredTo = m.delivered_to || [];
     const readBy = m.read_by || [];
     delivered = otherMembers.every(om => deliveredTo.includes(om.user_id));
@@ -570,10 +592,7 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   try {
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
     res.json({ uploadUrl, key });
-  } catch (err) {
-    console.error('S3 error:', err);
-    res.status(500).json({ error: 'Ошибка создания ссылки S3' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Ошибка создания ссылки S3' }); }
 });
 
 app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
@@ -618,15 +637,11 @@ app.get('/api/files/*', (req, res, next) => {
   if (!token) return res.status(401).send('No token');
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    req.userId = payload.sub;
-    next();
-  } catch (e) {
-    res.status(401).send('Invalid token');
-  }
+    req.userId = payload.sub; next();
+  } catch (e) { res.status(401).send('Invalid token'); }
 }, async (req, res) => {
   try {
     const key = req.params[0];
-    
     const att = db.attachments.find(a => a.storage_key === key);
     if (!att) return res.status(404).send('Файл не найден');
     const msg = db.messages.find(m => m.id === att.message_id);
@@ -637,10 +652,7 @@ app.get('/api/files/*', (req, res, next) => {
     const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
     res.redirect(url);
-  } catch (err) {
-    console.error('S3 download error:', err);
-    res.status(500).send('Ошибка скачивания');
-  }
+  } catch (err) { res.status(500).send('Ошибка скачивания'); }
 });
 
 app.post('/api/chats/:chatId/mark-read', authMiddleware, (req, res) => {
@@ -863,12 +875,8 @@ io.on('connection', (socket) => {
   } catch (err) {
     if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
       serverLog('info', 'В S3 базы нет, проверяем локальную...');
-      if (fs.existsSync(DB_FILE)) {
-        db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        saveDb();
-      } else {
-        serverLog('info', 'Создана новая пустая база данных');
-      }
+      if (fs.existsSync(DB_FILE)) { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); saveDb(); }
+      else { serverLog('info', 'Создана новая пустая база данных'); }
     } else {
       serverLog('error', 'Ошибка загрузки БД из S3: ' + err.message);
       if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
