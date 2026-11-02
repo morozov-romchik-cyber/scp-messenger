@@ -182,7 +182,7 @@
   .setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; font-size: 14px; }
   .setting-row select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 4px; outline: none; font-family: inherit; }
   .setting-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
-  .modal-btn { width: 100%; background: var(--accent); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: opacity 0.2s; }
+  .modal-btn { width: 100%; background: var(--accent); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: opacity 0.2s; flex-shrink: 0; }
   .modal-btn:hover { opacity: 0.8; }
 
   .forward-list { overflow-y: auto; flex: 1; margin-bottom: 10px; max-height: 40vh; }
@@ -418,46 +418,45 @@
 
 <!-- Модальное окно просмотра участников группы -->
 <div class="modal" id="group-members-modal">
-  <div class="modal-content">
+  <div class="modal-content" style="height: 80vh; display: flex; flex-direction: column;">
     <h3>УЧАСТНИКИ ГРУППЫ</h3>
-    <div id="group-members-list" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;"></div>
-    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('group-members-modal').classList.remove('visible')">Закрыть</button>
+    <div id="group-members-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
+    <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('group-members-modal').classList.remove('visible')">Закрыть</button>
   </div>
 </div>
 
 <!-- Модальное окно списка всех пользователей (Контакты) -->
 <div class="modal" id="contacts-modal">
-  <div class="modal-content" style="height: 80vh;">
+  <div class="modal-content" style="height: 80vh; display: flex; flex-direction: column;">
     <h3>ВСЕ КОНТАКТЫ</h3>
     <input type="text" id="contacts-search" placeholder="Поиск по нику..." style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 15px; outline: none;" />
     <div id="contacts-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px;">
       Загрузка...
     </div>
-    <button class="modal-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-top: 10px;" onclick="document.getElementById('contacts-modal').classList.remove('visible'); document.getElementById('create-group-modal').classList.add('visible');">
+    <button class="modal-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-top: 10px; flex-shrink: 0;" onclick="document.getElementById('contacts-modal').classList.remove('visible'); document.getElementById('create-group-modal').classList.add('visible'); openCreateGroupModal();">
       👥 Создать группу
     </button>
-    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('contacts-modal').classList.remove('visible')">Закрыть</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('contacts-modal').classList.remove('visible')">Закрыть</button>
   </div>
 </div>
 
-<!-- Модальное окно создания группы -->
+<!-- Модальное окно создания группы (БЕЗ ПОИСКА) -->
 <div class="modal" id="create-group-modal">
-  <div class="modal-content">
+  <div class="modal-content" style="height: 80vh; display: flex; flex-direction: column;">
     <h3>СОЗДАТЬ ГРУППУ</h3>
-    <input type="text" id="group-name-input" placeholder="Название группы" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 15px; outline: none;" />
-    <input type="text" id="group-user-search" placeholder="Поиск пользователей..." style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none;" />
-    <div id="group-user-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
-    <button class="modal-btn" onclick="createGroup()" style="background: var(--accent); color: #000; margin-bottom: 10px;">Создать</button>
-    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('create-group-modal').classList.remove('visible')">Отмена</button>
+    <input type="text" id="group-name-input" placeholder="Название группы" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 15px; outline: none; flex-shrink: 0;" />
+    <div id="group-user-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
+    <button class="modal-btn" onclick="createGroup()" style="background: var(--accent); color: #000; margin-bottom: 10px; flex-shrink: 0;">Создать</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('create-group-modal').classList.remove('visible')">Отмена</button>
   </div>
 </div>
 
-<!-- Модальное окно добавления в группу из списка чатов -->
+<!-- Модальное окно добавления в группу (БЕЗ ПОИСКА) -->
 <div class="modal" id="add-to-group-modal">
-  <div class="modal-content">
+  <div class="modal-content" style="height: 80vh; display: flex; flex-direction: column;">
     <h3>ДОБАВИТЬ В ГРУППУ</h3>
-    <div id="add-user-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
-    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('add-to-group-modal').classList.remove('visible')">Закрыть</button>
+    <div id="add-user-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
+    <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('add-to-group-modal').classList.remove('visible')">Закрыть</button>
   </div>
 </div>
 
@@ -1026,37 +1025,29 @@ document.getElementById('contacts-search').addEventListener('input', (e) => {
 });
 
 // ==========================================
-// ГРУППОВЫЕ ЧАТЫ
+// ГРУППОВЫЕ ЧАТЫ (ОБНОВЛЕНО)
 // ==========================================
-window.openCreateGroupModal = function() {
+window.openCreateGroupModal = async function() {
   document.getElementById('group-name-input').value = '';
-  document.getElementById('group-user-search').value = '';
-  document.getElementById('group-user-list').innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Введите имя для поиска</div>';
+  const list = document.getElementById('group-user-list');
+  list.innerHTML = 'Загрузка...';
   document.getElementById('create-group-modal').classList.add('visible');
-};
-
-let groupSearchTimeout = null;
-document.getElementById('group-user-search').addEventListener('input', (e) => {
-  const q = e.target.value.trim(); clearTimeout(groupSearchTimeout);
-  if (!q) {
-    document.getElementById('group-user-list').innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Введите имя для поиска</div>';
-    return;
+  
+  try {
+    const users = await api('/users/all');
+    list.innerHTML = users.map(u => `
+      <label style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px; cursor:pointer;">
+        <input type="checkbox" class="group-user-checkbox" value="${u.id}" style="width:18px; height:18px; accent-color:var(--accent);">
+        <div class="chat-avatar" style="width:28px; height:28px; font-size:11px;">
+          ${u.avatarUrl ? `<img src="${escAttr(u.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : esc((u.username || '?')[0].toUpperCase())}
+        </div>
+        <div style="font-size:14px; font-weight:600;">@${esc(u.username)}</div>
+      </label>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = `<div style="color:#ff4d4d; text-align:center;">Ошибка: ${err.message}</div>`;
   }
-  groupSearchTimeout = setTimeout(async () => {
-    try {
-      const users = await api('/users/search?q=' + encodeURIComponent(q));
-      const list = document.getElementById('group-user-list');
-      if (!users.length) { list.innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Не найдено</div>'; return; }
-      list.innerHTML = users.map(u => `
-        <label style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px; cursor:pointer;">
-          <input type="checkbox" class="group-user-checkbox" value="${u.id}" style="width:18px; height:18px; accent-color:var(--accent);">
-          <div class="chat-avatar" style="width:28px; height:28px; font-size:11px;">${esc((u.username || '?')[0].toUpperCase())}</div>
-          <div style="font-size:14px; font-weight:600;">@${esc(u.username)}</div>
-        </label>
-      `).join('');
-    } catch (err) {}
-  }, 300);
-});
+};
 
 window.createGroup = async function() {
   const name = document.getElementById('group-name-input').value.trim();
@@ -1076,7 +1067,7 @@ window.createGroup = async function() {
   }
 };
 
-// Показ участников группы
+// Показ участников группы (КРАСНАЯ КНОПКА УДАЛЕНИЯ ДЛЯ СОЗДАТЕЛЯ)
 document.getElementById('group-members-btn').addEventListener('click', async () => {
   if (!state.currentChat || !state.currentChat.isGroup) return;
   const modal = document.getElementById('group-members-modal');
@@ -1086,14 +1077,19 @@ document.getElementById('group-members-btn').addEventListener('click', async () 
   
   try {
     const members = await api('/chats/' + state.currentChat.id + '/members');
+    const isCreator = state.currentChat.creatorId === state.me.id;
+
     list.innerHTML = members.map(u => `
-      <div style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
-        <div class="chat-avatar" style="width:32px; height:32px; font-size:14px;" onclick="document.getElementById('group-members-modal').classList.remove('visible'); openProfile('${u.id}')">${esc((u.username || '?')[0].toUpperCase())}</div>
+      <div style="display:flex; align-items:center; gap:10px; padding:10px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
+        <div class="chat-avatar" style="width:32px; height:32px; font-size:14px;" onclick="document.getElementById('group-members-modal').classList.remove('visible'); openProfile('${u.id}')">
+          ${u.avatarUrl ? `<img src="${escAttr(u.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : esc((u.username || '?')[0].toUpperCase())}
+        </div>
         <div style="flex:1;">
           <div style="font-weight:600; font-size:14px; cursor:pointer;" onclick="document.getElementById('group-members-modal').classList.remove('visible'); openProfile('${u.id}')">@${esc(u.username)}</div>
           <div style="font-size:11px; color:var(--muted); font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]}</div>
         </div>
-        ${u.id === state.currentChat.creatorId ? '<span style="font-size:10px; background:var(--accent); color:#000; padding:2px 6px; border-radius:4px; font-weight:bold;">СОЗДАТЕЛЬ</span>' : ''}
+        ${u.id === state.currentChat.creatorId ? '<span style="font-size:10px; background:var(--accent); color:#000; padding:2px 6px; border-radius:4px; font-weight:bold; margin-right: 5px;">СОЗДАТЕЛЬ</span>' : ''}
+        ${(isCreator && u.id !== state.me.id) ? `<button class="admin-btn admin-btn-danger" style="padding:4px 8px; font-size:11px;" onclick="removeMemberFromGroup('${u.id}')">❌</button>` : ''}
       </div>
     `).join('');
   } catch (e) {
@@ -1101,32 +1097,46 @@ document.getElementById('group-members-btn').addEventListener('click', async () 
   }
 });
 
-// Добавление участников из списка чатов
-window.openAddMemberModal = function() {
+window.removeMemberFromGroup = async function(userId) {
+  if (!confirm('Вы уверены, что хотите исключить этого участника?')) return;
+  try {
+    await api('/chats/' + state.currentChat.id + '/remove-member', { method: 'POST', body: JSON.stringify({ userId }) });
+    document.getElementById('group-members-btn').click();
+    loadChats();
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
+// Добавление участников (ЗЕЛЕНАЯ КНОПКА)
+window.openAddMemberModal = async function() {
   const list = document.getElementById('add-user-list');
   list.innerHTML = 'Загрузка...';
   document.getElementById('add-to-group-modal').classList.add('visible');
   
-  api('/chats/' + state.currentChat.id + '/members').then(members => {
+  try {
+    const members = await api('/chats/' + state.currentChat.id + '/members');
     const memberIds = members.map(m => m.id);
-    const personalChats = state.chats.filter(c => !c.isGroup && !c.isSelf);
-    const availableChats = personalChats.filter(c => !memberIds.includes(c.otherUserId));
+    const users = await api('/users/all');
+    const available = users.filter(u => !memberIds.includes(u.id));
     
-    if (availableChats.length === 0) {
-      list.innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center; padding: 20px;">Нет доступных контактов для добавления</div>';
+    if (available.length === 0) {
+      list.innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center; padding: 20px;">Нет доступных пользователей для добавления</div>';
       return;
     }
 
-    list.innerHTML = availableChats.map(c => `
-      <div style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
-        <div class="chat-avatar" style="width:32px; height:32px; font-size:14px;">${esc((c.name || '?')[0].toUpperCase())}</div>
-        <div style="font-size:14px; font-weight:600; flex:1;">@${esc(c.name)}</div>
-        <button class="admin-btn" onclick="addMemberToGroup('${c.otherUserId}')" style="padding:4px 8px; font-size:11px;">Добавить</button>
+    list.innerHTML = available.map(u => `
+      <div style="display:flex; align-items:center; gap:10px; padding:10px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
+        <div class="chat-avatar" style="width:32px; height:32px; font-size:14px;">
+          ${u.avatarUrl ? `<img src="${escAttr(u.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : esc((u.username || '?')[0].toUpperCase())}
+        </div>
+        <div style="font-size:14px; font-weight:600; flex:1;">@${esc(u.username)}</div>
+        <button class="admin-btn" onclick="addMemberToGroup('${u.id}')" style="padding:4px 8px; font-size:11px; border-color: #00ff9d; color: #00ff9d;">Добавить</button>
       </div>
     `).join('');
-  }).catch(err => {
+  } catch (err) {
     list.innerHTML = `<div style="color:#ff4d4d; text-align:center;">Ошибка: ${err.message}</div>`;
-  });
+  }
 };
 
 window.addMemberToGroup = async function(userId) {
@@ -1135,6 +1145,7 @@ window.addMemberToGroup = async function(userId) {
     await api('/chats/' + state.currentChat.id + '/add-member', { method: 'POST', body: JSON.stringify({ userId }) });
     alert('Участник добавлен!');
     document.getElementById('add-to-group-modal').classList.remove('visible');
+    loadChats();
   } catch (e) {
     alert(e.message);
   }
@@ -1594,8 +1605,7 @@ document.getElementById('block-user-btn').addEventListener('click', async () => 
 });
 document.getElementById('unblock-user-btn').addEventListener('click', async () => {
   if (!state.currentChat || !state.currentChat.otherUserId) return;
-  try { await api('/users/' + state
-                  .currentChat.otherUserId + '/unblock', { method: 'POST', body: '{}' }); state.currentChat.isBlocked = false; document.getElementById('composer').style.display = 'flex'; document.getElementById('blocked-banner').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible'); loadChats(); } catch (e) { alert(e.message); }
+  try { await api('/users/' + state.currentChat.otherUserId + '/unblock', { method: 'POST', body: '{}' }); state.currentChat.isBlocked = false; document.getElementById('composer').style.display = 'flex'; document.getElementById('blocked-banner').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible'); loadChats(); } catch (e) { alert(e.message); }
 });
 document.getElementById('delete-chat-btn').addEventListener('click', async () => {
   if (!state.currentChat || !confirm('Удалить чат у себя?')) return;
