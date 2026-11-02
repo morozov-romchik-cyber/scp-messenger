@@ -67,6 +67,8 @@
   .brand-logo { width: 40px; height: 40px; object-fit: contain; }
   .brand-title { font-family: 'Fira Code', monospace; color: var(--accent); font-size: 14px; letter-spacing: 1px; }
   .brand small { color: var(--muted); font-size: 11px; }
+  .create-group-btn { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #000; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; cursor: pointer; margin-left: auto; transition: transform 0.2s; }
+  .create-group-btn:hover { transform: scale(1.1); }
 
   .search { padding: 14px; border-bottom: 1px solid var(--border); }
   .search input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: 6px; font-size: 13px; font-family: inherit; }
@@ -127,14 +129,12 @@
   .msg audio { margin-top: 8px; width: 240px; }
   .msg .file-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); text-decoration: none; font-size: 13px; font-family: 'Fira Code', monospace; transition: border-color 0.2s; }
 
-  /* Стили для чипов вложений */
   .att-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .att-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; max-width: 200px; font-size: 12px; font-family: 'Fira Code', monospace; transition: border-color 0.2s, background 0.2s; }
   .att-chip:hover { border-color: var(--border-hover); background: var(--card); }
   .att-chip-icon { font-size: 16px; flex-shrink: 0; }
   .att-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  /* Плавающее окно просмотра */
   .att-viewer-modal { display: none; position: fixed; inset: 0; background: transparent; z-index: 99998; pointer-events: none; }
   .att-viewer-modal.visible { display: block; }
   .att-viewer-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px; min-width: 340px; max-width: 90vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.8); pointer-events: auto; overflow: hidden; }
@@ -412,6 +412,30 @@
   </div>
 </div>
 
+<!-- Модальное окно создания группы -->
+<div class="modal" id="create-group-modal">
+  <div class="modal-content">
+    <h3>СОЗДАТЬ ГРУППУ</h3>
+    <input type="text" id="group-name-input" placeholder="Название группы" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 15px; outline: none;" />
+    
+    <input type="text" id="group-user-search" placeholder="Поиск пользователей..." style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none;" />
+    <div id="group-user-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
+    
+    <button class="modal-btn" onclick="createGroup()" style="background: var(--accent); color: #000; margin-bottom: 10px;">Создать</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('create-group-modal').classList.remove('visible')">Отмена</button>
+  </div>
+</div>
+
+<!-- Модальное окно добавления в группу -->
+<div class="modal" id="add-to-group-modal">
+  <div class="modal-content">
+    <h3>ДОБАВИТЬ УЧАСТНИКА</h3>
+    <input type="text" id="add-user-search" placeholder="Поиск пользователей..." style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none;" />
+    <div id="add-user-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('add-to-group-modal').classList.remove('visible')">Закрыть</button>
+  </div>
+</div>
+
 <div class="modal" id="clear-modal">
   <div class="modal-content">
     <h3>🔥 ОЧИСТИТЬ ЧАТ</h3>
@@ -445,8 +469,10 @@
   <div class="modal-content">
     <h3>УПРАВЛЕНИЕ ЧАТОМ</h3>
     <button class="modal-btn" id="view-profile-btn" style="background: var(--accent); color: #000; margin-bottom: 10px;">👤 Профиль собеседника</button>
+    <button class="modal-btn" id="add-group-member-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">➕ Добавить участника</button>
     <button class="modal-btn" id="block-user-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Заблокировать</button>
     <button class="modal-btn" id="unblock-user-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">Разблокировать</button>
+    <button class="modal-btn" id="delete-group-btn" style="background: #ff4d4d; color: #fff; margin-bottom: 10px; display: none;">❌ Удалить группу</button>
     <button class="modal-btn" id="delete-chat-btn" style="background: #ff4d4d; color: #fff; margin-bottom: 10px;">Удалить чат</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('chat-settings-modal').classList.remove('visible')">Закрыть</button>
   </div>
@@ -557,7 +583,8 @@
   <aside id="sidebar">
     <div class="brand">
       <div class="brand-left"><img src="/favicon.png" class="brand-logo" alt="SCP" /><div class="brand-title">SCP MESSENGER</div></div>
-      <small id="me-status">online</small>
+      <div class="create-group-btn" onclick="openCreateGroupModal()" title="Создать группу">+</div>
+      <small id="me-status" style="margin-left: 10px;">online</small>
     </div>
     <div class="favorites-shortcut" onclick="openSavedMessages()">
       <div class="chat-avatar" style="background: var(--accent); color: #000; font-size: 16px;">⭐</div>
@@ -758,7 +785,10 @@ window.openProfile = async function(userId) {
 };
 
 document.getElementById('header-avatar').addEventListener('click', () => {
-  if (state.currentChat) openProfile(state.currentChat.otherUserId || state.me.id);
+  if (state.currentChat) {
+    if (state.currentChat.isGroup) return alert('Групповой чат');
+    openProfile(state.currentChat.otherUserId || state.me.id);
+  }
 });
 document.getElementById('logout-btn').addEventListener('click', () => { localStorage.removeItem('scp_token'); window.location.reload(); });
 document.getElementById('delete-account-btn').addEventListener('click', async () => {
@@ -909,6 +939,112 @@ window.wipeAllMessages = async function() {
   }
 };
 
+// ==========================================
+// ГРУППОВЫЕ ЧАТЫ
+// ==========================================
+window.openCreateGroupModal = function() {
+  document.getElementById('group-name-input').value = '';
+  document.getElementById('group-user-search').value = '';
+  document.getElementById('group-user-list').innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Введите имя для поиска</div>';
+  document.getElementById('create-group-modal').classList.add('visible');
+};
+
+let groupSearchTimeout = null;
+document.getElementById('group-user-search').addEventListener('input', (e) => {
+  const q = e.target.value.trim(); clearTimeout(groupSearchTimeout);
+  if (!q) {
+    document.getElementById('group-user-list').innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Введите имя для поиска</div>';
+    return;
+  }
+  groupSearchTimeout = setTimeout(async () => {
+    try {
+      const users = await api('/users/search?q=' + encodeURIComponent(q));
+      const list = document.getElementById('group-user-list');
+      if (!users.length) { list.innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Не найдено</div>'; return; }
+      list.innerHTML = users.map(u => `
+        <label style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px; cursor:pointer;">
+          <input type="checkbox" class="group-user-checkbox" value="${u.id}" style="width:18px; height:18px; accent-color:var(--accent);">
+          <div class="chat-avatar" style="width:28px; height:28px; font-size:11px;">${esc((u.username || '?')[0].toUpperCase())}</div>
+          <div style="font-size:14px; font-weight:600;">@${esc(u.username)}</div>
+        </label>
+      `).join('');
+    } catch (err) {}
+  }, 300);
+});
+
+window.createGroup = async function() {
+  const name = document.getElementById('group-name-input').value.trim();
+  if (!name) return alert('Введите название группы');
+  
+  const checkboxes = document.querySelectorAll('.group-user-checkbox:checked');
+  const memberIds = Array.from(checkboxes).map(cb => cb.value);
+  if (memberIds.length === 0) return alert('Выберите хотя бы одного участника');
+
+  try {
+    const res = await api('/chats/group', { method: 'POST', body: JSON.stringify({ name, memberIds }) });
+    document.getElementById('create-group-modal').classList.remove('visible');
+    await loadChats();
+    openChat(res.chatId, name, null, false, null, 0);
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
+window.openAddMemberModal = function() {
+  document.getElementById('add-user-search').value = '';
+  document.getElementById('add-user-list').innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Введите имя для поиска</div>';
+  document.getElementById('add-to-group-modal').classList.add('visible');
+};
+
+let addSearchTimeout = null;
+document.getElementById('add-user-search').addEventListener('input', (e) => {
+  const q = e.target.value.trim(); clearTimeout(addSearchTimeout);
+  if (!q) {
+    document.getElementById('add-user-list').innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Введите имя для поиска</div>';
+    return;
+  }
+  addSearchTimeout = setTimeout(async () => {
+    try {
+      const users = await api('/users/search?q=' + encodeURIComponent(q));
+      const list = document.getElementById('add-user-list');
+      if (!users.length) { list.innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center;">Не найдено</div>'; return; }
+      list.innerHTML = users.map(u => `
+        <div style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
+          <div class="chat-avatar" style="width:28px; height:28px; font-size:11px;">${esc((u.username || '?')[0].toUpperCase())}</div>
+          <div style="font-size:14px; font-weight:600; flex:1;">@${esc(u.username)}</div>
+          <button class="admin-btn" onclick="addMemberToGroup('${u.id}')" style="padding:4px 8px; font-size:11px;">Добавить</button>
+        </div>
+      `).join('');
+    } catch (err) {}
+  }, 300);
+});
+
+window.addMemberToGroup = async function(userId) {
+  if (!state.currentChat || !state.currentChat.isGroup) return;
+  try {
+    await api('/chats/' + state.currentChat.id + '/add-member', { method: 'POST', body: JSON.stringify({ userId }) });
+    alert('Участник добавлен!');
+    document.getElementById('add-to-group-modal').classList.remove('visible');
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
+window.deleteGroup = async function() {
+  if (!state.currentChat || !state.currentChat.isGroup) return;
+  if (!confirm('Вы уверены, что хотите УДАЛИТЬ ЭТУ ГРУППУ для всех участников?')) return;
+  try {
+    await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
+    state.currentChat = null;
+    document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
+    document.getElementById('chat-title').textContent = 'Выберите чат'; document.getElementById('composer').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible');
+    document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar').style.display = 'none';
+    loadChats();
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
 function connectSocket() {
   if (state.socket) state.socket.disconnect();
   state.socket = io({ auth: { token: state.token } });
@@ -970,7 +1106,6 @@ function connectSocket() {
     document.getElementById('urgent-alert-text').textContent = data.text;
     document.getElementById('urgent-alert-sender').textContent = `Отправитель: @${data.sender}`;
     document.getElementById('urgent-alert-modal').classList.add('visible');
-    // ТИХИЙ И ДОЛГИЙ ЗВУК (30 СЕКУНД)
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioCtx.createOscillator();
@@ -1016,13 +1151,13 @@ function renderChatList() {
     const unread = state.unreadCounts[c.id] || 0;
     const isFav = favoriteChats.includes(c.id);
     const targetId = c.otherUserId || state.me.id;
-    const avatar = c.avatarUrl ? `<img src="${escAttr(c.avatarUrl)}" class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')" alt="">` : `<div class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')">${esc((c.name || '?')[0].toUpperCase())}</div>`;
+    const avatar = c.avatarUrl ? `<img src="${escAttr(c.avatarUrl)}" class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')" alt="">` : `<div class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')">${c.isGroup ? '👥' : esc((c.name || '?')[0].toUpperCase())}</div>`;
     const active = state.currentChat && state.currentChat.id === c.id ? ' active' : '';
     const starBtn = visualSettings.favorites ? `<div onclick="toggleFavorite('${escAttr(c.id)}', event)" style="font-size: 18px; cursor: pointer; color: ${isFav ? '#ffd700' : 'var(--border)'}; margin-left: auto; padding: 0 5px;">★</div>` : '';
     let roleBadgeHtml = '';
-    if (c.role && c.role !== 'user') roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 6px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
+    if (c.role && c.role !== 'user' && !c.isGroup) roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 6px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
     const isBanned = c.ban_expires && c.ban_expires !== 0 && (c.ban_expires === -1 || c.ban_expires > Date.now());
-    return `<div class="chat-item${active}" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0})">
+    return `<div class="chat-item${active}" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0}, ${c.isGroup ? 'true' : 'false'}, '${escAttr(c.creatorId || '')}')">
       ${avatar}
       <div class="chat-info" style="flex: 1; min-width: 0;">
         <div class="name">${esc(c.name)} ${roleBadgeHtml}</div>
@@ -1033,8 +1168,8 @@ function renderChatList() {
   }).join('');
 }
 
-async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires = 0) {
-  state.currentChat = { id: chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires };
+async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires = 0, isGroup = false, creatorId = '') {
+  state.currentChat = { id: chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires, isGroup, creatorId };
   state.unreadCounts[chatId] = 0; updatePageTitle();
   document.getElementById('chat-title').textContent = name;
   document.getElementById('composer').style.display = isBlocked ? 'none' : 'flex';
@@ -1045,8 +1180,17 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   else userBannedBanner.style.display = 'none';
   document.getElementById('clear-chat-btn').style.display = 'inline-block';
   document.getElementById('chat-options-btn').style.display = 'inline-block';
+  
+  // Обновляем кнопки в настройках чата для групп
+  document.getElementById('view-profile-btn').style.display = isGroup ? 'none' : 'block';
+  document.getElementById('block-user-btn').style.display = isGroup ? 'none' : (isBlocked ? 'none' : 'block');
+  document.getElementById('unblock-user-btn').style.display = isGroup ? 'none' : (isBlocked ? 'block' : 'none');
+  document.getElementById('add-group-member-btn').style.display = isGroup ? 'block' : 'none';
+  document.getElementById('delete-group-btn').style.display = (isGroup && creatorId === state.me.id) ? 'block' : 'none';
+  document.getElementById('delete-chat-btn').style.display = isGroup ? 'none' : 'block';
+
   const headerAvatar = document.getElementById('header-avatar');
-  if (avatarUrl) { headerAvatar.src = avatarUrl; headerAvatar.style.display = 'block'; } else headerAvatar.style.display = 'none';
+  if (avatarUrl && !isGroup) { headerAvatar.src = avatarUrl; headerAvatar.style.display = 'block'; } else headerAvatar.style.display = 'none';
   const msgsEl = document.getElementById('messages'); msgsEl.innerHTML = 'Загрузка...';
   if (state.socket) state.socket.emit('joinChat', chatId);
   try {
@@ -1143,7 +1287,7 @@ document.getElementById('close-reply').addEventListener('click', () => { state.r
 document.getElementById('msg-forward-btn').addEventListener('click', () => {
   const msg = state.activeMsg; if (!msg) return;
   const list = document.getElementById('forward-list');
-  list.innerHTML = state.chats.map(c => `<div class="forward-item" onclick="forwardTo('${escAttr(c.id)}')"><div class="chat-avatar">${esc((c.name || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(c.name)}</div></div></div>`).join('') || '<div class="empty">Нет доступных чатов</div>';
+  list.innerHTML = state.chats.map(c => `<div class="forward-item" onclick="forwardTo('${escAttr(c.id)}')"><div class="chat-avatar">${c.isGroup ? '👥' : esc((c.name || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(c.name)}</div></div></div>`).join('') || '<div class="empty">Нет доступных чатов</div>';
   document.getElementById('msg-actions-modal').classList.remove('visible'); document.getElementById('forward-modal').classList.add('visible');
 });
 window.forwardTo = async function(chatId) {
@@ -1324,12 +1468,15 @@ document.getElementById('clear-all-btn').addEventListener('click', async () => {
 // Настройки чата
 document.getElementById('chat-options-btn').addEventListener('click', () => {
   if (!state.currentChat) return;
-  document.getElementById('block-user-btn').style.display = state.currentChat.isBlocked ? 'none' : 'block';
-  document.getElementById('unblock-user-btn').style.display = state.currentChat.isBlocked ? 'block' : 'none';
-  const viewProfileBtn = document.getElementById('view-profile-btn');
-  if (state.currentChat.otherUserId) { viewProfileBtn.style.display = 'block'; viewProfileBtn.onclick = () => { document.getElementById('chat-settings-modal').classList.remove('visible'); openProfile(state.currentChat.otherUserId); }; }
-  else viewProfileBtn.style.display = 'none';
   document.getElementById('chat-settings-modal').classList.add('visible');
+});
+document.getElementById('add-group-member-btn').addEventListener('click', () => {
+  document.getElementById('chat-settings-modal').classList.remove('visible');
+  openAddMemberModal();
+});
+document.getElementById('delete-group-btn').addEventListener('click', () => {
+  document.getElementById('chat-settings-modal').classList.remove('visible');
+  deleteGroup();
 });
 document.getElementById('block-user-btn').addEventListener('click', async () => {
   if (!state.currentChat || !state.currentChat.otherUserId) return;
@@ -1365,7 +1512,7 @@ document.getElementById('user-search').addEventListener('input', (e) => {
   }, 250);
 });
 window.startChat = async function(userId) {
-  try { const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId }) }); await loadChats(); document.getElementById('user-search').value = ''; openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires || 0); } catch (e) { alert(e.message); }
+  try { const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId }) }); await loadChats(); document.getElementById('user-search').value = ''; openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires || 0, false); } catch (e) { alert(e.message); }
 };
 
 // Мобильная адаптация и ввод
@@ -1424,68 +1571,3 @@ function formatSize(bytes) {
 function getAttIcon(a) {
   const mime = a.mime || ''; const name = (a.name || '').toLowerCase();
   if (mime.startsWith('image/')) return '🖼️'; if (mime.startsWith('video/')) return '🎬'; if (mime.startsWith('audio/')) return '🎵';
-  if (name.endsWith('.pdf')) return '📄'; if (/\.(zip|rar|7z|tar|gz|bz2|xz|zst)$/.test(name)) return '📦';
-  if (/\.(doc|docx)$/.test(name)) return '📝'; if (/\.(xls|xlsx|csv)$/.test(name)) return '📊'; if (/\.(ppt|pptx)$/.test(name)) return '📽️';
-  return '📎';
-}
-
-// Перетаскивание окна просмотра
-(function() {
-  const el = document.getElementById('att-viewer-content'); const handle = document.getElementById('att-viewer-header');
-  if (!el || !handle) return; let isDown = false, offsetX = 0, offsetY = 0;
-  const start = (cx, cy) => { isDown = true; const rect = el.getBoundingClientRect(); el.style.left = rect.left + 'px'; el.style.top = rect.top + 'px'; el.style.transform = 'none'; offsetX = cx - rect.left; offsetY = cy - rect.top; };
-  const move = (cx, cy) => { if (!isDown) return; let nx = cx - offsetX; let ny = cy - offsetY; nx = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, nx)); ny = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, ny)); el.style.left = nx + 'px'; el.style.top = ny + 'px'; };
-  const end = () => { isDown = false; };
-  handle.addEventListener('mousedown', (e) => { if (e.target.closest('.att-viewer-close')) return; start(e.clientX, e.clientY); e.preventDefault(); });
-  window.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
-  window.addEventListener('mouseup', end);
-  handle.addEventListener('touchstart', (e) => { if (e.target.closest('.att-viewer-close')) return; const t = e.touches[0]; start(t.clientX, t.clientY); }, { passive: true });
-  window.addEventListener('touchmove', (e) => { if (!isDown) return; const t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: true });
-  window.addEventListener('touchend', end);
-})();
-
-// Фоновые эффекты
-(function() {
-  const canvas = document.getElementById('fx-canvas'); const ctx = canvas.getContext('2d');
-  let w = canvas.width = window.innerWidth; let h = canvas.height = window.innerHeight;
-  window.addEventListener('resize', () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; });
-  let particles = [];
-  function initParticles() {
-    particles = []; const count = visualSettings.weather !== 'none' ? 80 : 0;
-    for (let i = 0; i < count; i++) {
-      particles.push({ x: Math.random() * w, y: Math.random() * h, vx: visualSettings.weather === 'rain' ? (Math.random() - 0.5) * 2 : (Math.random() - 0.5) * 0.5, vy: visualSettings.weather === 'rain' ? Math.random() * 5 + 5 : Math.random() * 1 + 0.5, r: visualSettings.weather === 'rain' ? Math.random() * 1 + 0.5 : Math.random() * 2 + 1 });
-    }
-  }
-  setInterval(() => { if (visualSettings.weather !== 'none' && particles.length === 0) initParticles(); if (visualSettings.weather === 'none' && particles.length > 0) particles = []; }, 1000);
-  initParticles();
-  function tick() {
-    ctx.clearRect(0, 0, w, h);
-    if (visualSettings.weather === 'rain') {
-      ctx.strokeStyle = 'rgba(150, 200, 255, 0.4)'; ctx.lineWidth = 1;
-      particles.forEach(p => { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.vx, p.y + p.vy); ctx.stroke(); p.x += p.vx; p.y += p.vy; if (p.y > h) { p.y = -10; p.x = Math.random() * w; } });
-    } else if (visualSettings.weather === 'snow') {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      particles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); p.x += Math.sin(p.y * 0.02) * 1; p.y += p.vy; if (p.y > h) { p.y = -10; p.x = Math.random() * w; } });
-    }
-    if (visualSettings.ghosts) {
-      const time = Date.now() * 0.001;
-      for (let i = 0; i < 5; i++) {
-        const px = w / 2 + Math.sin(time + i * 2) * (w / 2); const py = h / 2 + Math.cos(time * 0.8 + i * 3) * (h / 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.03)'; ctx.beginPath(); ctx.arc(px, py, 60 + Math.sin(time * 2 + i) * 20, 0, Math.PI * 2); ctx.fill();
-      }
-    }
-    requestAnimationFrame(tick);
-  }
-  tick();
-})();
-
-// Авто-вход
-(async () => {
-  if (state.token) {
-    try { state.me = await api('/me'); state.read_deleted = state.me.read_deleted || false; enterChat(); }
-    catch (e) { if (e.message !== 'Banned') { localStorage.removeItem('scp_token'); state.token = null; } }
-  }
-})();
-</script>
-</body>
-</html>
