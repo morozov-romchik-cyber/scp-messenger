@@ -87,7 +87,6 @@
 
   .sidebar-bottom { padding: 16px; border-top: 1px solid var(--border); background: var(--panel); display: flex; justify-content: center; }
   
-  /* FAB МЕНЮ КРУГЛОЕ */
   .fab-container { position: relative; width: 100%; display: flex; justify-content: center; }
   .new-chat-fab { 
     width: 60px; height: 60px; background: var(--accent); color: #000; border: none; 
@@ -275,7 +274,6 @@
   <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
 
-<!-- Модальное окно профиля -->
 <div class="modal" id="profile-modal">
   <div class="modal-content">
     <h3>ПРОФИЛЬ</h3>
@@ -295,7 +293,6 @@
   </div>
 </div>
 
-<!-- Модальное окно админки -->
 <div class="modal" id="admin-dashboard-modal">
   <div class="modal-content">
     <div class="admin-sidebar">
@@ -438,7 +435,6 @@
   </div>
 </div>
 
-<!-- Модальное окно просмотра участников группы -->
 <div class="modal" id="group-members-modal">
   <div class="modal-content" style="height: 80vh; display: flex; flex-direction: column;">
     <h3>УЧАСТНИКИ ГРУППЫ</h3>
@@ -447,7 +443,6 @@
   </div>
 </div>
 
-<!-- Модальное окно создания группы/канала -->
 <div class="modal" id="create-group-modal">
   <div class="modal-content" style="height: 85vh; display: flex; flex-direction: column;">
     <h3 id="create-modal-title">СОЗДАТЬ ГРУППУ</h3>
@@ -657,7 +652,6 @@
         <div style="display: flex; flex-direction: column; min-width: 0;">
           <h2>
             <span id="chat-title">Выберите чат</span>
-            <!-- Галочка для SCP_Helper -->
             <svg id="verified-star" style="width: 16px; height: 16px; fill: #1d9bf0; display: none; vertical-align: middle; flex-shrink: 0; margin-left: 4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
             <span id="header-chat-role-badge"></span>
             <button class="clear-chat-btn" id="clear-chat-btn" title="Clear" style="display: none;">🔥</button>
@@ -1004,7 +998,6 @@ window.wipeAllMessages = async function(e) {
   }
 };
 
-// --- FAB МЕНЮ (КРУГЛЫЕ КНОПКИ) ---
 function toggleFabMenu() {
   document.getElementById('fab-container').classList.toggle('open');
 }
@@ -1097,7 +1090,6 @@ function renderChatList() {
     let checkmarkHtml = '';
     if (c.isHelper) checkmarkHtml = `<svg style="width: 14px; height: 14px; fill: #1d9bf0; display: inline-block; vertical-align: middle; margin-left: 4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
     
-    // Вращающиеся плашки ролей
     if (c.role && c.role !== 'user' && !c.isGroup) {
       roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 4px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
     }
@@ -1134,7 +1126,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
     document.getElementById('chat-subtitle').textContent = isChannel ? (username ? `scp.me/${username}` : 'Канал') : '';
   }
 
-  // Вращающаяся плашка собеседника в шапке
   const headerBadge = document.getElementById('header-chat-role-badge');
   if (!isGroup && state.chats) {
     const current = state.chats.find(c => c.id === chatId);
@@ -1148,7 +1139,8 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   }
 
   const isCreator = !isGroup || (creatorId === state.me.id);
-  const showComposer = !isBlocked && (!isChannel || isCreator) && !isHelper; // Запрещаем писать в SCP_Helper
+  // Теперь в SCP_Helper можно писать
+  const showComposer = !isBlocked && (!isChannel || isCreator);
 
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
   document.getElementById('blocked-banner').style.display = isBlocked ? 'block' : 'none';
@@ -1158,7 +1150,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   if (isBanned) { userBannedBanner.style.display = 'block'; userBannedBanner.textContent = `⛔ Заблокирован (${ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(ban_expires).toLocaleString()})`; }
   else userBannedBanner.style.display = 'none';
   
-  // Прячем кнопку очистки и настроек для SCP_Helper
   document.getElementById('clear-chat-btn').style.display = isHelper ? 'none' : 'inline-block';
   document.getElementById('chat-options-btn').style.display = isHelper ? 'none' : 'inline-block';
   document.getElementById('group-members-btn').style.display = isGroup ? 'block' : 'none';
@@ -1423,7 +1414,6 @@ document.getElementById('paste-file-send-btn').addEventListener('click', () => {
       e.preventDefault(); overlay.style.display = 'none'; dragDepth = 0;
       if (!state.currentChat) return alert('Сначала выберите чат');
       if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
-      if (state.currentChat.isHelper) return alert('В этот чат нельзя отправлять сообщения');
       const files = Array.from(e.dataTransfer.files);
       const caption = document.getElementById('msg-input').value.trim();
       document.getElementById('msg-input').value = '';
@@ -1435,7 +1425,6 @@ document.getElementById('paste-file-send-btn').addEventListener('click', () => {
 document.getElementById('composer').addEventListener('submit', async (e) => {
   e.preventDefault(); const input = document.getElementById('msg-input'); const text = input.value.trim();
   if (!text || !state.currentChat) return;
-  if (state.currentChat.isHelper) return alert('В этот чат нельзя отправлять сообщения');
   input.value = ''; let body = text;
   if (state.replyTo) body = `> ${state.replyTo.sender.username}: ${(state.replyTo.text || '(файл)').slice(0, 80)}\n${text}`;
   state.replyTo = null; document.getElementById('reply-bar').classList.remove('visible');
@@ -1444,14 +1433,12 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
 document.getElementById('file-btn').addEventListener('click', () => {
   if (!state.currentChat) return alert('Выберите чат');
   if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
-  if (state.currentChat.isHelper) return alert('В этот чат нельзя отправлять сообщения');
   document.getElementById('file-input').click();
 });
 document.getElementById('file-input').addEventListener('change', () => {
   const fileInput = document.getElementById('file-input'); const files = Array.from(fileInput.files || []);
   if (!files.length || !state.currentChat) return;
   if (state.currentChat.isBlocked) { fileInput.value = ''; return alert('Пользователь заблокирован'); }
-  if (state.currentChat.isHelper) { fileInput.value = ''; return alert('В этот чат нельзя отправлять сообщения'); }
   const caption = document.getElementById('msg-input').value.trim(); document.getElementById('msg-input').value = '';
   fileInput.value = ''; uploadFilesWithProgress(files, caption);
 });
