@@ -54,7 +54,7 @@ const ALLOWED_EXT = new Set([
   '.ovf', '.ovpn', '.pas', '.pcap', '.pcapng', '.pdb', '.pdf', '.pem', '.pf', '.php', 
   '.p12', '.pfx', '.png', '.ppt', '.pptx', '.ps', '.py', '.pyc', '.qcow2', '.rar', '.raw', '.reg', 
   '.res', '.resources', '.rom', '.rtf', '.rs', '.scr', '.s', '.7z', '.sh', '.sql', 
-  '.sqlite', '.sqlite3', '.svg', '.sys', '.tar', '.tif', '.txt', '.tiff', '.tmp', '.ts', 
+  '.sqlite', '.sqlite3', '.svg', '.sys', '.tar', '.tif', '.tiff', '.tmp', '.ts', '.txt', 
   '.url', '.var', '.vb', '.vdi', '.vhd', '.vhdx', '.vmdk', '.wav', '.webm', '.webp', 
   '.wma', '.wmv', '.xls', '.xlsx', '.xml', '.xpi', '.xz', '.yaml', '.yml', '.zip', '.zst', '.torrent'
 ]);
