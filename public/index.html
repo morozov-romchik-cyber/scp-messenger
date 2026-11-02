@@ -274,6 +274,19 @@
   <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
 
+<!-- Официальное уведомление SCP -->
+<div class="modal" id="scp-verify-modal" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);">
+  <div class="modal-content" style="border: 1px solid #1d9bf0; box-shadow: 0 0 30px rgba(29,155,240,0.2); text-align: center; max-width: 400px;">
+    <svg style="width: 64px; height: 64px; fill: #1d9bf0; margin: 0 auto 15px auto;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+    <h3 style="color: #1d9bf0; font-size: 20px; margin-bottom: 10px;">Официальный субъект SCP</h3>
+    <p style="font-size: 14px; color: var(--text); margin-bottom: 20px; line-height: 1.6;">
+      Данный аккаунт является официальным представителем Фонда SCP. <br><br>
+      <span style="color: #ff4d4d; font-weight: bold;">Внимание:</span> любые другие аккаунты, выдающие себя за SCP_Helper, являются нарушителями и будут заблокированы.
+    </p>
+    <button class="modal-btn" onclick="document.getElementById('scp-verify-modal').classList.remove('visible')" style="background: #1d9bf0; color: #fff; font-weight: bold; border: none;">ПОНЯТНО</button>
+  </div>
+</div>
+
 <div class="modal" id="profile-modal">
   <div class="modal-content">
     <h3>ПРОФИЛЬ</h3>
@@ -450,7 +463,7 @@
     
     <div id="channel-username-container" style="display: none; margin-bottom: 10px; flex-shrink: 0;">
       <input type="text" id="channel-username-input" placeholder="юзернейм (например: my_channel)" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; outline: none;" />
-      <div style="font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'Fira Code';">Ссылка будет выглядеть как: scp.me/... (указывается 1 раз)</div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'Fira Code';">Ссылка будет выглядеть как: scp.group/... (указывается 1 раз)</div>
     </div>
     
     <div id="group-user-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
@@ -496,7 +509,7 @@
       <div id="channel-link-text" style="color:var(--accent); font-weight:bold; word-break:break-all;">-</div>
     </div>
     <div id="set-channel-username-section" style="display:none; margin-bottom: 15px;">
-      <input type="text" id="modal-set-username" placeholder="юзернейм (scp.me/...)" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:6px; font-family:inherit; margin-bottom:8px; outline:none;" />
+      <input type="text" id="modal-set-username" placeholder="юзернейм (scp.group/...)" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:6px; font-family:inherit; margin-bottom:8px; outline:none;" />
       <button class="modal-btn" onclick="setChannelUsername()" style="margin-top:0; padding:8px;">Установить ссылку</button>
     </div>
     <button class="modal-btn" id="view-profile-btn" style="background: var(--accent); color: #000; margin-bottom: 10px;">👤 Профиль собеседника</button>
@@ -652,7 +665,7 @@
         <div style="display: flex; flex-direction: column; min-width: 0;">
           <h2>
             <span id="chat-title">Выберите чат</span>
-            <svg id="verified-star" style="width: 16px; height: 16px; fill: #1d9bf0; display: none; vertical-align: middle; flex-shrink: 0; margin-left: 4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            <svg id="verified-star" style="width: 18px; height: 18px; fill: #1d9bf0; display: none; vertical-align: middle; flex-shrink: 0; margin-left: 6px; cursor: pointer;" viewBox="0 0 24 24" onclick="openScpVerifyModal()"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
             <span id="header-chat-role-badge"></span>
             <button class="clear-chat-btn" id="clear-chat-btn" title="Clear" style="display: none;">🔥</button>
           </h2>
@@ -998,6 +1011,10 @@ window.wipeAllMessages = async function(e) {
   }
 };
 
+window.openScpVerifyModal = function() {
+  document.getElementById('scp-verify-modal').classList.add('visible');
+};
+
 function toggleFabMenu() {
   document.getElementById('fab-container').classList.toggle('open');
 }
@@ -1043,7 +1060,12 @@ window.createGroup = async function() {
   const name = document.getElementById('group-name-input').value.trim();
   if (!name) return alert('Введите название');
   
-  const username = isCreatingChannel ? document.getElementById('channel-username-input').value.trim() : null;
+  let username = null;
+  if (isCreatingChannel) {
+    username = document.getElementById('channel-username-input').value.trim();
+    if (!username) return alert('Для канала обязательно нужно указать юзернейм (ссылку)');
+  }
+  
   const checkboxes = document.querySelectorAll('.group-user-checkbox:checked');
   const memberIds = Array.from(checkboxes).map(cb => cb.value);
 
@@ -1088,7 +1110,7 @@ function renderChatList() {
     
     let roleBadgeHtml = '';
     let checkmarkHtml = '';
-    if (c.isHelper) checkmarkHtml = `<svg style="width: 14px; height: 14px; fill: #1d9bf0; display: inline-block; vertical-align: middle; margin-left: 4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+    if (c.isHelper) checkmarkHtml = `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: #1d9bf0; display: inline-block; vertical-align: middle; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
     
     if (c.role && c.role !== 'user' && !c.isGroup) {
       roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 4px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
@@ -1123,7 +1145,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
     document.getElementById('chat-subtitle').textContent = 'Служебные уведомления';
   } else {
     verifiedStar.style.display = 'none';
-    document.getElementById('chat-subtitle').textContent = isChannel ? (username ? `scp.me/${username}` : 'Канал') : '';
+    document.getElementById('chat-subtitle').textContent = isChannel ? (username ? `scp.group/${username}` : 'Канал') : '';
   }
 
   const headerBadge = document.getElementById('header-chat-role-badge');
@@ -1139,7 +1161,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   }
 
   const isCreator = !isGroup || (creatorId === state.me.id);
-  // Теперь в SCP_Helper можно писать
   const showComposer = !isBlocked && (!isChannel || isCreator);
 
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
@@ -1167,7 +1188,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   if (isChannel) {
     channelLinkBox.style.display = 'block';
     if (username) {
-      document.getElementById('channel-link-text').textContent = 'scp.me/' + username;
+      document.getElementById('channel-link-text').textContent = 'scp.group/' + username;
       setChannelUsernameSection.style.display = 'none';
     } else {
       document.getElementById('channel-link-text').textContent = 'Не задана';
@@ -1243,7 +1264,7 @@ function appendMessage(msg, scroll = true) {
   if (!mine) {
     let roleBadge = ''; const r = msg.sender.role;
     if (r && r !== 'user') roleBadge = `<span class="rotating-badge badge-${r}" title="${(ROLE_LABEL[r] || r).toUpperCase()}">${(ROLE_LABEL[r] || r).toUpperCase()}</span>`;
-    let check = msg.sender.id === 'system_scp_helper_id' ? `<svg style="width: 12px; height: 12px; fill: #1d9bf0; display: inline-block; margin-left: 4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>` : '';
+    let check = msg.sender.id === 'system_scp_helper_id' ? `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: #1d9bf0; display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>` : '';
     whoHtml = `<div class="who">@${esc(msg.sender.username)}${check} ${roleBadge}</div>`;
   }
   const isMsgDeletedClass = msg.is_deleted ? 'deleted-msg' : '';
@@ -1277,7 +1298,7 @@ document.getElementById('close-reply').addEventListener('click', () => { state.r
 document.getElementById('msg-forward-btn').addEventListener('click', () => {
   const msg = state.activeMsg; if (!msg) return;
   const list = document.getElementById('forward-list');
-  list.innerHTML = state.chats.map(c => `<div class="forward-item" onclick="forwardTo('${escAttr(c.id)}')"><div class="chat-avatar">${c.isGroup ? '👥' : esc((c.name || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(c.name)}</div></div></div>`).join('') || '<div class="empty">Нет доступных чатов</div>';
+  list.innerHTML = state.chats.map(c => `<div class="forward-item" onclick="forwardTo('${escAttr(c.id)}')"><div class="chat-avatar">${c.isGroup ? (c.isChannel ? '📢' : '👥') : esc((c.name || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(c.name)}</div></div></div>`).join('') || '<div class="empty">Нет доступных чатов</div>';
   document.getElementById('msg-actions-modal').classList.remove('visible'); document.getElementById('forward-modal').classList.add('visible');
 });
 window.forwardTo = async function(chatId) {
@@ -1538,7 +1559,7 @@ window.setChannelUsername = async function() {
   try {
     const res = await api(`/chats/${state.currentChat.id}/set-username`, { method: 'POST', body: JSON.stringify({ username }) });
     state.currentChat.username = res.username;
-    alert('Ссылка успешно установлена: scp.me/' + res.username);
+    alert('Ссылка успешно установлена: scp.group/' + res.username);
     document.getElementById('chat-settings-modal').classList.remove('visible');
     loadChats();
     openChat(state.currentChat.id, state.currentChat.name, state.currentChat.avatarUrl, state.currentChat.isBlocked, state.currentChat.otherUserId, state.currentChat.ban_expires, true, state.currentChat.creatorId, true, res.username, false);
