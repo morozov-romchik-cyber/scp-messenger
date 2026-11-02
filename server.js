@@ -21,8 +21,8 @@ const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://firsts3.ru';
 const S3_BUCKET = process.env.S3_BUCKET || 'scp-messenger';
 const S3_REGION = process.env.S3_REGION || 'default';
 // Вставьте сюда ваши Access Key и Secret Key от FirstVDS
-const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || '5N9ER3SW21Z8MXWG75DJ';
-const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'n01UxvY1IsuUEmY1vBx8Eu2yXPKpW05r6dzBI5Q9';
+const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || 'ВАШ_ACCESS_KEY';
+const S3_SECRET_KEY = process.env.S3_SECRET_KEY || 'ВАШ_SECRET_KEY';
 
 const s3 = new S3Client({
   endpoint: S3_ENDPOINT,
@@ -75,10 +75,8 @@ let pendingS3Sync = false;
 
 const saveDb = () => {
   try {
-    // 1. Мгновенно сохраняем локально (для скорости работы)
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 
-    // 2. Отправляем в облако S3 (в фоне, чтобы не тормозить сервер)
     if (isS3Syncing) {
       pendingS3Sync = true;
       return;
@@ -93,7 +91,6 @@ const saveDb = () => {
           Body: JSON.stringify(db, null, 2),
           ContentType: 'application/json'
         }));
-        serverLog('info', 'База данных успешно сохранена в S3');
       } catch (err) {
         serverLog('error', 'Ошибка сохранения БД в S3: ' + err.message);
       }
@@ -304,10 +301,19 @@ app.get('/api/admin/users-list', authMiddleware, (req, res) => {
   res.json(users);
 });
 
-app.get('/api/admin/logs', authMiddleware, (req, res) => {
+// НОВЫЙ ЭНДПОИНТ ДЛЯ СРОЧНЫХ ОПОВЕЩЕНИЙ
+app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
-  res.json({ logs: [] });
+  if (!me || me.role !== 'sysadmin') {
+    return res.status(403).json({ error: 'Только SysAdmin может отправлять срочные оповещения' });
+  }
+  const { text } = req.body;
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    return res.status(400).json({ error: 'Текст оповещения пуст' });
+  }
+  io.emit('urgentAlert', { text: text.trim(), sender: me.username, timestamp: Date.now() });
+  serverLog('info', `SysAdmin ${me.username} отправил срочное оповещение!`);
+  res.json({ ok: true });
 });
 
 // ================= USERS =================
@@ -562,8 +568,22 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   res.json(payload);
 });
 
-// #SECTION: S3_DOWNLOAD_FILE
-app.get('/api/files/:key', authMiddleware, async (req, res) => {
+// #SECTION: S3_DOWNLOAD_FILE (ИСПРАВЛЕНА АВТОРИЗАЦИЯ ЧЕРЕЗ URL)
+app.get('/api/files/:key', (req, res, next) => {
+  // Разрешаем передачу токена через URL для картинок и видео
+  const header = req.headers.authorization || '';
+  let token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token && req.query.token) token = req.query.token;
+
+  if (!token) return res.status(401).send('No token');
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.userId = payload.sub;
+    next();
+  } catch (e) {
+    res.status(401).send('Invalid token');
+  }
+}, async (req, res) => {
   try {
     const att = db.attachments.find(a => a.storage_key === req.params.key);
     if (!att) return res.status(404).send('Файл не найден');
@@ -747,30 +767,6 @@ app.post('/api/login', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка при входе' }); }
 });
 
-// #SECTION: API_ADMIN_BROADCAST_ALERT
-app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  // Проверка, что это именно SysAdmin
-  if (!me || me.role !== 'sysadmin') {
-    return res.status(403).json({ error: 'Только SysAdmin может отправлять срочные оповещения' });
-  }
-
-  const { text } = req.body;
-  if (!text || typeof text !== 'string' || !text.trim()) {
-    return res.status(400).json({ error: 'Текст оповещения пуст' });
-  }
-
-  // Рассылаем оповещение абсолютно всем подключенным пользователям
-  io.emit('urgentAlert', { 
-    text: text.trim(), 
-    sender: me.username,
-    timestamp: Date.now()
-  });
-
-  serverLog('info', `SysAdmin ${me.username} отправил срочное оповещение!`);
-  res.json({ ok: true });
-});
-
 // ================= SOCKET.IO =================
 io.use((socket, next) => {
   try {
@@ -816,7 +812,6 @@ io.on('connection', (socket) => {
 
 // ================= ИНИЦИАЛИЗАЦИЯ И ЗАПУСК СЕРВЕРА =================
 (async () => {
-  // Загружаем базу из S3 при старте
   try {
     const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: 'database/scp-db.json' });
     const response = await s3.send(command);
@@ -828,7 +823,7 @@ io.on('connection', (socket) => {
       serverLog('info', 'В S3 базы нет, проверяем локальную...');
       if (fs.existsSync(DB_FILE)) {
         db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        saveDb(); // Сразу закидываем локальную базу в S3
+        saveDb();
       } else {
         serverLog('info', 'Создана новая пустая база данных');
       }
@@ -838,12 +833,10 @@ io.on('connection', (socket) => {
     }
   }
 
-  // Инициализируем массивы, если их нет
   ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments'].forEach(key => {
     if (!db[key]) db[key] = [];
   });
 
-  // Миграция ролей
   let migrated = false;
   db.users.forEach(u => {
     if (u.username.toLowerCase() === 'admin' && u.role === 'admin') { u.role = 'sysadmin'; migrated = true; }
@@ -851,7 +844,6 @@ io.on('connection', (socket) => {
   });
   if (migrated) saveDb();
 
-  // Теперь запускаем сервер
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n⬛ SCP Foundation Messenger запущен: http://localhost:${PORT}\n`);
   });
