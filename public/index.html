@@ -127,14 +127,12 @@
   .msg audio { margin-top: 8px; width: 240px; }
   .msg .file-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); text-decoration: none; font-size: 13px; font-family: 'Fira Code', monospace; transition: border-color 0.2s; }
 
-  /* Стили для чипов вложений */
   .att-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .att-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; max-width: 200px; font-size: 12px; font-family: 'Fira Code', monospace; transition: border-color 0.2s, background 0.2s; }
   .att-chip:hover { border-color: var(--border-hover); background: var(--card); }
   .att-chip-icon { font-size: 16px; flex-shrink: 0; }
   .att-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  /* Плавающее окно просмотра */
   .att-viewer-modal { display: none; position: fixed; inset: 0; background: transparent; z-index: 99998; pointer-events: none; }
   .att-viewer-modal.visible { display: block; }
   .att-viewer-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px; min-width: 340px; max-width: 90vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.8); pointer-events: auto; overflow: hidden; }
@@ -274,7 +272,6 @@
       <div class="admin-tab" data-tab="users">👥 Управление пользователями</div>
       <div class="admin-tab" data-tab="staff">📋 Список персонала</div>
       <div class="admin-tab" data-tab="support" id="tab-btn-support" style="display: none;">💬 Поддержка & Логи</div>
-      <!-- НОВАЯ ВКЛАДКА: Срочные оповещения -->
       <div class="admin-tab" data-tab="alerts" id="tab-btn-alerts" style="display: none; color: #ff3333; font-weight: bold;">🚨 Срочные оповещения</div>
       <div style="flex: 1;"></div>
       <div class="admin-tab" style="color: #ff3333; border-left-color: transparent;" onclick="document.getElementById('admin-dashboard-modal').classList.remove('visible')">✖ Закрыть</div>
@@ -382,7 +379,6 @@
         </div>
       </div>
 
-      <!-- НОВАЯ ВКЛАДКА: Срочные оповещения -->
       <div id="tab-alerts" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Срочные оповещения</h2></div>
         <div class="admin-section">
@@ -520,7 +516,6 @@
   </div>
 </div>
 
-<!-- МОДАЛЬНОЕ ОКНО ДЛЯ СРОЧНЫХ ОПОВЕЩЕНИЙ -->
 <div class="modal" id="urgent-alert-modal" style="z-index: 9999999; background: rgba(255, 0, 0, 0.2); backdrop-filter: blur(8px);">
   <div class="modal-content" style="border: 2px solid #ff3333; box-shadow: 0 0 50px rgba(255, 51, 51, 0.6); text-align: center; max-width: 450px;">
     <h3 style="color: #ff3333; font-size: 26px; margin-bottom: 20px; text-shadow: 0 0 10px rgba(255,51,51,0.8);">🚨 ВНИМАНИЕ 🚨</h3>
@@ -612,7 +607,6 @@ const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', m
 const ROLE_ICON = { user: '👤', helper: '🤝', moderator: '🛡️', admin: '🔰', sysadmin: '👑' };
 const ROLE_COLOR = { user: 'var(--muted)', helper: '#00ccff', moderator: '#ffcc00', admin: '#ff9933', sysadmin: '#ffffff' };
 
-// Инициализация переключения вкладок
 document.getElementById('tab-login').addEventListener('click', () => {
   authMode = 'login'; document.getElementById('tab-login').classList.add('active'); document.getElementById('tab-register').classList.remove('active');
   document.getElementById('a-submit').textContent = 'Войти'; document.getElementById('a-invite').style.display = 'none';
@@ -862,7 +856,6 @@ function updatePageTitle() {
   document.title = totalUnread > 0 ? `(${totalUnread}) SCP Foundation — Secure Channel` : `SCP Foundation — Secure Channel`;
 }
 
-// НОВАЯ ФУНКЦИЯ ОТПРАВКИ ОПОВЕЩЕНИЯ
 window.sendUrgentAlert = async function() {
   const input = document.getElementById('alert-text-input');
   const text = input.value.trim();
@@ -870,10 +863,7 @@ window.sendUrgentAlert = async function() {
   if (!confirm('Вы уверены, что хотите отправить это сообщение ВСЕМ пользователям?')) return;
   
   try {
-    await api('/admin/broadcast-alert', { 
-      method: 'POST', 
-      body: JSON.stringify({ text }) 
-    });
+    await api('/admin/broadcast-alert', { method: 'POST', body: JSON.stringify({ text }) });
     input.value = '';
     alert('Оповещение успешно отправлено всем пользователям!');
   } catch (e) {
@@ -906,8 +896,8 @@ function connectSocket() {
     if (state.currentChat && msg.chatId === state.currentChat.id) {
       appendMessage(msg); document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
       api('/chats/' + state.currentChat.id + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
-    } else { state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1; renderChatList(); updatePageTitle(); }
-  });
+ м } else { state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1; renderChatList(); updatePageTitle(); }
+      });
   state.socket.on('messageDelivered', ({ messageId }) => {
     const el = document.getElementById('msg-' + messageId); if (!el) return;
     const statusEl = el.querySelector('.msg-status');
@@ -1044,7 +1034,14 @@ function appendMessage(msg, scroll = true) {
 
     if (Array.isArray(msg.attachments) && msg.attachments.length) {
       window._attStore = window._attStore || {};
-      window._attStore[msg.id] = { attachments: msg.attachments, chatName: state.currentChat ? state.currentChat.name : '', senderName: msg.sender.username };
+      
+      // ДОБАВЛЯЕМ ТОКЕН К ССЫЛКАМ НА ФАЙЛЫ
+      const attachmentsWithToken = msg.attachments.map(a => ({
+        ...a,
+        url: a.url + (a.url.includes('?') ? '&' : '?') + 'token=' + state.token
+      }));
+      window._attStore[msg.id] = { attachments: attachmentsWithToken, chatName: state.currentChat ? state.currentChat.name : '', senderName: msg.sender.username };
+
       content += `<div class="att-grid">`;
       msg.attachments.forEach((a, idx) => {
         content += `<div class="att-chip" onclick="event.stopPropagation(); openAttViewer('${escAttr(msg.id)}', ${idx})"><span class="att-chip-icon">${getAttIcon(a)}</span><span class="att-chip-name">${esc(a.name || 'file')}</span></div>`;
@@ -1139,13 +1136,11 @@ async function uploadFilesWithProgress(files, caption = '') {
       const label = totalFiles === 1 ? file.name : `Файл ${i+1} из ${totalFiles}`;
       progressText.textContent = `⏳ Подготовка ${label}...`;
 
-      // 1. Получаем ссылку у сервера
       const { uploadUrl, key } = await api(`/chats/${state.currentChat.id}/get-upload-url`, {
         method: 'POST',
         body: JSON.stringify({ fileName: file.name, fileType: file.type || 'application/octet-stream' })
       });
 
-      // 2. Загружаем напрямую в S3
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         currentXhrUpload = xhr;
@@ -1171,7 +1166,6 @@ async function uploadFilesWithProgress(files, caption = '') {
       uploadedFilesData.push({ key: key, name: file.name, type: file.type || 'application/octet-stream', size: file.size });
     }
 
-    // 3. Сообщаем серверу
     progressText.textContent = `⏳ Сохранение сообщения...`;
     const msg = await api(`/chats/${state.currentChat.id}/confirm-upload`, {
       method: 'POST',
@@ -1191,7 +1185,6 @@ document.getElementById('cancel-upload-btn').addEventListener('click', () => {
   if (currentXhrUpload) { currentXhrUpload.abort(); currentXhrUpload = null; isUploading = false; document.getElementById('file-progress').classList.remove('visible'); }
 });
 
-// Вставка из буфера
 let stagedPastedFiles = [];
 const msgInputArea = document.getElementById('msg-input');
 msgInputArea.addEventListener('paste', (e) => {
@@ -1354,7 +1347,9 @@ function renderAttViewer() {
   document.getElementById('att-viewer-title').textContent = a.name || 'Файл';
   document.getElementById('att-viewer-meta').textContent = `От: @${senderName} → Чат: @${chatName} • ${index + 1} / ${attachments.length}`;
   const body = document.getElementById('att-viewer-body'); const url = a.url || ''; const mime = a.mime || '';
-  if (mime.startsWith('image/')) body.innerHTML = `<img src="${escAttr(url)}" alt="">`;
+  if (mime.startsWith('image/')) {
+    body.innerHTML = `<img src="${escAttr(url)}" alt="" onerror="this.outerHTML='<div style=\\'color:#ff4d4d;font-size:14px;text-align:center;padding:20px;\\'>Ошибка загрузки изображения.<br>Файл мог быть удалён из S3 или ссылка недействительна.</div>'">`;
+  }
   else if (mime.startsWith('video/')) body.innerHTML = `<video src="${escAttr(url)}" controls autoplay></video>`;
   else if (mime.startsWith('audio/')) body.innerHTML = `<audio src="${escAttr(url)}" controls autoplay></audio>`;
   else {
