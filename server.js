@@ -326,6 +326,23 @@ app.get('/api/users/search', authMiddleware, (req, res) => {
   res.json(results);
 });
 
+// Получение списка ВСЕХ пользователей (для меню контактов)
+app.get('/api/users/all', authMiddleware, (req, res) => {
+  const users = db.users
+    .filter(u => u.id !== req.userId) // Исключаем себя
+    .map(u => ({
+      id: u.id, 
+      username: u.username, 
+      displayName: u.display_name || null,
+      avatarUrl: u.avatar_url || null,
+      status: u.status || 'offline',
+      role: u.role || 'user'
+    }))
+    .sort((a, b) => a.username.localeCompare(b.username));
+    
+  res.json(users);
+});
+
 app.get('/api/users/:userId', authMiddleware, (req, res) => {
   const target = db.users.find(u => u.id === req.params.userId);
   if (!target) return res.status(404).json({ error: 'User not found' });
@@ -482,6 +499,22 @@ app.post('/api/chats/:chatId/add-member', authMiddleware, (req, res) => {
   if (db.chat_members.some(m => m.chat_id === chatId && m.user_id === userId)) return res.status(400).json({ error: 'Пользователь уже в группе' });
   
   db.chat_members.push({ id: genId(), chat_id: chatId, user_id: userId });
+  saveDb();
+  io.emit('refreshData');
+  res.json({ ok: true });
+});
+
+// Удаление участника из группы (только создатель)
+app.post('/api/chats/:chatId/remove-member', authMiddleware, (req, res) => {
+  const chatId = req.params.chatId;
+  const { userId } = req.body;
+  const chat = db.chats.find(c => c.id === chatId);
+  
+  if (!chat || !chat.is_group) return res.status(404).json({ error: 'Группа не найдена' });
+  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может удалять участников' });
+  if (userId === req.userId) return res.status(400).json({ error: 'Нельзя удалить самого себя' });
+
+  db.chat_members = db.chat_members.filter(m => !(m.chat_id === chatId && m.user_id === userId));
   saveDb();
   io.emit('refreshData');
   res.json({ ok: true });
