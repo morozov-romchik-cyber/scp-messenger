@@ -421,6 +421,33 @@ app.post('/api/users/:userId/unblock', authMiddleware, (req, res) => {
 // ================= CHATS & MESSAGES =================
 app.get('/api/chats', authMiddleware, (req, res) => {
   const myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
+  
+  // Убедимся, что у пользователя есть чат SCP_Helper (системный канал уведомлений)
+  let helperChat = db.chats.find(c => c.is_channel && c.name === 'SCP_Helper');
+  if (!helperChat) {
+    const helperId = genId();
+    helperChat = {
+      id: helperId,
+      created_at: Math.floor(Date.now() / 1000),
+      is_group: true,
+      is_channel: true,
+      username: 'scp_helper',
+      name: 'SCP_Helper',
+      creator_id: req.userId
+    };
+    db.chats.push(helperChat);
+    db.chat_members.push({ id: genId(), chat_id: helperId, user_id: req.userId });
+    saveDb();
+    myChatIds.push(helperId);
+  } else {
+    // Если хелпер есть, но пользователя нет в его участниках — добавляем
+    if (!db.chat_members.some(m => m.chat_id === helperChat.id && m.user_id === req.userId)) {
+      db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: req.userId });
+      saveDb();
+    }
+    if (!myChatIds.includes(helperChat.id)) myChatIds.push(helperChat.id);
+  }
+
   const chats = db.chats.filter(c => myChatIds.includes(c.id)).map(c => {
     const members = db.chat_members.filter(m => m.chat_id === c.id);
     const isSelf = !c.is_group && members.length === 1 && members[0].user_id === req.userId;
@@ -505,24 +532,6 @@ app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
   res.json(members);
 });
 
-app.post('/api/chats/:chatId/add-member', authMiddleware, (req, res) => {
-  const { chatId } = req.params;
-  const { userId } = req.body;
-  
-  const chat = db.chats.find(c => c.id === chatId);
-  if (!chat || !chat.is_group) return res.status(404).json({ error: 'Группа не найдена' });
-  
-  const isMember = db.chat_members.some(m => m.chat_id === chatId && m.user_id === req.userId);
-  if (!isMember) return res.status(403).json({ error: 'Вы не участник этой группы' });
-  
-  if (db.chat_members.some(m => m.chat_id === chatId && m.user_id === userId)) return res.status(400).json({ error: 'Пользователь уже в группе' });
-  
-  db.chat_members.push({ id: genId(), chat_id: chatId, user_id: userId });
-  saveDb();
-  io.emit('refreshData');
-  res.json({ ok: true });
-});
-
 app.post('/api/chats/:chatId/leave', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   const chat = db.chats.find(c => c.id === chatId);
@@ -545,8 +554,8 @@ app.post('/api/chats/:chatId/remove-member', authMiddleware, (req, res) => {
   const chat = db.chats.find(c => c.id === chatId);
   
   if (!chat || !chat.is_group) return res.status(404).json({ error: 'Группа не найдена' });
-  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может удалять участников' });
-  if (userId === req.userId) return res.status(400).json({ error: 'Нельзя удалить самого себя' });
+  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может кикать участников' });
+  if (userId === req.userId) return res.status(400).json({ error: 'Нельзя кикнуть самого себя' });
 
   db.chat_members = db.chat_members.filter(m => !(m.chat_id === chatId && m.user_id === userId));
   saveDb();
