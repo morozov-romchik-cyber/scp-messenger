@@ -291,14 +291,13 @@
           <div id="invite-hint" style="font-size: 12px; color: #ccaaaa; margin-top: 8px; font-family: 'Fira Code';"></div>
         </div>
 
-        <!-- НОВЫЙ БЛОК: ОЧИСТКА СЕРВЕРА -->
         <div class="admin-section" style="border-color: #ff3333; background: rgba(255, 51, 51, 0.05);">
           <h4 style="color: #ff3333; border-bottom-color: #ff3333;">⚠️ Опасная зона</h4>
           <p style="font-size: 12px; color: #ff9999; margin-bottom: 15px;">
             Эта кнопка навсегда удалит <b>ВСЕ сообщения и файлы</b> из всех чатов. <br>
             Аккаунты пользователей, их пароли и списки чатов <b>останутся нетронутыми</b>.
           </p>
-          <button class="admin-btn admin-btn-danger" onclick="wipeAllMessages()" style="background: #ff3333; color: #fff; border: none; width: 100%; padding: 12px; font-size: 16px; font-weight: bold; cursor: pointer;">
+          <button class="admin-btn admin-btn-danger" onclick="wipeAllMessages(event)" style="background: #ff3333; color: #fff; border: none; width: 100%; padding: 12px; font-size: 16px; font-weight: bold; cursor: pointer;">
             🗑️ УДАЛИТЬ ВСЕ ПЕРЕПИСКИ И ФАЙЛЫ
           </button>
         </div>
@@ -361,7 +360,8 @@
         <div class="admin-section">
           <h4>Удаление пользователя</h4>
           <div class="admin-input-group">
-            <input type="text" placeholder="Username (с @ или без)" id="user-action-input">
+            <input type="text" placeholder="Username (с @ или без )
+              " id="user-action-input">
             <button class="admin-btn admin-btn-danger" onclick="deleteUser()">Удалить навсегда</button>
           </div>
         </div>
@@ -417,10 +417,8 @@
   <div class="modal-content">
     <h3>СОЗДАТЬ ГРУППУ</h3>
     <input type="text" id="group-name-input" placeholder="Название группы" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 15px; outline: none;" />
-    
     <input type="text" id="group-user-search" placeholder="Поиск пользователей..." style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none;" />
     <div id="group-user-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
-    
     <button class="modal-btn" onclick="createGroup()" style="background: var(--accent); color: #000; margin-bottom: 10px;">Создать</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('create-group-modal').classList.remove('visible')">Отмена</button>
   </div>
@@ -916,11 +914,11 @@ window.sendUrgentAlert = async function() {
   }
 };
 
-window.wipeAllMessages = async function() {
+window.wipeAllMessages = async function(e) {
   if (!confirm('ВНИМАНИЕ! Вы собираетесь удалить ВСЕ сообщения и файлы во всех чатах. Продолжить?')) return;
   if (!confirm('100% уверены? Это действие НЕОБРАТИМО. Аккаунты и чаты останутся, но переписки исчезнут.')) return;
 
-  const btn = event.target;
+  const btn = e.target;
   const origText = btn.textContent;
   btn.textContent = '⏳ Удаление...';
   btn.disabled = true;
@@ -1059,7 +1057,7 @@ function connectSocket() {
       state.me = await api('/me'); await loadChats();
       if (state.currentChat) {
         const updatedChat = state.chats.find(c => c.id === state.currentChat.id);
-        if (updatedChat) openChat(updatedChat.id, updatedChat.name, updatedChat.avatarUrl, updatedChat.isBlocked, updatedChat.otherUserId, updatedChat.ban_expires);
+        if (updatedChat) openChat(updatedChat.id, updatedChat.name, updatedChat.avatarUrl, updatedChat.isBlocked, updatedChat.otherUserId, updatedChat.ban_expires, updatedChat.isGroup, updatedChat.creatorId);
       }
       if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList();
     } catch (e) {}
@@ -1110,14 +1108,11 @@ function connectSocket() {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
-      
       oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
       gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
-      
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
-      
       oscillator.start();
       oscillator.stop(audioCtx.currentTime + 30);
     } catch (e) { console.error('Audio error', e); }
@@ -1181,7 +1176,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   document.getElementById('clear-chat-btn').style.display = 'inline-block';
   document.getElementById('chat-options-btn').style.display = 'inline-block';
   
-  // Обновляем кнопки в настройках чата для групп
   document.getElementById('view-profile-btn').style.display = isGroup ? 'none' : 'block';
   document.getElementById('block-user-btn').style.display = isGroup ? 'none' : (isBlocked ? 'none' : 'block');
   document.getElementById('unblock-user-btn').style.display = isGroup ? 'none' : (isBlocked ? 'block' : 'none');
@@ -1571,3 +1565,68 @@ function formatSize(bytes) {
 function getAttIcon(a) {
   const mime = a.mime || ''; const name = (a.name || '').toLowerCase();
   if (mime.startsWith('image/')) return '🖼️'; if (mime.startsWith('video/')) return '🎬'; if (mime.startsWith('audio/')) return '🎵';
+  if (name.endsWith('.pdf')) return '📄'; if (/\.(zip|rar|7z|tar|gz|bz2|xz|zst)$/.test(name)) return '📦';
+  if (/\.(doc|docx)$/.test(name)) return '📝'; if (/\.(xls|xlsx|csv)$/.test(name)) return '📊'; if (/\.(ppt|pptx)$/.test(name)) return '📽️';
+  return '📎';
+}
+
+// Перетаскивание окна просмотра
+(function() {
+  const el = document.getElementById('att-viewer-content'); const handle = document.getElementById('att-viewer-header');
+  if (!el || !handle) return; let isDown = false, offsetX = 0, offsetY = 0;
+  const start = (cx, cy) => { isDown = true; const rect = el.getBoundingClientRect(); el.style.left = rect.left + 'px'; el.style.top = rect.top + 'px'; el.style.transform = 'none'; offsetX = cx - rect.left; offsetY = cy - rect.top; };
+  const move = (cx, cy) => { if (!isDown) return; let nx = cx - offsetX; let ny = cy - offsetY; nx = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, nx)); ny = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, ny)); el.style.left = nx + 'px'; el.style.top = ny + 'px'; };
+  const end = () => { isDown = false; };
+  handle.addEventListener('mousedown', (e) => { if (e.target.closest('.att-viewer-close')) return; start(e.clientX, e.clientY); e.preventDefault(); });
+  window.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
+  window.addEventListener('mouseup', end);
+  handle.addEventListener('touchstart', (e) => { if (e.target.closest('.att-viewer-close')) return; const t = e.touches[0]; start(t.clientX, t.clientY); }, { passive: true });
+  window.addEventListener('touchmove', (e) => { if (!isDown) return; const t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: true });
+  window.addEventListener('touchend', end);
+})();
+
+// Фоновые эффекты
+(function() {
+  const canvas = document.getElementById('fx-canvas'); const ctx = canvas.getContext('2d');
+  let w = canvas.width = window.innerWidth; let h = canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; });
+  let particles = [];
+  function initParticles() {
+    particles = []; const count = visualSettings.weather !== 'none' ? 80 : 0;
+    for (let i = 0; i < count; i++) {
+      particles.push({ x: Math.random() * w, y: Math.random() * h, vx: visualSettings.weather === 'rain' ? (Math.random() - 0.5) * 2 : (Math.random() - 0.5) * 0.5, vy: visualSettings.weather === 'rain' ? Math.random() * 5 + 5 : Math.random() * 1 + 0.5, r: visualSettings.weather === 'rain' ? Math.random() * 1 + 0.5 : Math.random() * 2 + 1 });
+    }
+  }
+  setInterval(() => { if (visualSettings.weather !== 'none' && particles.length === 0) initParticles(); if (visualSettings.weather === 'none' && particles.length > 0) particles = []; }, 1000);
+  initParticles();
+  function tick() {
+    ctx.clearRect(0, 0, w, h);
+    if (visualSettings.weather === 'rain') {
+      ctx.strokeStyle = 'rgba(150, 200, 255, 0.4)'; ctx.lineWidth = 1;
+      particles.forEach(p => { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.vx, p.y + p.vy); ctx.stroke(); p.x += p.vx; p.y += p.vy; if (p.y > h) { p.y = -10; p.x = Math.random() * w; } });
+    } else if (visualSettings.weather === 'snow') {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      particles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); p.x += Math.sin(p.y * 0.02) * 1; p.y += p.vy; if (p.y > h) { p.y = -10; p.x = Math.random() * w; } });
+    }
+    if (visualSettings.ghosts) {
+      const time = Date.now() * 0.001;
+      for (let i = 0; i < 5; i++) {
+        const px = w / 2 + Math.sin(time + i * 2) * (w / 2); const py = h / 2 + Math.cos(time * 0.8 + i * 3) * (h / 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.03)'; ctx.beginPath(); ctx.arc(px, py, 60 + Math.sin(time * 2 + i) * 20, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+// Авто-вход
+(async () => {
+  if (state.token) {
+    try { state.me = await api('/me'); state.read_deleted = state.me.read_deleted || false; enterChat(); }
+    catch (e) { if (e.message !== 'Banned') { localStorage.removeItem('scp_token'); state.token = null; } }
+  }
+})();
+</script>
+</body>
+</html>
