@@ -9,14 +9,12 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const { Server } = require('socket.io');
 
-// #SECTION: S3_IMPORTS
 const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
-// #SECTION: S3_CONFIGURATION
 const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://firsts3.ru').trim();
 const S3_BUCKET = (process.env.S3_BUCKET || 'scp-messenger').trim();
 const S3_REGION = (process.env.S3_REGION || 'default').trim();
@@ -461,15 +459,23 @@ app.get('/api/chats', authMiddleware, (req, res) => {
 });
 
 app.post('/api/chats/group', authMiddleware, (req, res) => {
-  const { name, memberIds, is_channel } = req.body;
+  const { name, memberIds, is_channel, username } = req.body;
   if (!name || !memberIds || !Array.isArray(memberIds)) return res.status(400).json({ error: 'Неверные данные группы' });
   
+  let cleanUsername = null;
+  if (is_channel && username) {
+    cleanUsername = String(username).trim().toLowerCase().replace(/^@/, '');
+    if (!/^[a-z0-9_]{3,32}$/.test(cleanUsername)) return res.status(400).json({ error: 'Юзернейм: 3-32 символа (a-z, 0-9, _)' });
+    if (db.chats.some(c => c.username === cleanUsername)) return res.status(400).json({ error: 'Этот scp.me/ адрес уже занят' });
+  }
+
   const chatId = genId();
   db.chats.push({
     id: chatId,
     created_at: Math.floor(Date.now() / 1000),
     is_group: true,
     is_channel: !!is_channel,
+    username: cleanUsername,
     name,
     creator_id: req.userId
   });
@@ -481,7 +487,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   
   saveDb();
   io.emit('refreshData');
-  res.json({ ok: true, chatId });
+  res.json({ ok: true, chatId, username: cleanUsername });
 });
 
 app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
@@ -567,7 +573,6 @@ app.delete('/api/chats/:chatId', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-// #NEW: Установка юзернейма канала
 app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
   const { chatId } = req.params;
   const { username } = req.body;
