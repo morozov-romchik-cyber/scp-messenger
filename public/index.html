@@ -274,7 +274,7 @@
   <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
 
-<!-- Официальное уведомление SCP -->
+<!-- Модалка SCP -->
 <div class="modal" id="scp-verify-modal" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);">
   <div class="modal-content" style="border: 1px solid #1d9bf0; box-shadow: 0 0 30px rgba(29,155,240,0.2); text-align: center; max-width: 400px;">
     <svg style="width: 64px; height: 64px; fill: #1d9bf0; margin: 0 auto 15px auto;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
@@ -463,7 +463,7 @@
     
     <div id="channel-username-container" style="display: none; margin-bottom: 10px; flex-shrink: 0;">
       <input type="text" id="channel-username-input" placeholder="юзернейм (например: my_channel)" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; outline: none;" />
-      <div style="font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'Fira Code';">Ссылка будет выглядеть как: scp.group/... (указывается 1 раз)</div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'Fira Code';">Ссылка будет выглядеть как: scp.me/... (указывается 1 раз)</div>
     </div>
     
     <div id="group-user-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
@@ -509,7 +509,7 @@
       <div id="channel-link-text" style="color:var(--accent); font-weight:bold; word-break:break-all;">-</div>
     </div>
     <div id="set-channel-username-section" style="display:none; margin-bottom: 15px;">
-      <input type="text" id="modal-set-username" placeholder="юзернейм (scp.group/...)" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:6px; font-family:inherit; margin-bottom:8px; outline:none;" />
+      <input type="text" id="modal-set-username" placeholder="юзернейм (scp.me/...)" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:6px; font-family:inherit; margin-bottom:8px; outline:none;" />
       <button class="modal-btn" onclick="setChannelUsername()" style="margin-top:0; padding:8px;">Установить ссылку</button>
     </div>
     <button class="modal-btn" id="view-profile-btn" style="background: var(--accent); color: #000; margin-bottom: 10px;">👤 Профиль собеседника</button>
@@ -1145,7 +1145,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
     document.getElementById('chat-subtitle').textContent = 'Служебные уведомления';
   } else {
     verifiedStar.style.display = 'none';
-    document.getElementById('chat-subtitle').textContent = isChannel ? (username ? `scp.group/${username}` : 'Канал') : '';
+    document.getElementById('chat-subtitle').textContent = isChannel ? (username ? `scp.me/${username}` : 'Канал') : '';
   }
 
   const headerBadge = document.getElementById('header-chat-role-badge');
@@ -1188,7 +1188,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   if (isChannel) {
     channelLinkBox.style.display = 'block';
     if (username) {
-      document.getElementById('channel-link-text').textContent = 'scp.group/' + username;
+      document.getElementById('channel-link-text').textContent = 'scp.me/' + username;
       setChannelUsernameSection.style.display = 'none';
     } else {
       document.getElementById('channel-link-text').textContent = 'Не задана';
@@ -1234,8 +1234,16 @@ function appendMessage(msg, scroll = true) {
       if (colonIndex !== -1) { qName = quoteLine.slice(0, colonIndex).trim(); qText = quoteLine.slice(colonIndex + 1).trim(); }
       const mainText = lines.slice(1).join('\n').trim();
       content += `<div class="reply-quote"><div class="rq-name">@${esc(qName)}</div><div class="rq-text">${esc(qText)}</div></div>`;
-      if (mainText) content += `<div>${esc(mainText)}</div>`;
-    } else if (rawText) content += `<div>${esc(rawText)}</div>`;
+      if (mainText) {
+        let safeText = esc(mainText);
+        safeText = safeText.replace(/(scp\.me\/[a-zA-Z0-9_]+|scp\.group\/[a-zA-Z0-9_]+)/g, '<a href="#" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation(); openLinkChat(this.innerText)">$1</a>');
+        content += `<div>${safeText}</div>`;
+      }
+    } else if (rawText) {
+      let safeText = esc(rawText);
+      safeText = safeText.replace(/(scp\.me\/[a-zA-Z0-9_]+|scp\.group\/[a-zA-Z0-9_]+)/g, '<a href="#" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation(); openLinkChat(this.innerText)">$1</a>');
+      content += `<div>${safeText}</div>`;
+    }
 
     if (Array.isArray(msg.attachments) && msg.attachments.length) {
       window._attStore = window._attStore || {};
@@ -1278,6 +1286,19 @@ function appendMessage(msg, scroll = true) {
   });
   msgsEl.appendChild(row);
   if (scroll) msgsEl.scrollTop = msgsEl.scrollHeight;
+}
+
+window.openLinkChat = async function(link) {
+    let username = link.split('/')[1];
+    try {
+        const chat = await api(`/chats/resolve/${username}`);
+        if (chat) {
+            await loadChats();
+            openChat(chat.id, chat.name, null, false, null, 0, true, chat.creatorId, chat.isChannel, chat.username);
+        }
+    } catch (e) {
+        alert(e.message);
+    }
 }
 
 function openMsgActions(msg) {
@@ -1468,6 +1489,8 @@ document.getElementById('clear-chat-btn').addEventListener('click', () => { if (
 document.getElementById('clear-me-btn').addEventListener('click', () => { if (state.currentChat) { document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } });
 document.getElementById('clear-all-btn').addEventListener('click', async () => {
   if (!state.currentChat || !confirm('Очистить чат у всех?')) return;
+  try { await api('/chats/' + document.getElementById('clear-all-btn').addEventListener('click', async () => {
+  if (!state.currentChat || !confirm('Очистить чат у всех?')) return;
   try { await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } catch (e) { alert(e.message); }
 });
 
@@ -1559,7 +1582,7 @@ window.setChannelUsername = async function() {
   try {
     const res = await api(`/chats/${state.currentChat.id}/set-username`, { method: 'POST', body: JSON.stringify({ username }) });
     state.currentChat.username = res.username;
-    alert('Ссылка успешно установлена: scp.group/' + res.username);
+    alert('Ссылка успешно установлена: scp.me/' + res.username);
     document.getElementById('chat-settings-modal').classList.remove('visible');
     loadChats();
     openChat(state.currentChat.id, state.currentChat.name, state.currentChat.avatarUrl, state.currentChat.isBlocked, state.currentChat.otherUserId, state.currentChat.ban_expires, true, state.currentChat.creatorId, true, res.username, false);
@@ -1654,11 +1677,21 @@ document.getElementById('user-search').addEventListener('input', (e) => {
   if (!q) { renderChatList(); return; }
   searchTimeout = setTimeout(async () => {
     try {
-      const users = await api('/users/search?q=' + encodeURIComponent(q));
+      const res = await api('/users/search?q=' + encodeURIComponent(q));
       const list = document.getElementById('chat-list');
-      if (!users.length) { list.innerHTML = '<div class="empty">Ничего не найдено</div>'; return; }
-      list.innerHTML = users.map(u => `<div class="chat-item" onclick="startChat('${escAttr(u.id)}')"><div class="chat-avatar">${esc((u.username || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">@${esc(u.username)}</div><div class="preview">${u.status === 'online' ? '🟢 online' : '⚪ offline'} • ${esc(ROLE_LABEL[u.role] || u.role)}</div></div></div>`).join('');
-    } catch (err) {}
+      let html = '';
+      
+      if (res.chats && res.chats.length > 0) {
+          html += res.chats.map(c => `<div class="chat-item" onclick="openLinkChat('${c.isChannel ? 'scp.me/' : 'scp.group/'}${c.username}')"><div class="chat-avatar" style="background:var(--border);">${c.isChannel ? '📢' : '👥'}</div><div class="chat-info"><div class="name">${esc(c.name)}</div><div class="preview">${c.isChannel ? 'scp.me/' : 'scp.group/'}${c.username}</div></div></div>`).join('');
+      }
+      
+      if (res.users && res.users.length > 0) {
+          html += res.users.map(u => `<div class="chat-item" onclick="startChat('${escAttr(u.id)}')"><div class="chat-avatar">${esc((u.username || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">@${esc(u.username)}</div><div class="preview">${u.status === 'online' ? '🟢 online' : '⚪ offline'} • ${esc(ROLE_LABEL[u.role] || u.role)}</div></div></div>`).join('');
+      }
+
+      if (!html) html = '<div class="empty">Ничего не найдено</div>';
+      list.innerHTML = html;
+    } catch (err) { console.error(err); }
   }, 250);
 });
 
