@@ -16,6 +16,7 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
+// #SECTION: S3_CONFIGURATION (ВАШИ КЛЮЧИ ВСТАВЛЕНЫ)
 const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://firsts3.ru').trim();
 const S3_BUCKET = (process.env.S3_BUCKET || 'scp-messenger').trim();
 const S3_REGION = (process.env.S3_REGION || 'default').trim();
@@ -448,6 +449,24 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   saveDb();
   io.emit('refreshData');
   res.json({ ok: true, chatId });
+});
+
+// Получение списка участников группы
+app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
+  const chatId = req.params.chatId;
+  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) {
+    return res.status(403).json({ error: 'Not a member' });
+  }
+
+  const members = db.chat_members
+    .filter(m => m.chat_id === chatId)
+    .map(m => {
+      const u = db.users.find(user => user.id === m.user_id);
+      return u ? publicUser(u) : null;
+    })
+    .filter(Boolean);
+
+  res.json(members);
 });
 
 app.post('/api/chats/:chatId/add-member', authMiddleware, (req, res) => {
