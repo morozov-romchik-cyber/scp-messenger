@@ -258,27 +258,51 @@
     pointer-events: none;
   }
   .toast-msg {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--accent);
-    padding: 12px;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    background: rgba(22, 27, 34, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 4px solid #1d9bf0;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.7), 0 0 15px rgba(29,155,240,0.2);
     display: flex;
     align-items: center;
     gap: 12px;
-    width: 320px;
+    width: 340px;
+    padding: 14px;
     pointer-events: auto;
-    animation: slideInRight 0.3s ease-out;
+    animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     cursor: pointer;
-    transition: opacity 0.2s;
+    transition: all 0.2s ease;
+    position: relative;
   }
-  .toast-msg:hover { background: var(--border); }
-  @keyframes slideInRight { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
-  .toast-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+  .toast-msg:hover { 
+    background: rgba(30, 36, 44, 0.95); 
+    transform: translateY(-2px);
+  }
+  .toast-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 16px;
+    cursor: pointer;
+    display: none;
+  }
+  .toast-msg:hover .toast-close { display: block; }
+  .toast-close:hover { color: #fff; }
+  
+  .toast-avatar { 
+    width: 44px; height: 44px; border-radius: 50%; object-fit: cover; 
+    background: var(--border); flex-shrink: 0; display: flex; 
+    align-items: center; justify-content: center; font-weight: bold; font-size: 18px;
+    border: 2px solid rgba(255,255,255,0.1);
+  }
   .toast-content { flex: 1; min-width: 0; }
-  .toast-title { font-weight: 600; font-size: 14px; color: var(--accent); margin-bottom: 2px; }
-  .toast-text { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toast-title { font-weight: 600; font-size: 13px; color: #1d9bf0; margin-bottom: 2px; }
+  .toast-sender { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 2px; }
+  .toast-text { font-size: 13px; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   @media (max-width: 720px) {
     aside { display: none; width: 100%; position: absolute; inset: 0; z-index: 20; }
@@ -747,7 +771,7 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// Глобальные переменные инициализируются в самом начале
+// Глобальные переменные
 let favoriteChats = JSON.parse(localStorage.getItem('scp_fav_chats') || '[]');
 const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false };
 
@@ -1207,8 +1231,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   }
 
   const isCreator = !isGroup || (creatorId === state.me.id);
-  
-  // Скрываем поле ввода, если это канал и ты не создатель
   const showComposer = !isBlocked && (!isChannel || isCreator);
 
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
@@ -1548,20 +1570,10 @@ document.getElementById('file-input').addEventListener('change', () => {
 });
 
 document.getElementById('clear-chat-btn').addEventListener('click', () => { if (state.currentChat) document.getElementById('clear-modal').classList.add('visible'); });
-document.getElementById('clear-me-btn').addEventListener('click', () => { 
-  if (state.currentChat) { 
-    document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; 
-    document.getElementById('clear-modal').classList.remove('visible'); 
-  } 
-});
-
+document.getElementById('clear-me-btn').addEventListener('click', () => { if (state.currentChat) { document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } });
 document.getElementById('clear-all-btn').addEventListener('click', async () => {
   if (!state.currentChat || !confirm('Очистить чат у всех?')) return;
-  try { 
-    await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); 
-    document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; 
-    document.getElementById('clear-modal').classList.remove('visible'); 
-  } catch (e) { alert(e.message); }
+  try { await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } catch (e) { alert(e.message); }
 });
 
 document.getElementById('chat-options-btn').addEventListener('click', () => {
@@ -1636,12 +1648,8 @@ document.getElementById('delete-group-btn').addEventListener('click', async () =
     await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
     state.currentChat = null;
     document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
-    document.getElementById('chat-title').textContent = 'SCP_Helper'; 
-    document.getElementById('composer').style.display = 'none'; 
-    document.getElementById('chat-settings-modal').classList.remove('visible');
-    document.getElementById('chat-options-btn').style.display = 'none'; 
-    document.getElementById('clear-chat-btn').style.display = 'none'; 
-    document.getElementById('header-avatar').style.display = 'none';
+    document.getElementById('chat-title').textContent = 'SCP_Helper'; document.getElementById('composer').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible');
+    document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
     loadChats();
   } catch (e) {
@@ -1682,28 +1690,41 @@ document.addEventListener('keydown', unlockAudio, { once: true });
 function playNotificationSound() {
     try {
         if (!globalAudioCtx) return;
-        const osc = globalAudioCtx.createOscillator();
-        const gain = globalAudioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(globalAudioCtx.destination);
-        osc.type = 'sine';
-        
-        osc.frequency.setValueAtTime(880, globalAudioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, globalAudioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, globalAudioCtx.currentTime + 0.1);
-        
-        osc.frequency.setValueAtTime(659.25, globalAudioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.1, globalAudioCtx.currentTime + 0.1);
-        gain.gain.exponentialRampToValueAtTime(0.01, globalAudioCtx.currentTime + 0.3);
-        
-        osc.start(globalAudioCtx.currentTime);
-        osc.stop(globalAudioCtx.currentTime + 0.3);
-    } catch (e) {}
+        const now = globalAudioCtx.currentTime;
+        const notes = [440, 554.37, 659.25, 880]; 
+        const duration = 0.12;
+
+        notes.forEach((freq, i) => {
+            const osc = globalAudioCtx.createOscillator();
+            const gain = globalAudioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(globalAudioCtx.destination);
+            osc.type = 'triangle'; 
+            
+            const startTime = now + (i * duration);
+            osc.frequency.setValueAtTime(freq, startTime);
+            
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.4, startTime + 0.02); 
+            
+            if (i === notes.length - 1) {
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5);
+            } else {
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+            }
+            
+            osc.start(startTime);
+            osc.stop(startTime + (i === notes.length - 1 ? 0.5 : duration));
+        });
+    } catch (e) { console.error(e); }
 }
 
 function showNotification(sender, text, avatarUrl, chatId) {
-    // 1. Тост внутри сайта
     const container = document.getElementById('toast-container');
+    if (container.children.length >= 3) {
+        container.removeChild(container.firstChild);
+    }
+
     const toast = document.createElement('div');
     toast.className = 'toast-msg';
     
@@ -1712,9 +1733,11 @@ function showNotification(sender, text, avatarUrl, chatId) {
         : esc((sender || '?')[0].toUpperCase());
     
     toast.innerHTML = `
+        <button class="toast-close" onclick="event.stopPropagation(); this.parentElement.remove();">×</button>
         <div class="toast-avatar">${avatarContent}</div>
         <div class="toast-content">
-            <div class="toast-title">@${esc(sender)}</div>
+            <div class="toast-title">Новое сообщение</div>
+            <div class="toast-sender">@${esc(sender)}</div>
             <div class="toast-text">${esc(text)}</div>
         </div>
     `;
@@ -1733,21 +1756,21 @@ function showNotification(sender, text, avatarUrl, chatId) {
     setTimeout(() => {
         if (toast.parentNode) {
             toast.style.opacity = '0';
+            toast.style.transform = 'translateX(50px)';
             setTimeout(() => toast.remove(), 300);
         }
-    }, 4000);
+    }, 5000);
 
-    // 2. Системное уведомление поверх всех окон
     if (document.hidden && "Notification" in window && Notification.permission === "granted") {
         const sysNote = new Notification(`Новое сообщение от @${sender}`, {
             body: text,
             icon: avatarUrl || '/favicon.png',
-            tag: 'scp-msg-' + chatId,
+            tag: 'scp-msg-' + chatId, 
             renotify: true
         });
         sysNote.onclick = function(e) {
             e.preventDefault();
-            window.focus();
+            window.focus(); 
             const chat = state.chats.find(c => c.id === chatId);
             if (chat) {
                 openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper);
