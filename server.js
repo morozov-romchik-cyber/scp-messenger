@@ -94,7 +94,7 @@ server.requestTimeout = 0; server.headersTimeout = 0; server.timeout = 0;
 
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/', (req, res) => { res.sendFile(path.join(process.cwd(), 'public', 'index.html')); });
+app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.use('/uploads', express.static(UPLOAD_DIR));
 
 const genId = () => crypto.randomBytes(12).toString('hex');
@@ -935,19 +935,27 @@ io.on('connection', (socket) => {
         retries--;
         if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
           serverLog('info', 'В S3 базы нет, проверяем локальную...');
-          if (fs.existsSync(DB_FILE)) { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); saveDb(); }
-          else { serverLog('info', 'Создана новая пустая БД'); }
+          if (fs.existsSync(DB_FILE)) { 
+              try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); saveDb(); } catch(e) { serverLog('error', 'Локальная БД повреждена, создаем новую'); }
+          } else { serverLog('info', 'Создана новая пустая БД'); }
           break;
         } else {
           serverLog('error', `Ошибка БД S3 (попытка ${4 - retries}/3): ${err.message}`);
-          if (retries === 0) { serverLog('error', 'Все попытки исчерпаны, локальная БД'); if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); }
+          if (retries === 0) { 
+              serverLog('error', 'Все попытки исчерпаны, локальная БД'); 
+              if (fs.existsSync(DB_FILE)) {
+                  try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e) { serverLog('error', 'Локальная БД повреждена!'); }
+              } 
+          }
           else { await new Promise(r => setTimeout(r, 2000)); }
         }
       }
     }
   } else {
     serverLog('info', 'S3 отключён, используем локальную БД');
-    if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    if (fs.existsSync(DB_FILE)) {
+        try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e) { serverLog('error', 'Локальная БД повреждена, создаем новую'); }
+    }
   }
 
   ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments'].forEach(key => { if (!db[key]) db[key] = []; });
