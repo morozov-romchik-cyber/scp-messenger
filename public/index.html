@@ -1020,9 +1020,7 @@ function unlockAudio() {
     if (!globalAudioCtx) {
         globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    if (globalAudioCtx.state === 'suspended') {
-        globalAudioCtx.resume();
-    }
+    if (globalAudioCtx.state === 'suspended') { globalAudioCtx.resume(); }
 }
 document.addEventListener('click', unlockAudio, { once: true });
 document.addEventListener('keydown', unlockAudio, { once: true });
@@ -1031,29 +1029,23 @@ function playNotificationSound() {
     try {
         if (!globalAudioCtx) return;
         const now = globalAudioCtx.currentTime;
-        
         const notes = [110.00, 138.59, 164.81, 220.00]; 
         const duration = 0.15; 
-
         notes.forEach((freq, i) => {
             const osc = globalAudioCtx.createOscillator();
             const gain = globalAudioCtx.createGain();
             osc.connect(gain);
             gain.connect(globalAudioCtx.destination);
             osc.type = 'sine'; 
-            
             const startTime = now + (i * duration);
             osc.frequency.setValueAtTime(freq, startTime);
-            
             gain.gain.setValueAtTime(0, startTime);
             gain.gain.linearRampToValueAtTime(0.6, startTime + 0.03); 
-            
             if (i === notes.length - 1) {
                 gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.6);
             } else {
                 gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
             }
-            
             osc.start(startTime);
             osc.stop(startTime + (i === notes.length - 1 ? 0.6 : duration));
         });
@@ -1062,17 +1054,12 @@ function playNotificationSound() {
 
 function showNotification(sender, text, avatarUrl, chatId) {
     const container = document.getElementById('toast-container');
-    if (container.children.length >= 3) {
-        container.removeChild(container.firstChild);
-    }
-
+    if (container.children.length >= 3) { container.removeChild(container.firstChild); }
     const toast = document.createElement('div');
     toast.className = 'toast-msg';
-    
     let avatarContent = avatarUrl 
         ? `<img src="${escAttr(avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
         : esc((sender || '?')[0].toUpperCase());
-    
     toast.innerHTML = `
         <button class="toast-close" onclick="event.stopPropagation(); this.parentElement.remove();">×</button>
         <div class="toast-avatar">${avatarContent}</div>
@@ -1082,7 +1069,6 @@ function showNotification(sender, text, avatarUrl, chatId) {
             <div class="toast-text">${esc(text)}</div>
         </div>
     `;
-    
     toast.onclick = () => {
         const chat = state.chats.find(c => c.id === chatId);
         if (chat) {
@@ -1090,10 +1076,8 @@ function showNotification(sender, text, avatarUrl, chatId) {
         }
         toast.remove();
     };
-    
     container.appendChild(toast);
     playNotificationSound();
-    
     setTimeout(() => {
         if (toast.parentNode) {
             toast.style.opacity = '0';
@@ -1104,10 +1088,7 @@ function showNotification(sender, text, avatarUrl, chatId) {
 
     if (document.hidden && "Notification" in window && Notification.permission === "granted") {
         const sysNote = new Notification(`Новое сообщение от @${sender}`, {
-            body: text,
-            icon: avatarUrl || '/favicon.png',
-            tag: 'scp-msg-' + chatId, 
-            renotify: true
+            body: text, icon: avatarUrl || '/favicon.png', tag: 'scp-msg-' + chatId, renotify: true
         });
         sysNote.onclick = function(e) {
             e.preventDefault();
@@ -1538,7 +1519,7 @@ function renderChatList() {
           ${checkmarkHtml}
           ${roleBadgeHtml}
         </div>
-        <div class="preview">${isBanned ? '⛔ Заблокирован' : (c.is Blocked ? '🚫 Заблокирован вами' : (c.isSelf ? 'Личные заметки' : (c.isChannel ? 'Канал' : (c.isGroup ? 'Группа' : 'Открыть чат'))))}${unread ? ` <span class="badge">${unread}</span>` : ''}</div>
+        <div class="preview">${isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован вами' : (c.isSelf ? 'Личные заметки' : (c.isChannel ? 'Канал' : (c.isGroup ? 'Группа' : 'Открыть чат'))))}${unread ? ` <span class="badge">${unread}</span>` : ''}</div>
       </div>
       ${starBtn}
     </div>`;
@@ -1581,7 +1562,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   const isCreator = !isGroup || (creatorId === state.me.id);
   const showComposer = !isBlocked && (!isChannel || isCreator);
   
-  // Кнопка звонка
   const callBtn = document.getElementById('call-btn');
   if (!isGroup && otherUserId && !isHelper) {
       callBtn.style.display = 'block';
@@ -1643,7 +1623,7 @@ window.openChat = openChat;
 function appendMessage(msg, scroll = true) {
   const msgsEl = document.getElementById('messages');
   if (document.getElementById('msg-' + msg.id)) return;
-  if (msgsEl.innerHTML === 'Загрузка...' || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
+  if (msgsEl.innerHTML === 'Загрузка...'  || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
   const mine = msg.sender.id === state.me?.id;
   const row = document.createElement('div');
   row.className = 'msg-row' + (mine ? ' mine' : ''); row.id = 'msg-' + msg.id;
