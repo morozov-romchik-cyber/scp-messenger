@@ -89,7 +89,7 @@
   
   .fab-container { position: relative; width: 100%; display: flex; justify-content: center; }
   .new-chat-fab { 
-    width: 40px; height: 40px; /* Уменьшено с 60px */
+    width: 40px; height: 40px; 
     background: var(--accent); color: #000; border: none; 
     border-radius: 50%; font-weight: bold; font-size: 24px; cursor: pointer; 
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s; 
@@ -100,7 +100,7 @@
   .fab-container.open .new-chat-fab { transform: rotate(45deg); }
   
   .fab-menu { 
-    position: absolute; bottom: 50px; /* Уменьшено с 70px */
+    position: absolute; bottom: 50px; 
     left: 50%; transform: translateX(-50%) translateY(20px); 
     display: flex; flex-direction: column; gap: 8px; pointer-events: none; opacity: 0; 
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; align-items: center;
@@ -108,7 +108,7 @@
   .fab-container.open .fab-menu { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
   
   .fab-sub-btn { 
-    width: 34px; height: 34px; /* Уменьшено с 50px */
+    width: 34px; height: 34px; 
     border-radius: 50%; background: var(--card); 
     border: 1px solid var(--border-hover); color: var(--accent); 
     display: flex; align-items: center; justify-content: center; cursor: pointer; 
@@ -246,6 +246,40 @@
   .profile-info-row span:first-child { color: var(--muted); }
   .profile-info-box { background: var(--bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 12px; }
 
+  /* УВЕДОМЛЕНИЯ (TOASTS) */
+  .toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 1000000;
+    pointer-events: none;
+  }
+  .toast-msg {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    padding: 12px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 320px;
+    pointer-events: auto;
+    animation: slideInRight 0.3s ease-out;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .toast-msg:hover { background: var(--border); }
+  @keyframes slideInRight { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
+  .toast-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+  .toast-content { flex: 1; min-width: 0; }
+  .toast-title { font-weight: 600; font-size: 14px; color: var(--accent); margin-bottom: 2px; }
+  .toast-text { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
   @media (max-width: 720px) {
     aside { display: none; width: 100%; position: absolute; inset: 0; z-index: 20; }
     aside.mobile-open { display: flex; }
@@ -259,6 +293,7 @@
     .admin-sidebar { width: 100%; flex-direction: row; overflow-x: auto; overflow-y: hidden; border-right: none; border-bottom: 1px solid var(--admin-border); }
     .admin-tab { border-left: none; border-bottom: 3px solid transparent; padding: 12px; white-space: nowrap; }
     .admin-tab.active { border-left-color: transparent; border-bottom-color: var(--admin-accent); }
+    .toast-msg { width: calc(100vw - 40px); }
   }
   .back-btn { display: none; }
   .empty { text-align: center; color: var(--muted); font-family: 'Fira Code', monospace; font-size: 13px; padding: 60px 20px; letter-spacing: 1px; }
@@ -272,7 +307,9 @@
 
 <canvas id="fx-canvas"></canvas>
 <div id="lightbox" onclick="this.style.display='none'"><img id="lightbox-img" src="" alt="Фото"></div>
+<div class="toast-container" id="toast-container"></div>
 
+<!-- ОСТАЛЬНОЙ HTML (Модалки и т.д.) -->
 <svg id="landscape" viewBox="0 0 1440 320" preserveAspectRatio="none">
   <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
@@ -538,8 +575,8 @@
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">IP:</span><span id="set-my-ip" style="color: #00ff9d;">...</span></div>
       </div>
     </div>
-    <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
-      <span style="margin-bottom: 10px;">Ваш Аватар:</span>
+      <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
+              <span style="margin-bottom: 10px;">Ваш Аватар:</span>
       <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
         <img id="settings-avatar-preview" src="/favicon.png" class="chat-avatar" style="width: 50px; height: 50px;" />
         <button class="modal-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;" id="avatar-upload-btn">Загрузить</button>
@@ -1170,6 +1207,8 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   }
 
   const isCreator = !isGroup || (creatorId === state.me.id);
+  
+  // Скрываем поле ввода, если это канал и ты не создатель
   const showComposer = !isBlocked && (!isChannel || isCreator);
 
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
@@ -1612,6 +1651,64 @@ window.setChannelUsername = async function() {
   }
 };
 
+function showNotification(sender, text, avatarUrl, chatId) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast-msg';
+    
+    let avatarContent = avatarUrl 
+        ? `<img src="${escAttr(avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
+        : esc((sender || '?')[0].toUpperCase());
+    
+    toast.innerHTML = `
+        <div class="toast-avatar">${avatarContent}</div>
+        <div class="toast-content">
+            <div class="toast-title">@${esc(sender)}</div>
+            <div class="toast-text">${esc(text)}</div>
+        </div>
+    `;
+    
+    toast.onclick = () => {
+        const chat = state.chats.find(c => c.id === chatId);
+        if (chat) {
+            openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper);
+        }
+        toast.remove();
+    };
+    
+    container.appendChild(toast);
+    playNotificationSound();
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 4000);
+}
+
+function playNotificationSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        // "Дилидиньк"
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.3);
+    } catch (e) {}
+}
+
 function connectSocket() {
   if (state.socket) state.socket.disconnect();
   state.socket = io({ auth: { token: state.token } });
@@ -1637,7 +1734,15 @@ function connectSocket() {
     if (state.currentChat && msg.chatId === state.currentChat.id) {
       appendMessage(msg); document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
       api('/chats/' + state.currentChat.id + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
-    } else { state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1; renderChatList(); updatePageTitle(); }
+      // Уведомление если окно не в фокусе или другой чат
+      if (document.hidden || !document.hasFocus()) {
+          showNotification(msg.sender.username, msg.text || '📎 Вложение', msg.sender.avatarUrl, msg.chatId);
+      }
+    } else { 
+        state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1; 
+        renderChatList(); updatePageTitle(); 
+        showNotification(msg.sender.username, msg.text || '📎 Вложение', msg.sender.avatarUrl, msg.chatId);
+    }
   });
   state.socket.on('messageDelivered', ({ messageId }) => {
     const el = document.getElementById('msg-' + messageId); if (!el) return;
