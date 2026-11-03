@@ -892,6 +892,28 @@ io.on('connection', (socket) => {
     });
     if (changed) saveDb();
 
+    // --- СИГНАЛИНГ ДЛЯ АУДИОЗВОНКОВ (WebRTC) ---
+    socket.on('call-request', ({ to, offer, from }) => {
+      io.to(`user:${to}`).emit('call-request', { from, offer, name: user.username });
+    });
+
+    socket.on('call-answer', ({ to, answer }) => {
+      io.to(`user:${to}`).emit('call-answer', { answer });
+    });
+
+    socket.on('call-decline', ({ to }) => {
+      io.to(`user:${to}`).emit('call-decline');
+    });
+
+    socket.on('ice-candidate', ({ to, candidate }) => {
+      io.to(`user:${to}`).emit('ice-candidate', { candidate });
+    });
+
+    socket.on('end-call', ({ to }) => {
+      io.to(`user:${to}`).emit('end-call');
+    });
+    // ------------------------------------------
+
     socket.on('disconnect', () => {
       const u = db.users.find(u => u.id === socket.userId);
       if (u) { u.status = 'offline'; saveDb(); io.emit('refreshData'); }
