@@ -783,153 +783,228 @@
         const ROLE_COLOR = { user: 'var(--muted)', helper: '#00ccff', moderator: '#ffcc00', admin: '#ff9933', sysadmin: '#ffffff' };
 
         // --- WEBRTC АУДИОЗВОНКИ ---
-        let peerConnection = null;
-        let localStream = null;
-        let currentCallUser = null;
-        let incomingOffer = null;
-        let isCaller = false;
+        // --- WEBRTC АУДИОЗВОНКИ ---
+let peerConnection = null;
+let localStream = null;
+let currentCallUser = null;
+let incomingOffer = null;
+let isCaller = false;
+let ringInterval = null;
 
-        const rtcConfig = {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ]
-        };
+const rtcConfig = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478' }
+  ],
+  iceCandidatePoolSize: 10
+};
 
-        document.getElementById('call-btn').addEventListener('click', async () => {
-            if (!state.currentChat || state.currentChat.isGroup || !state.currentChat.otherUserId) return;
-            
-            try {
-                isCaller = true;
-                currentCallUser = state.currentChat.otherUserId;
-                
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                createPeerConnection();
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-                
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                
-                state.socket.emit('call-request', { 
-                    to: currentCallUser, 
-                    offer: offer,
-                    from: state.me.id
-                });
-                
-                showActiveCallUI(state.currentChat.name, state.currentChat.avatarUrl);
-                document.getElementById('active-name').textContent = "Вызов...";
-                
-            } catch (err) {
-                alert('Не удалось получить доступ к микрофону: ' + err.message);
-            }
+// Функция гудков при вызове
+function startRingingSound() {
+    if (ringInterval) return;
+    const playBeep = () => {
+        if (!globalAudioCtx) return;
+        const osc = globalAudioCtx.createOscillator();
+        const gain = globalAudioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(globalAudioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(425, globalAudioCtx.currentTime); // Частота гудка
+        gain.gain.setValueAtTime(0, globalAudioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.2, globalAudioCtx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.2, globalAudioCtx.currentTime + 0.4);
+        gain.gain.linearRampToValueAtTime(0, globalAudioCtx.currentTime + 0.45);
+        osc.start(globalAudioCtx.currentTime);
+        osc.stop(globalAudioCtx.currentTime + 0.45);
+    };
+    playBeep();
+    ringInterval = setInterval(playBeep, 3000); // Гудок каждые 3 секунды
+}
+
+function stopRingingSound() {
+    if (ringInterval) {
+        clearInterval(ringInterval);
+        ringInterval = null;
+    }
+}
+
+// Функция звука отбоя "тилидинь"
+function playHangupSound() {
+    if (!globalAudioCtx) return;
+    const osc = globalAudioCtx.createOscillator();
+    const gain = globalAudioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(globalAudioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, globalAudioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, globalAudioCtx.currentTime + 0.4);
+    gain.gain.setValueAtTime(0.2, globalAudioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, globalAudioCtx.currentTime + 0.4);
+    osc.start(globalAudioCtx.currentTime);
+    osc.stop(globalAudioCtx.currentTime + 0.4);
+}
+
+document.getElementById('call-btn').addEventListener('click', async () => {
+    if (!state.currentChat || state.currentChat.isGroup || !state.currentChat.otherUserId) return;
+    
+    try {
+        isCaller = true;
+        currentCallUser = state.currentChat.otherUserId;
+        
+        // Включаем подавление эха и шумов
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: { 
+                echoCancellation: true, 
+                noiseSuppression: true, 
+                autoGainControl: true 
+            } 
         });
+        
+        createPeerConnection();
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+        
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        
+        state.socket.emit('call-request', { 
+            to: currentCallUser, 
+            offer: offer,
+            from: state.me.id
+        });
+        
+        showActiveCallUI(state.currentChat.name, state.currentChat.avatarUrl);
+        document.getElementById('active-name').textContent = "Вызов...";
+        startRingingSound(); // Включаем гудки
+        
+    } catch (err) {
+        alert('Не удалось получить доступ к микрофону: ' + err.message);
+    }
+});
 
-        function createPeerConnection() {
-            peerConnection = new RTCPeerConnection(rtcConfig);
-            
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    state.socket.emit('ice-candidate', { to: currentCallUser, candidate: event.candidate });
-                }
-            };
-            
-            peerConnection.ontrack = (event) => {
-                const remoteAudio = document.getElementById('remote-audio');
-                remoteAudio.srcObject = event.streams[0];
-                document.getElementById('active-name').textContent = "Звонок";
-            };
+function createPeerConnection() {
+    peerConnection = new RTCPeerConnection(rtcConfig);
+    
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+            state.socket.emit('ice-candidate', { to: currentCallUser, candidate: event.candidate });
         }
+    };
+    
+    peerConnection.ontrack = async (event) => {
+        const remoteAudio = document.getElementById('remote-audio');
+        remoteAudio.srcObject = event.streams[0];
+        document.getElementById('active-name').textContent = "Звонок";
+        
+        // Принудительное воспроизведение для мобильных устройств
+        try { await remoteAudio.play(); } catch(e) { console.log('Autoplay blocked', e); }
+    };
+}
 
-        async function acceptCall() {
-            document.getElementById('incoming-call-modal').classList.remove('visible');
-            
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                createPeerConnection();
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-                
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingOffer));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                
-                state.socket.emit('call-answer', { to: currentCallUser, answer: answer });
-                
-                const user = state.chats.find(c => c.otherUserId === currentCallUser);
-                showActiveCallUI(user ? user.name : 'Собеседник', user ? user.avatarUrl : null);
-            } catch (err) {
-                alert('Ошибка при ответе на звонок: ' + err.message);
-                declineCall();
-            }
-        }
+async function acceptCall() {
+    document.getElementById('incoming-call-modal').classList.remove('visible');
+    stopRingingSound(); // Останавливаем гудки, если они были
+    
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: { 
+                echoCancellation: true, 
+                noiseSuppression: true, 
+                autoGainControl: true 
+            } 
+        });
+        
+        createPeerConnection();
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+        
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingOffer));
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        
+        state.socket.emit('call-answer', { to: currentCallUser, answer: answer });
+        
+        const user = state.chats.find(c => c.otherUserId === currentCallUser);
+        showActiveCallUI(user ? user.name : 'Собеседник', user ? user.avatarUrl : null);
+    } catch (err) {
+        alert('Ошибка при ответе на звонок: ' + err.message);
+        declineCall();
+    }
+}
 
-        function declineCall() {
-            document.getElementById('incoming-call-modal').classList.remove('visible');
-            state.socket.emit('call-decline', { to: currentCallUser });
-            cleanupCall();
-        }
+function declineCall() {
+    document.getElementById('incoming-call-modal').classList.remove('visible');
+    state.socket.emit('call-decline', { to: currentCallUser });
+    playHangupSound();
+    cleanupCall();
+}
 
-        function endCall() {
-            if (currentCallUser) {
-                state.socket.emit('end-call', { to: currentCallUser });
-            }
-            cleanupCall();
-        }
+function endCall() {
+    if (currentCallUser) {
+        state.socket.emit('end-call', { to: currentCallUser });
+    }
+    playHangupSound();
+    cleanupCall();
+}
 
-        function cleanupCall() {
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
-            if (localStream) {
-                localStream.getTracks().forEach(t => t.stop());
-                localStream = null;
-            }
-            currentCallUser = null;
-            incomingOffer = null;
-            
-            document.getElementById('active-call-modal').classList.remove('visible');
-            document.getElementById('incoming-call-modal').classList.remove('visible');
-            document.getElementById('minimized-call').style.display = 'none';
-            document.getElementById('call-btn').style.display = 'block';
-            document.getElementById('remote-audio').srcObject = null;
-        }
+function cleanupCall() {
+    stopRingingSound();
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+    }
+    currentCallUser = null;
+    incomingOffer = null;
+    
+    document.getElementById('active-call-modal').classList.remove('visible');
+    document.getElementById('incoming-call-modal').classList.remove('visible');
+    document.getElementById('minimized-call').style.display = 'none';
+    document.getElementById('call-btn').style.display = 'block';
+    
+    const remoteAudio = document.getElementById('remote-audio');
+    remoteAudio.srcObject = null;
+}
 
-        function toggleMic() {
-            if (localStream) {
-                const audioTrack = localStream.getAudioTracks()[0];
-                audioTrack.enabled = !audioTrack.enabled;
-                const btn = document.getElementById('mic-toggle-btn');
-                btn.style.background = audioTrack.enabled ? 'var(--card)' : '#ff3333';
-                btn.textContent = audioTrack.enabled ? '🎙️' : '🔇';
-            }
-        }
+function toggleMic() {
+    if (localStream) {
+        const audioTrack = localStream.getAudioTracks()[0];
+        audioTrack.enabled = !audioTrack.enabled;
+        const btn = document.getElementById('mic-toggle-btn');
+        btn.style.background = audioTrack.enabled ? 'var(--card)' : '#ff3333';
+        btn.textContent = audioTrack.enabled ? '🎙️' : '🔇';
+    }
+}
 
-        function showActiveCallUI(name, avatarUrl) {
-            document.getElementById('active-call-modal').classList.add('visible');
-            document.getElementById('active-name').textContent = name;
-            document.getElementById('mic-toggle-btn').style.background = 'var(--card)';
-            document.getElementById('mic-toggle-btn').textContent = '🎙️';
-            
-            const avatarEl = document.getElementById('active-avatar');
-            if (avatarUrl) {
-                avatarEl.innerHTML = `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-            } else {
-                avatarEl.textContent = name[0].toUpperCase();
-            }
-        }
+function showActiveCallUI(name, avatarUrl) {
+    document.getElementById('active-call-modal').classList.add('visible');
+    document.getElementById('active-name').textContent = name;
+    document.getElementById('mic-toggle-btn').style.background = 'var(--card)';
+    document.getElementById('mic-toggle-btn').textContent = '🎙️';
+    
+    const avatarEl = document.getElementById('active-avatar');
+    if (avatarUrl) {
+        avatarEl.innerHTML = `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    } else {
+        avatarEl.textContent = name[0].toUpperCase();
+    }
+}
 
-        function minimizeCall() {
-            document.getElementById('active-call-modal').classList.remove('visible');
-            document.getElementById('minimized-call').style.display = 'flex';
-            document.getElementById('minimized-name').textContent = document.getElementById('active-name').textContent;
-        }
+function minimizeCall() {
+    document.getElementById('active-call-modal').classList.remove('visible');
+    document.getElementById('minimized-call').style.display = 'flex';
+    document.getElementById('minimized-name').textContent = document.getElementById('active-name').textContent;
+}
 
-        function maximizeCall() {
-            document.getElementById('minimized-call').style.display = 'none';
-            document.getElementById('active-call-modal').classList.add('visible');
-        }
+function maximizeCall() {
+    document.getElementById('minimized-call').style.display = 'none';
+    document.getElementById('active-call-modal').classList.add('visible');
+}
 
         // ================= УВЕДОМЛЕНИЯ И ЗВУК =================
         let globalAudioCtx = null;
