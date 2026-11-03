@@ -42,7 +42,7 @@ const ALLOWED_EXT = new Set([
   '.ai', '.all', '.apk', '.accdb', '.asm', '.app', '.arj', '.avi', '.bak', '.bat', 
   '.bin', '.bmp', '.bz2', '.c', '.cab', '.cc', '.cfg', '.class', '.cmd', '.conf', 
   '.cpl', '.cpp', '.crt', '.cs', '.css', '.csv', '.dae', '.dat', '.db', '.dbf', 
-  '.dmp', '.doc', '.docx', '.dll', '.elf', '.et', '.etl', '.evtx', '.blend', '.exe', '.flac', 
+  '.dmp', '.doc', '.docx', '.dll', '.elf', '.et', '.etl', '.evtx', '.exe', '.flac', 
   '.frm', '.fw', '.gif', '.glb', '.gltf', '.go', '.gz', '.h', '.heic', '.hex', 
   '.hpp', '.htm', '.html', '.ibd', '.ico', '.icns', '.img', '.ini', '.iso', '.java', 
   '.jpeg', '.jpg', '.js', '.json', '.jons', '.key', '.ldf', '.lnk', '.log', '.lua', 
@@ -53,7 +53,7 @@ const ALLOWED_EXT = new Set([
   '.res', '.resources', '.rom', '.rtf', '.rs', '.scr', '.s', '.7z', '.sh', '.sql', 
   '.sqlite', '.sqlite3', '.svg', '.sys', '.tar', '.tif', '.tiff', '.tmp', '.ts', '.txt', 
   '.url', '.var', '.vb', '.vdi', '.vhd', '.vhdx', '.vmdk', '.wav', '.webm', '.webp', 
-  '.wma', '.wmv', '.xls', '.xlsx', '.xml', '.xpi', '.xz', '.yaml', '.yml', '.zip', '.zst', '.torrent'
+  '.wma', '.wmv', '.xls', '.xlsx', '.xml', '.xpi', '.xz', '.yaml', '.yml', '.zip', '.zst', '.torrent', '.blend'
 ]);
 
 const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
@@ -891,28 +891,6 @@ io.on('connection', (socket) => {
       }
     });
     if (changed) saveDb();
-
-    // --- СИГНАЛИНГ ДЛЯ АУДИОЗВОНКОВ (WebRTC) ---
-    socket.on('call-request', ({ to, offer, from }) => {
-      io.to(`user:${to}`).emit('call-request', { from, offer, name: user.username });
-    });
-
-    socket.on('call-answer', ({ to, answer }) => {
-      io.to(`user:${to}`).emit('call-answer', { answer });
-    });
-
-    socket.on('call-decline', ({ to }) => {
-      io.to(`user:${to}`).emit('call-decline');
-    });
-
-    socket.on('ice-candidate', ({ to, candidate }) => {
-      io.to(`user:${to}`).emit('ice-candidate', { candidate });
-    });
-
-    socket.on('end-call', ({ to }) => {
-      io.to(`user:${to}`).emit('end-call');
-    });
-    // ------------------------------------------
 
     socket.on('disconnect', () => {
       const u = db.users.find(u => u.id === socket.userId);
