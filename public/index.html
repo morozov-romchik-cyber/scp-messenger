@@ -1623,7 +1623,7 @@ window.openChat = openChat;
 function appendMessage(msg, scroll = true) {
   const msgsEl = document.getElementById('messages');
   if (document.getElementById('msg-' + msg.id)) return;
-    if (msgsEl.innerHTML === 'Загрузка...'  || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
+  if (msgsEl.innerHTML === 'Загрузка...'  || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
   const mine = msg.sender.id === state.me?.id;
   const row = document.createElement('div');
   row.className = 'msg-row' + (mine ? ' mine' : ''); row.id = 'msg-' + msg.id;
