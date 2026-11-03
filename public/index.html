@@ -1009,7 +1009,7 @@ window.openProfile = async function(userId) {
     document.getElementById('profile-id').textContent = u.id;
     document.getElementById('profile-ip').textContent = u.ip || 'Скрыт';
     const onlineEl = document.getElementById('profile-online');
-    if (u.status === 'online') { onlineEl.textContent = '🟢 В сети'; onlineEl.style.color = '#00ff9d'; }
+    if (u.status === 'online') { onlineEl.textContent = '🟢 В сети'; onlineEl.style.color = '#00ff99d'; }
     else { onlineEl.textContent = '⚪ Не в сети'; onlineEl.style.color = 'var(--muted)'; }
     const banEl = document.getElementById('profile-ban');
     if (u.ban_expires && u.ban_expires !== 0) {
@@ -1419,6 +1419,7 @@ function appendMessage(msg, scroll = true) {
       
       const mainText = lines.slice(1).join('\n').trim();
       
+      // Переход к сообщению по клику с остановкой всплытия
       const quoteClick = origMsgId ? `onclick="event.stopPropagation(); scrollToMsg('${origMsgId}')"` : '';
       content += `<div class="reply-quote" ${quoteClick}><div class="rq-name">@${esc(qName)}</div><div class="rq-text">${esc(qText)}</div></div>`;
       
@@ -1495,6 +1496,7 @@ function appendMessage(msg, scroll = true) {
     <div class="msg ${isMsgDeletedClass}">${whoHtml}${content}${deletedLabel}${statusHtml}</div>
   `;
 
+  // Меню действий открывается по зажатию на 1 секунду
   const msgDiv = row.querySelector('.msg');
   let pressTimer = null;
 
@@ -1505,7 +1507,7 @@ function appendMessage(msg, scroll = true) {
       pressTimer = null;
       openMsgActions(msg);
       if (navigator.vibrate) navigator.vibrate(50);
-    }, 2000);
+    }, 1000); 
   };
 
   const cancelPress = () => {
@@ -1542,6 +1544,9 @@ window.scrollToMsg = function(msgId) {
         msgBox.style.borderColor = origBorder;
       }, 1000);
     }
+  } else {
+    // Если сообщение не найдено на странице (например, удалено или не загружено)
+    alert('Исходное сообщение не найдено на экране.');
   }
 };
 
