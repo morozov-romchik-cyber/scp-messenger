@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" translate="no">
 <head>
 <meta charset="UTF-8" />
+<meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>SCP Foundation — Secure Channel</title>
 <link rel="icon" type="image/png" href="/favicon.png" />
@@ -50,14 +51,14 @@
   .auth-card h1 { font-family: 'Fira Code', monospace; color: var(--accent); font-size: 24px; letter-spacing: 2px; margin-bottom: 6px; text-align: center; }
   .auth-card .subtitle { color: var(--muted); font-size: 12px; letter-spacing: 1px; margin-bottom: 30px; text-transform: uppercase; text-align: center; font-family: 'Fira Code', monospace; }
   .tabs { display: flex; gap: 10px; margin-bottom: 24px; background: var(--bg); padding: 4px; border-radius: 6px; border: 1px solid var(--border); }
-  .tab { flex: 1; text-align: center; padding: 10px; font-size: 13px; cursor: pointer; color: var(--muted); text-transform: uppercase; font-weight: 600; border-radius: 4px; transition: all 0.2s; }
+  .tab { flex: 1; text-align: center; padding: 10px 5px; font-size: 12px; cursor: pointer; color: var(--muted); text-transform: uppercase; font-weight: 600; border-radius: 4px; transition: all 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tab.active { background: var(--card); color: var(--accent); box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
   .auth-card input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 14px; border-radius: 6px; font-size: 16px; margin-bottom: 14px; font-family: inherit; }
   .auth-card input:focus { outline: none; border-color: var(--border-hover); }
   .btn { width: 100%; background: var(--accent); color: #000; border: none; padding: 14px; border-radius: 6px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; font-size: 13px; cursor: pointer; margin-top: 8px; transition: opacity 0.2s; }
   .btn:hover { opacity: 0.8; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .error { color: #ff7b72; font-size: 12px; margin: 4px 0 12px; min-height: 16px; font-weight: 500; text-align: center; }
+  .error { color: #ff7b72; font-size: 13px; margin: 4px 0 12px; min-height: 16px; font-weight: 500; text-align: center; line-height: 1.3; }
 
   #chat { display: none; height: 100%; height: 100dvh; width: 100vw; position: relative; z-index: 1; }
   #chat.visible { display: flex; }
@@ -275,30 +276,11 @@
     transition: all 0.2s ease;
     position: relative;
   }
-  .toast-msg:hover { 
-    background: rgba(30, 36, 44, 0.95); 
-    transform: translateY(-2px);
-  }
-  .toast-close {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: transparent;
-    border: none;
-    color: var(--muted);
-    font-size: 16px;
-    cursor: pointer;
-    display: none;
-  }
+  .toast-msg:hover { background: rgba(30, 36, 44, 0.95); transform: translateY(-2px); }
+  .toast-close { position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--muted); font-size: 16px; cursor: pointer; display: none; }
   .toast-msg:hover .toast-close { display: block; }
   .toast-close:hover { color: #fff; }
-  
-  .toast-avatar { 
-    width: 44px; height: 44px; border-radius: 50%; object-fit: cover; 
-    background: var(--border); flex-shrink: 0; display: flex; 
-    align-items: center; justify-content: center; font-weight: bold; font-size: 18px;
-    border: 2px solid rgba(255,255,255,0.1);
-  }
+  .toast-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; border: 2px solid rgba(255,255,255,0.1); }
   .toast-content { flex: 1; min-width: 0; }
   .toast-title { font-weight: 600; font-size: 13px; color: #1d9bf0; margin-bottom: 2px; }
   .toast-sender { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 2px; }
@@ -785,6 +767,96 @@ const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', m
 const ROLE_ICON = { user: '👤', helper: '🤝', moderator: '🛡️', admin: '🔰', sysadmin: '👑' };
 const ROLE_COLOR = { user: 'var(--muted)', helper: '#00ccff', moderator: '#ffcc00', admin: '#ff9933', sysadmin: '#ffffff' };
 
+// ================= УВЕДОМЛЕНИЯ И ЗВУК =================
+let globalAudioCtx = null;
+
+function unlockAudio() {
+    if (!globalAudioCtx) {
+        globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (globalAudioCtx.state === 'suspended') { globalAudioCtx.resume(); }
+}
+document.addEventListener('click', unlockAudio, { once: true });
+document.addEventListener('keydown', unlockAudio, { once: true });
+
+function playNotificationSound() {
+    try {
+        if (!globalAudioCtx) return;
+        const now = globalAudioCtx.currentTime;
+        const notes = [110.00, 138.59, 164.81, 220.00]; 
+        const duration = 0.15; 
+        notes.forEach((freq, i) => {
+            const osc = globalAudioCtx.createOscillator();
+            const gain = globalAudioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(globalAudioCtx.destination);
+            osc.type = 'sine'; 
+            const startTime = now + (i * duration);
+            osc.frequency.setValueAtTime(freq, startTime);
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.6, startTime + 0.03); 
+            if (i === notes.length - 1) {
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.6);
+            } else {
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+            }
+            osc.start(startTime);
+            osc.stop(startTime + (i === notes.length - 1 ? 0.6 : duration));
+        });
+    } catch (e) { console.error(e); }
+}
+
+function showNotification(sender, text, avatarUrl, chatId) {
+    const container = document.getElementById('toast-container');
+    if (container.children.length >= 3) { container.removeChild(container.firstChild); }
+    const toast = document.createElement('div');
+    toast.className = 'toast-msg';
+    let avatarContent = avatarUrl 
+        ? `<img src="${escAttr(avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
+        : esc((sender || '?')[0].toUpperCase());
+    toast.innerHTML = `
+        <button class="toast-close" onclick="event.stopPropagation(); this.parentElement.remove();">×</button>
+        <div class="toast-avatar">${avatarContent}</div>
+        <div class="toast-content">
+            <div class="toast-title">Новое сообщение</div>
+            <div class="toast-sender">@${esc(sender)}</div>
+            <div class="toast-text">${esc(text)}</div>
+        </div>
+    `;
+    toast.onclick = () => {
+        const chat = state.chats.find(c => c.id === chatId);
+        if (chat) {
+            openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper);
+        }
+        toast.remove();
+    };
+    container.appendChild(toast);
+    playNotificationSound();
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(50px)';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 5000);
+
+    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+        const sysNote = new Notification(`Новое сообщение от @${sender}`, {
+            body: text, icon: avatarUrl || '/favicon.png', tag: 'scp-msg-' + chatId, renotify: true
+        });
+        sysNote.onclick = function(e) {
+            e.preventDefault();
+            window.focus(); 
+            const chat = state.chats.find(c => c.id === chatId);
+            if (chat) {
+                openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper);
+            }
+            this.close();
+        };
+    }
+}
+
+// =========================================================
 document.getElementById('tab-login').addEventListener('click', () => {
   authMode = 'login'; document.getElementById('tab-login').classList.add('active'); document.getElementById('tab-register').classList.remove('active');
   document.getElementById('a-submit').textContent = 'Войти'; document.getElementById('a-invite').style.display = 'none';
@@ -794,16 +866,42 @@ document.getElementById('tab-register').addEventListener('click', () => {
   document.getElementById('a-submit').textContent = 'Регистрация'; document.getElementById('a-invite').style.display = 'block';
 });
 
+// ФУНКЦИЯ API
 async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  const token = state.token || localStorage.getItem('scp_token');
+  if (token) {
+    headers['Authorization'] = 'Bearer ' + token;
+    state.token = token; 
+  }
+  
   try {
     const res = await fetch('/api' + path, { ...opts, headers });
-    const data = await res.json().catch(() => ({}));
+    let data = {};
+    const text = await res.text();
+    
+    try {
+      if (text) data = JSON.parse(text);
+    } catch (e) {
+      if (!res.ok) throw new Error(`Сервер вернул ошибку ${res.status}. Проверьте настройки Nginx.`);
+    }
+    
+    if (res.status === 401) { 
+        if (path !== '/login' && path !== '/register') {
+            localStorage.removeItem('scp_token'); 
+            state.token = null;
+            window.location.reload(); 
+            throw new Error('Сессия истекла. Войдите заново.'); 
+        }
+    }
+    
     if (res.status === 403 && data.error === 'BANNED') { showBanMessage(data.ban_expires); throw new Error('Banned'); }
     if (!res.ok) throw new Error(data.error || `Ошибка ${res.status}`);
     return data;
-  } catch (err) { if (err.message === 'Failed to fetch') throw new Error('Нет связи с сервером.'); throw err; }
+  } catch (err) { 
+    if (err.message === 'Failed to fetch') throw new Error('Нет связи с сервером. Убедитесь, что Node.js запущен.'); 
+    throw err; 
+  }
 }
 
 function showBanMessage(ban_expires) {
@@ -848,9 +946,7 @@ function enterChat() {
   
   if (['sysadmin', 'admin', 'moderator', 'helper'].includes(state.me.role)) {
     document.getElementById('admin-header-btn').style.display = 'block';
-  } else {
-    document.getElementById('admin-header-btn').style.display = 'none';
-  }
+  } else { document.getElementById('admin-header-btn').style.display = 'none'; }
   
   if (state.me.role === 'sysadmin') {
     document.getElementById('admin-grant-section').style.display = 'block';
@@ -1106,6 +1202,7 @@ window.openCreateGroupModal = function(isChannel) {
   document.getElementById('create-group-modal').classList.add('visible');
   
   api('/users/all').then(users => {
+    if (!users.length) { list.innerHTML = '<div class="empty">Нет других пользователей</div>'; return; }
     list.innerHTML = users.map(u => `
       <label style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px; cursor:pointer;">
         <input type="checkbox" class="group-user-checkbox" value="${u.id}" style="width:18px; height:18px; accent-color:var(--accent);">
@@ -1116,7 +1213,7 @@ window.openCreateGroupModal = function(isChannel) {
       </label>
     `).join('');
   }).catch(err => {
-    list.innerHTML = `<div style="color:#ff4d4d; text-align:center;">Ошибка: ${err.message}</div>`;
+    list.innerHTML = `<div style="color:#ff4d4d; text-align:center; padding: 20px;">Ошибка загрузки: ${err.message}</div>`;
   });
 };
 
@@ -1232,7 +1329,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
 
   const isCreator = !isGroup || (creatorId === state.me.id);
   const showComposer = !isBlocked && (!isChannel || isCreator);
-
+  
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
   document.getElementById('blocked-banner').style.display = isBlocked ? 'block' : 'none';
   
@@ -1287,7 +1384,7 @@ window.openChat = openChat;
 function appendMessage(msg, scroll = true) {
   const msgsEl = document.getElementById('messages');
   if (document.getElementById('msg-' + msg.id)) return;
-  if (msgsEl.innerHTML === 'Загрузка...' || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
+  if (msgsEl.innerHTML === 'Загрузка...'  || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
   const mine = msg.sender.id === state.me?.id;
   const row = document.createElement('div');
   row.className = 'msg-row' + (mine ? ' mine' : ''); row.id = 'msg-' + msg.id;
@@ -1299,11 +1396,28 @@ function appendMessage(msg, scroll = true) {
     content += `<div><i>Сообщение удалено</i></div>`;
   } else {
     if (rawText.startsWith('> ')) {
-      const lines = rawText.split('\n'); const quoteLine = lines[0].replace('> ', ''); const colonIndex = quoteLine.indexOf(':');
+      const lines = rawText.split('\n'); 
+      let quoteLine = lines[0].replace('> ', ''); 
+      let origMsgId = null;
+      
+      const hashIdx = quoteLine.indexOf('#');
+      if (hashIdx !== -1) {
+        const colonIdx = quoteLine.indexOf(':');
+        if (colonIdx !== -1 && colonIdx > hashIdx) {
+          origMsgId = quoteLine.substring(hashIdx + 1, colonIdx).trim();
+          quoteLine = quoteLine.substring(0, hashIdx) + quoteLine.substring(colonIdx);
+        }
+      }
+
+      const colonIndex = quoteLine.indexOf(':');
       let qName = 'Пользователь'; let qText = quoteLine;
       if (colonIndex !== -1) { qName = quoteLine.slice(0, colonIndex).trim(); qText = quoteLine.slice(colonIndex + 1).trim(); }
+      
       const mainText = lines.slice(1).join('\n').trim();
-      content += `<div class="reply-quote"><div class="rq-name">@${esc(qName)}</div><div class="rq-text">${esc(qText)}</div></div>`;
+      
+      const quoteClick = origMsgId ? `onclick="scrollToMsg('${origMsgId}')"` : '';
+      content += `<div class="reply-quote" ${quoteClick}><div class="rq-name">@${esc(qName)}</div><div class="rq-text">${esc(qText)}</div></div>`;
+      
       if (mainText) {
         let safeText = esc(mainText);
         const linkRegex = /((?:https?:\/\/|scp\.me\/|scp\.group\/)[^\s]+)/g;
@@ -1337,11 +1451,25 @@ function appendMessage(msg, scroll = true) {
       }));
       window._attStore[msg.id] = { attachments: attachmentsWithToken, chatName: state.currentChat ? state.currentChat.name : '', senderName: msg.sender.username };
 
-      content += `<div class="att-grid">`;
-      msg.attachments.forEach((a, idx) => {
-        content += `<div class="att-chip" onclick="event.stopPropagation(); openAttViewer('${escAttr(msg.id)}', ${idx})"><span class="att-chip-icon">${getAttIcon(a)}</span><span class="att-chip-name">${esc(a.name || 'file')}</span></div>`;
+      // ВЫВОДИМ КАРТИНКИ КАК КАРТИНКИ
+      const images = msg.attachments.filter(a => a.mime && a.mime.startsWith('image/'));
+      const otherFiles = msg.attachments.filter(a => !a.mime || !a.mime.startsWith('image/'));
+
+      images.forEach((img) => {
+        const idx = msg.attachments.indexOf(img);
+        const fullUrl = attachmentsWithToken[idx].url;
+        content += `<img src="${escAttr(fullUrl)}" onclick="event.stopPropagation(); document.getElementById('lightbox-img').src='${escAttr(fullUrl)}'; document.getElementById('lightbox').style.display='flex';" style="max-width: 100%; max-height: 300px; border-radius: 6px; margin-top: 8px; display: block; border: 1px solid var(--border); cursor: zoom-in;" />`;
       });
-      content += `</div>`;
+
+      // ВЫВОДИМ ОСТАЛЬНЫЕ ФАЙЛЫ КАК ЧИПЫ
+      if (otherFiles.length) {
+        content += `<div class="att-grid">`;
+        otherFiles.forEach((a) => {
+          const idx = msg.attachments.indexOf(a);
+          content += `<div class="att-chip" onclick="event.stopPropagation(); openAttViewer('${escAttr(msg.id)}', ${idx})"><span class="att-chip-icon">${getAttIcon(a)}</span><span class="att-chip-name">${esc(a.name || 'file')}</span></div>`;
+        });
+        content += `</div>`;
+      }
     }
   }
 
@@ -1371,6 +1499,25 @@ function appendMessage(msg, scroll = true) {
   msgsEl.appendChild(row);
   if (scroll) msgsEl.scrollTop = msgsEl.scrollHeight;
 }
+
+window.scrollToMsg = function(msgId) {
+  const el = document.getElementById('msg-' + msgId);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const msgBox = el.querySelector('.msg');
+    if (msgBox) {
+      const origBg = msgBox.style.background;
+      const origBorder = msgBox.style.borderColor;
+      msgBox.style.transition = 'background 0.3s, border-color 0.3s';
+      msgBox.style.background = 'rgba(255, 255, 255, 0.2)';
+      msgBox.style.borderColor = '#fff';
+      setTimeout(() => {
+        msgBox.style.background = origBg;
+        msgBox.style.borderColor = origBorder;
+      }, 1000);
+    }
+  }
+};
 
 window.openLinkChat = async function(link) {
     let username = link.split('/')[1];
@@ -1552,13 +1699,18 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   e.preventDefault(); const input = document.getElementById('msg-input'); const text = input.value.trim();
   if (!text || !state.currentChat) return;
   input.value = ''; let body = text;
-  if (state.replyTo) body = `> ${state.replyTo.sender.username}: ${(state.replyTo.text || '(файл)').slice(0, 80)}\n${text}`;
+  
+  if (state.replyTo) {
+    const replyText = (state.replyTo.text || '(файл)').slice(0, 80);
+    body = `> ${state.replyTo.sender.username}#${state.replyTo.id}: ${replyText}\n${text}`;
+  }
+  
   state.replyTo = null; document.getElementById('reply-bar').classList.remove('visible');
   try { const msg = await api('/chats/' + state.currentChat.id + '/messages', { method: 'POST', body: JSON.stringify({ text: body }) }); appendMessage(msg); } catch (e) { alert(e.message); }
 });
 document.getElementById('file-btn').addEventListener('click', () => {
   if (!state.currentChat) return alert('Выберите чат');
-    if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
+  if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
   document.getElementById('file-input').click();
 });
 document.getElementById('file-input').addEventListener('change', () => {
@@ -1648,12 +1800,8 @@ document.getElementById('delete-group-btn').addEventListener('click', async () =
     await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
     state.currentChat = null;
     document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
-    document.getElementById('chat-title').textContent = 'SCP_Helper'; 
-    document.getElementById('composer').style.display = 'none'; 
-    document.getElementById('chat-settings-modal').classList.remove('visible');
-    document.getElementById('chat-options-btn').style.display = 'none'; 
-    document.getElementById('clear-chat-btn').style.display = 'none'; 
-    document.getElementById('header-avatar').style.display = 'none';
+    document.getElementById('chat-title').textContent = 'SCP_Helper'; document.getElementById('composer').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible');
+    document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
     loadChats();
   } catch (e) {
@@ -1677,147 +1825,44 @@ window.setChannelUsername = async function() {
   }
 };
 
-// ================= УВЕДОМЛЕНИЯ И ЗВУК =================
-let globalAudioCtx = null;
-
-function unlockAudio() {
-    if (!globalAudioCtx) {
-        globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (globalAudioCtx.state === 'suspended') {
-        globalAudioCtx.resume();
-    }
-}
-document.addEventListener('click', unlockAudio, { once: true });
-document.addEventListener('keydown', unlockAudio, { once: true });
-
-function playNotificationSound() {
-    try {
-        if (!globalAudioCtx) return;
-        const now = globalAudioCtx.currentTime;
-        
-        // Пониженные частоты для глубокого баса (A2, C#3, E3, A3)
-        const notes = [110.00, 138.59, 164.81, 220.00]; 
-        const duration = 0.15; // Чуть дольше, чтобы бас успел "раскачаться"
-
-        notes.forEach((freq, i) => {
-            const osc = globalAudioCtx.createOscillator();
-            const gain = globalAudioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(globalAudioCtx.destination);
-            
-            // 'sine' дает чистый, круглый бас без "песка" и писка
-            osc.type = 'sine'; 
-            
-            const startTime = now + (i * duration);
-            osc.frequency.setValueAtTime(freq, startTime);
-            
-            // Делаем звук чуть громче (0.6) для сочности
-            gain.gain.setValueAtTime(0, startTime);
-            gain.gain.linearRampToValueAtTime(0.6, startTime + 0.03); 
-            
-            if (i === notes.length - 1) {
-                // Последняя нота тянется дольше для эффекта "БУМ"
-                gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.6);
-            } else {
-                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-            }
-            
-            osc.start(startTime);
-            osc.stop(startTime + (i === notes.length - 1 ? 0.6 : duration));
-        });
-    } catch (e) { console.error(e); }
-}
-
-function showNotification(sender, text, avatarUrl, chatId) {
-    const container = document.getElementById('toast-container');
-    if (container.children.length >= 3) {
-        container.removeChild(container.firstChild);
-    }
-
-    const toast = document.createElement('div');
-    toast.className = 'toast-msg';
-    
-    let avatarContent = avatarUrl 
-        ? `<img src="${escAttr(avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
-        : esc((sender || '?')[0].toUpperCase());
-    
-    toast.innerHTML = `
-        <button class="toast-close" onclick="event.stopPropagation(); this.parentElement.remove();">×</button>
-        <div class="toast-avatar">${avatarContent}</div>
-        <div class="toast-content">
-            <div class="toast-title">Новое сообщение</div>
-            <div class="toast-sender">@${esc(sender)}</div>
-            <div class="toast-text">${esc(text)}</div>
-        </div>
-    `;
-    
-    toast.onclick = () => {
-        const chat = state.chats.find(c => c.id === chatId);
-        if (chat) {
-            openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper);
-        }
-        toast.remove();
-    };
-    
-    container.appendChild(toast);
-    playNotificationSound();
-    
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(50px)';
-            setTimeout(() => toast.remove(), 300);
-        }
-    }, 5000);
-
-    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
-        const sysNote = new Notification(`Новое сообщение от @${sender}`, {
-            body: text,
-            icon: avatarUrl || '/favicon.png',
-            tag: 'scp-msg-' + chatId, 
-            renotify: true
-        });
-        sysNote.onclick = function(e) {
-            e.preventDefault();
-            window.focus(); 
-            const chat = state.chats.find(c => c.id === chatId);
-            if (chat) {
-                openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper);
-            }
-            this.close();
-        };
-    }
-}
-
+// ================= SOCKET.IO =================
 function connectSocket() {
   if (state.socket) state.socket.disconnect();
   state.socket = io({ auth: { token: state.token } });
+  
   state.socket.on('forceLogout', (data) => {
     state.socket.disconnect(); document.getElementById('chat').classList.remove('visible'); document.getElementById('auth').style.display = 'flex';
     if (data.deleted) document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;">Аккаунт удален.</div>`;
     else showBanMessage(data.ban_expires);
   });
-  state.socket.on('roleChanged', async () => { try { state.me = await api('/me'); enterChat(); if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList(); } catch (e) {} });
+  
+  state.socket.on('roleChanged', async () => { 
+      try { state.me = await api('/me'); enterChat(); if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList(); } catch (e) {} 
+  });
+  
+  // ИСПРАВЛЕНО: Не сбрасываем чат в "Загрузка...", просто обновляем данные
   state.socket.on('refreshData', async () => {
     try {
-      state.me = await api('/me'); await loadChats();
-      if (state.currentChat) {
-        const updatedChat = state.chats.find(c => c.id === state.currentChat.id);
-        if (updatedChat) openChat(updatedChat.id, updatedChat.name, updatedChat.avatarUrl, updatedChat.isBlocked, updatedChat.otherUserId, updatedChat.ban_expires, updatedChat.isGroup, updatedChat.creatorId, updatedChat.isChannel, updatedChat.username, updatedChat.isHelper);
-      }
+      state.me = await api('/me');
+      const newChats = await api('/chats');
+      state.chats = newChats;
+      renderChatList();
       if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList();
     } catch (e) {}
   });
   
+  // ИСПРАВЛЕНО: Мгновенное появление сообщений без обновления страницы
   state.socket.on('newMessage', async (msg) => {
     if (String(msg.sender.id) === String(state.me.id)) return;
     if (!state.chats.some(c => c.id === msg.chatId)) await loadChats();
     
-    if (state.currentChat && msg.chatId === state.currentChat.id && !document.hidden) {
+    if (state.currentChat && msg.chatId === state.currentChat.id) {
       appendMessage(msg); 
       document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
       api('/chats/' + state.currentChat.id + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
+      if (document.hidden) {
+          showNotification(msg.sender.username, msg.text || '📎 Вложение', msg.sender.avatarUrl, msg.chatId);
+      }
     } else { 
       state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1; 
       renderChatList(); updatePageTitle(); 
@@ -1963,6 +2008,7 @@ function getAttIcon(a) {
   if (mime.startsWith('image/')) return '🖼️'; if (mime.startsWith('video/')) return '🎬'; if (mime.startsWith('audio/')) return '🎵';
   if (name.endsWith('.pdf')) return '📄'; if (/\.(zip|rar|7z|tar|gz|bz2|xz|zst)$/.test(name)) return '📦';
   if (/\.(doc|docx)$/.test(name)) return '📝'; if (/\.(xls|xlsx|csv)$/.test(name)) return '📊'; if (/\.(ppt|pptx)$/.test(name)) return '📽️';
+  if (name.endsWith('.blend')) return '🎨';
   return '📎';
 }
 
