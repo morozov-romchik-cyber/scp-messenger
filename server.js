@@ -20,7 +20,7 @@ const S3_BUCKET = (process.env.S3_BUCKET || 'scp-messenger').trim();
 const S3_REGION = (process.env.S3_REGION || 'default').trim();
 const S3_ACCESS_KEY = (process.env.S3_ACCESS_KEY || '5N9ER3SW21Z8MXWG75DJ').trim();
 const S3_SECRET_KEY = (process.env.S3_SECRET_KEY || 'n01UxvY1IsuUEmY1vBx8Eu2yXPKpW05r6dzBI5Q9').trim();
-const S3_ENABLED = process.env.S3_ENABLED !== 'false';
+const S3_ENABLED = process.env.S3_ENABLED !== 'false'; // Если картинки не грузятся, поменяй на false
 
 const s3 = new S3Client({
   endpoint: S3_ENDPOINT,
@@ -327,7 +327,10 @@ app.get('/api/users/search', authMiddleware, (req, res) => {
   if (q.startsWith('scp.me/')) chatQuery = q.replace('scp.me/', '');
   else if (q.startsWith('scp.group/')) chatQuery = q.replace('scp.group/', '');
 
-  const matchedChats = db.chats.filter(c => c.username && c.username.includes(chatQuery)).map(c => ({
+  const matchedChats = db.chats.filter(c => 
+    (c.username && c.username.toLowerCase().includes(chatQuery)) || 
+    (c.name && c.name.toLowerCase().includes(q))
+  ).map(c => ({
      id: c.id, name: c.name, username: c.username, isChannel: !!c.is_channel, isGroup: !!c.is_group, creatorId: c.creator_id
   }));
 
