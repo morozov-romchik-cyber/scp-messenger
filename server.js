@@ -20,7 +20,7 @@ const S3_BUCKET = (process.env.S3_BUCKET || 'scp-messenger').trim();
 const S3_REGION = (process.env.S3_REGION || 'default').trim();
 const S3_ACCESS_KEY = (process.env.S3_ACCESS_KEY || '5N9ER3SW21Z8MXWG75DJ').trim();
 const S3_SECRET_KEY = (process.env.S3_SECRET_KEY || 'n01UxvY1IsuUEmY1vBx8Eu2yXPKpW05r6dzBI5Q9').trim();
-const S3_ENABLED = process.env.S3_ENABLED !== 'false'; // Если картинки не грузятся, поменяй на false
+const S3_ENABLED = process.env.S3_ENABLED !== 'false';
 
 const s3 = new S3Client({
   endpoint: S3_ENDPOINT,
