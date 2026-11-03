@@ -134,7 +134,6 @@
   .msg-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 1px solid var(--border); cursor: pointer; transition: transform 0.2s, border-color 0.2s; }
   .msg-avatar:hover { transform: scale(1.1); border-color: var(--accent); }
 
-  /* ДОБАВЛЕНЫ СТИЛИ ДЛЯ ЗАПРЕТА ВЫДЕЛЕНИЯ ТЕКСТА ПРИ ЗАЖАТИИ */
   .msg { 
     padding: 12px 16px; background: rgba(28, 33, 40, 0.95); border: 1px solid var(--border); 
     border-radius: 8px; font-size: 14px; word-wrap: break-word; position: relative; 
@@ -1420,7 +1419,6 @@ function appendMessage(msg, scroll = true) {
       
       const mainText = lines.slice(1).join('\n').trim();
       
-      // Переход к сообщению по клику с остановкой всплытия
       const quoteClick = origMsgId ? `onclick="event.stopPropagation(); scrollToMsg('${origMsgId}')"` : '';
       content += `<div class="reply-quote" ${quoteClick}><div class="rq-name">@${esc(qName)}</div><div class="rq-text">${esc(qText)}</div></div>`;
       
@@ -1457,7 +1455,6 @@ function appendMessage(msg, scroll = true) {
       }));
       window._attStore[msg.id] = { attachments: attachmentsWithToken, chatName: state.currentChat ? state.currentChat.name : '', senderName: msg.sender.username };
 
-      // ВЫВОДИМ КАРТИНКИ КАК КАРТИНКИ
       const images = msg.attachments.filter(a => a.mime && a.mime.startsWith('image/'));
       const otherFiles = msg.attachments.filter(a => !a.mime || !a.mime.startsWith('image/'));
 
@@ -1467,7 +1464,6 @@ function appendMessage(msg, scroll = true) {
         content += `<img src="${escAttr(fullUrl)}" onclick="event.stopPropagation(); document.getElementById('lightbox-img').src='${escAttr(fullUrl)}'; document.getElementById('lightbox').style.display='flex';" style="max-width: 100%; max-height: 300px; border-radius: 6px; margin-top: 8px; display: block; border: 1px solid var(--border); cursor: zoom-in;" />`;
       });
 
-      // ВЫВОДИМ ОСТАЛЬНЫЕ ФАЙЛЫ КАК ЧИПЫ
       if (otherFiles.length) {
         content += `<div class="att-grid">`;
         otherFiles.forEach((a) => {
@@ -1499,7 +1495,6 @@ function appendMessage(msg, scroll = true) {
     <div class="msg ${isMsgDeletedClass}">${whoHtml}${content}${deletedLabel}${statusHtml}</div>
   `;
 
-  // ЛОГИКА ЗАЖАТИЯ НА 2 СЕКУНДЫ ДЛЯ ОТКРЫТИЯ МЕНЮ
   const msgDiv = row.querySelector('.msg');
   let pressTimer = null;
 
@@ -1510,7 +1505,7 @@ function appendMessage(msg, scroll = true) {
       pressTimer = null;
       openMsgActions(msg);
       if (navigator.vibrate) navigator.vibrate(50);
-    }, 2000); // 2 секунды
+    }, 2000);
   };
 
   const cancelPress = () => {
@@ -1871,7 +1866,6 @@ function connectSocket() {
       try { state.me = await api('/me'); enterChat(); if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList(); } catch (e) {} 
   });
   
-  // ИСПРАВЛЕНО: Не сбрасываем чат в "Загрузка...", просто обновляем данные
   state.socket.on('refreshData', async () => {
     try {
       state.me = await api('/me');
@@ -1882,7 +1876,6 @@ function connectSocket() {
     } catch (e) {}
   });
   
-  // ИСПРАВЛЕНО: Мгновенное появление сообщений без обновления страницы
   state.socket.on('newMessage', async (msg) => {
     if (String(msg.sender.id) === String(state.me.id)) return;
     if (!state.chats.some(c => c.id === msg.chatId)) await loadChats();
@@ -2091,7 +2084,6 @@ function getAttIcon(a) {
   tick();
 })();
 
-// Запрос на системные уведомления
 setTimeout(() => {
     if ("Notification" in window && Notification.permission === "default") {
         Notification.requestPermission();
