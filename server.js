@@ -42,7 +42,7 @@ const ALLOWED_EXT = new Set([
   '.ai', '.all', '.apk', '.accdb', '.asm', '.app', '.arj', '.avi', '.bak', '.bat', 
   '.bin', '.bmp', '.bz2', '.c', '.cab', '.cc', '.cfg', '.class', '.cmd', '.conf', 
   '.cpl', '.cpp', '.crt', '.cs', '.css', '.csv', '.dae', '.dat', '.db', '.dbf', 
-  '.dmp', '.doc', '.docx', '.dll', '.elf', '.et', '.etl', '.evtx', '.exe', '.flac', 
+  '.dmp', '.doc', '.docx', '.dll', '.elf', '.et', '.etl', '.evtx', '.blend', '.exe', '.flac', 
   '.frm', '.fw', '.gif', '.glb', '.gltf', '.go', '.gz', '.h', '.heic', '.hex', 
   '.hpp', '.htm', '.html', '.ibd', '.ico', '.icns', '.img', '.ini', '.iso', '.java', 
   '.jpeg', '.jpg', '.js', '.json', '.jons', '.key', '.ldf', '.lnk', '.log', '.lua', 
