@@ -134,7 +134,13 @@
   .msg-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 1px solid var(--border); cursor: pointer; transition: transform 0.2s, border-color 0.2s; }
   .msg-avatar:hover { transform: scale(1.1); border-color: var(--accent); }
 
-  .msg { padding: 12px 16px; background: rgba(28, 33, 40, 0.95); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; word-wrap: break-word; position: relative; animation: slideUp 0.2s ease-out; backdrop-filter: blur(5px); width: fit-content; max-width: 100%; cursor: pointer; }
+  /* ДОБАВЛЕНЫ СТИЛИ ДЛЯ ЗАПРЕТА ВЫДЕЛЕНИЯ ТЕКСТА ПРИ ЗАЖАТИИ */
+  .msg { 
+    padding: 12px 16px; background: rgba(28, 33, 40, 0.95); border: 1px solid var(--border); 
+    border-radius: 8px; font-size: 14px; word-wrap: break-word; position: relative; 
+    animation: slideUp 0.2s ease-out; backdrop-filter: blur(5px); width: fit-content; 
+    max-width: 100%; cursor: pointer; user-select: none; -webkit-touch-callout: none; 
+  }
   @keyframes slideUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   .msg-row.mine .msg { background: rgba(48, 54, 61, 0.95); border-color: var(--border-hover); border-bottom-right-radius: 2px; }
   .msg-row:not(.mine) .msg { border-bottom-left-radius: 2px; }
@@ -247,7 +253,6 @@
   .profile-info-row span:first-child { color: var(--muted); }
   .profile-info-box { background: var(--bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 12px; }
 
-  /* УВЕДОМЛЕНИЯ (TOASTS) */
   .toast-container {
     position: fixed;
     bottom: 20px;
@@ -1415,7 +1420,8 @@ function appendMessage(msg, scroll = true) {
       
       const mainText = lines.slice(1).join('\n').trim();
       
-      const quoteClick = origMsgId ? `onclick="scrollToMsg('${origMsgId}')"` : '';
+      // Переход к сообщению по клику с остановкой всплытия
+      const quoteClick = origMsgId ? `onclick="event.stopPropagation(); scrollToMsg('${origMsgId}')"` : '';
       content += `<div class="reply-quote" ${quoteClick}><div class="rq-name">@${esc(qName)}</div><div class="rq-text">${esc(qText)}</div></div>`;
       
       if (mainText) {
@@ -1492,10 +1498,35 @@ function appendMessage(msg, scroll = true) {
     <div class="msg-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(msg.sender.id)}')" title="Открыть профиль">${esc((msg.sender.username || '?')[0].toUpperCase())}</div>
     <div class="msg ${isMsgDeletedClass}">${whoHtml}${content}${deletedLabel}${statusHtml}</div>
   `;
-  row.querySelector('.msg').addEventListener('click', (e) => {
-    if (['IMG', 'VIDEO', 'AUDIO', 'A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip')) return;
-    openMsgActions(msg);
-  });
+
+  // ЛОГИКА ЗАЖАТИЯ НА 2 СЕКУНДЫ ДЛЯ ОТКРЫТИЯ МЕНЮ
+  const msgDiv = row.querySelector('.msg');
+  let pressTimer = null;
+
+  const startPress = (e) => {
+    if (['IMG', 'VIDEO', 'AUDIO', 'A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip, .reply-quote')) return;
+    
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      openMsgActions(msg);
+      if (navigator.vibrate) navigator.vibrate(50);
+    }, 2000); // 2 секунды
+  };
+
+  const cancelPress = () => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+  };
+
+  msgDiv.addEventListener('mousedown', startPress);
+  msgDiv.addEventListener('mouseup', cancelPress);
+  msgDiv.addEventListener('mouseleave', cancelPress);
+  msgDiv.addEventListener('touchstart', startPress, { passive: true });
+  msgDiv.addEventListener('touchend', cancelPress);
+  msgDiv.addEventListener('touchmove', cancelPress, { passive: true });
+
   msgsEl.appendChild(row);
   if (scroll) msgsEl.scrollTop = msgsEl.scrollHeight;
 }
