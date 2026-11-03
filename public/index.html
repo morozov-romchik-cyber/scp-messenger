@@ -1558,7 +1558,7 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
 });
 document.getElementById('file-btn').addEventListener('click', () => {
   if (!state.currentChat) return alert('Выберите чат');
-  if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
+    if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
   document.getElementById('file-input').click();
 });
 document.getElementById('file-input').addEventListener('change', () => {
@@ -1648,8 +1648,12 @@ document.getElementById('delete-group-btn').addEventListener('click', async () =
     await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
     state.currentChat = null;
     document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
-    document.getElementById('chat-title').textContent = 'SCP_Helper'; document.getElementById('composer').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible');
-    document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar').style.display = 'none';
+    document.getElementById('chat-title').textContent = 'SCP_Helper'; 
+    document.getElementById('composer').style.display = 'none'; 
+    document.getElementById('chat-settings-modal').classList.remove('visible');
+    document.getElementById('chat-options-btn').style.display = 'none'; 
+    document.getElementById('clear-chat-btn').style.display = 'none'; 
+    document.getElementById('header-avatar').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
     loadChats();
   } catch (e) {
@@ -1691,30 +1695,36 @@ function playNotificationSound() {
     try {
         if (!globalAudioCtx) return;
         const now = globalAudioCtx.currentTime;
-        const notes = [440, 554.37, 659.25, 880]; 
-        const duration = 0.12;
+        
+        // Пониженные частоты для глубокого баса (A2, C#3, E3, A3)
+        const notes = [110.00, 138.59, 164.81, 220.00]; 
+        const duration = 0.15; // Чуть дольше, чтобы бас успел "раскачаться"
 
         notes.forEach((freq, i) => {
             const osc = globalAudioCtx.createOscillator();
             const gain = globalAudioCtx.createGain();
             osc.connect(gain);
             gain.connect(globalAudioCtx.destination);
-            osc.type = 'triangle'; 
+            
+            // 'sine' дает чистый, круглый бас без "песка" и писка
+            osc.type = 'sine'; 
             
             const startTime = now + (i * duration);
             osc.frequency.setValueAtTime(freq, startTime);
             
+            // Делаем звук чуть громче (0.6) для сочности
             gain.gain.setValueAtTime(0, startTime);
-            gain.gain.linearRampToValueAtTime(0.4, startTime + 0.02); 
+            gain.gain.linearRampToValueAtTime(0.6, startTime + 0.03); 
             
             if (i === notes.length - 1) {
-                gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5);
+                // Последняя нота тянется дольше для эффекта "БУМ"
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.6);
             } else {
                 gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
             }
             
             osc.start(startTime);
-            osc.stop(startTime + (i === notes.length - 1 ? 0.5 : duration));
+            osc.stop(startTime + (i === notes.length - 1 ? 0.6 : duration));
         });
     } catch (e) { console.error(e); }
 }
