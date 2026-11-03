@@ -309,7 +309,7 @@
 <div id="lightbox" onclick="this.style.display='none'"><img id="lightbox-img" src="" alt="Фото"></div>
 <div class="toast-container" id="toast-container"></div>
 
-<!-- ОСТАЛЬНОЙ HTML (Модалки и т.д.) -->
+<!-- Ландшафт -->
 <svg id="landscape" viewBox="0 0 1440 320" preserveAspectRatio="none">
   <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
@@ -575,8 +575,8 @@
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">IP:</span><span id="set-my-ip" style="color: #00ff9d;">...</span></div>
       </div>
     </div>
-      <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
-              <span style="margin-bottom: 10px;">Ваш Аватар:</span>
+    <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
+      <span style="margin-bottom: 10px;">Ваш Аватар:</span>
       <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
         <img id="settings-avatar-preview" src="/favicon.png" class="chat-avatar" style="width: 50px; height: 50px;" />
         <button class="modal-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;" id="avatar-upload-btn">Загрузить</button>
@@ -1548,10 +1548,20 @@ document.getElementById('file-input').addEventListener('change', () => {
 });
 
 document.getElementById('clear-chat-btn').addEventListener('click', () => { if (state.currentChat) document.getElementById('clear-modal').classList.add('visible'); });
-document.getElementById('clear-me-btn').addEventListener('click', () => { if (state.currentChat) { document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } });
+document.getElementById('clear-me-btn').addEventListener('click', () => { 
+  if (state.currentChat) { 
+    document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; 
+    document.getElementById('clear-modal').classList.remove('visible'); 
+  } 
+});
+
 document.getElementById('clear-all-btn').addEventListener('click', async () => {
   if (!state.currentChat || !confirm('Очистить чат у всех?')) return;
-  try { await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } catch (e) { alert(e.message); }
+  try { 
+    await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); 
+    document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; 
+    document.getElementById('clear-modal').classList.remove('visible'); 
+  } catch (e) { alert(e.message); }
 });
 
 document.getElementById('chat-options-btn').addEventListener('click', () => {
@@ -1626,8 +1636,12 @@ document.getElementById('delete-group-btn').addEventListener('click', async () =
     await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
     state.currentChat = null;
     document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
-    document.getElementById('chat-title').textContent = 'SCP_Helper'; document.getElementById('composer').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible');
-    document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar').style.display = 'none';
+    document.getElementById('chat-title').textContent = 'SCP_Helper'; 
+    document.getElementById('composer').style.display = 'none'; 
+    document.getElementById('chat-settings-modal').classList.remove('visible');
+    document.getElementById('chat-options-btn').style.display = 'none'; 
+    document.getElementById('clear-chat-btn').style.display = 'none'; 
+    document.getElementById('header-avatar').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
     loadChats();
   } catch (e) {
@@ -1651,7 +1665,44 @@ window.setChannelUsername = async function() {
   }
 };
 
+// ================= УВЕДОМЛЕНИЯ И ЗВУК =================
+let globalAudioCtx = null;
+
+function unlockAudio() {
+    if (!globalAudioCtx) {
+        globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (globalAudioCtx.state === 'suspended') {
+        globalAudioCtx.resume();
+    }
+}
+document.addEventListener('click', unlockAudio, { once: true });
+document.addEventListener('keydown', unlockAudio, { once: true });
+
+function playNotificationSound() {
+    try {
+        if (!globalAudioCtx) return;
+        const osc = globalAudioCtx.createOscillator();
+        const gain = globalAudioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(globalAudioCtx.destination);
+        osc.type = 'sine';
+        
+        osc.frequency.setValueAtTime(880, globalAudioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, globalAudioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, globalAudioCtx.currentTime + 0.1);
+        
+        osc.frequency.setValueAtTime(659.25, globalAudioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, globalAudioCtx.currentTime + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.01, globalAudioCtx.currentTime + 0.3);
+        
+        osc.start(globalAudioCtx.currentTime);
+        osc.stop(globalAudioCtx.currentTime + 0.3);
+    } catch (e) {}
+}
+
 function showNotification(sender, text, avatarUrl, chatId) {
+    // 1. Тост внутри сайта
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = 'toast-msg';
@@ -1685,28 +1736,25 @@ function showNotification(sender, text, avatarUrl, chatId) {
             setTimeout(() => toast.remove(), 300);
         }
     }, 4000);
-}
 
-function playNotificationSound() {
-    try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'sine';
-        // "Дилидиньк"
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-        
-        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.1, ctx.currentTime + 0.1);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.3);
-    } catch (e) {}
+    // 2. Системное уведомление поверх всех окон
+    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+        const sysNote = new Notification(`Новое сообщение от @${sender}`, {
+            body: text,
+            icon: avatarUrl || '/favicon.png',
+            tag: 'scp-msg-' + chatId,
+            renotify: true
+        });
+        sysNote.onclick = function(e) {
+            e.preventDefault();
+            window.focus();
+            const chat = state.chats.find(c => c.id === chatId);
+            if (chat) {
+                openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper);
+            }
+            this.close();
+        };
+    }
 }
 
 function connectSocket() {
@@ -1728,27 +1776,28 @@ function connectSocket() {
       if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList();
     } catch (e) {}
   });
+  
   state.socket.on('newMessage', async (msg) => {
     if (String(msg.sender.id) === String(state.me.id)) return;
     if (!state.chats.some(c => c.id === msg.chatId)) await loadChats();
-    if (state.currentChat && msg.chatId === state.currentChat.id) {
-      appendMessage(msg); document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+    
+    if (state.currentChat && msg.chatId === state.currentChat.id && !document.hidden) {
+      appendMessage(msg); 
+      document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
       api('/chats/' + state.currentChat.id + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
-      // Уведомление если окно не в фокусе или другой чат
-      if (document.hidden || !document.hasFocus()) {
-          showNotification(msg.sender.username, msg.text || '📎 Вложение', msg.sender.avatarUrl, msg.chatId);
-      }
     } else { 
-        state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1; 
-        renderChatList(); updatePageTitle(); 
-        showNotification(msg.sender.username, msg.text || '📎 Вложение', msg.sender.avatarUrl, msg.chatId);
+      state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1; 
+      renderChatList(); updatePageTitle(); 
+      showNotification(msg.sender.username, msg.text || '📎 Вложение', msg.sender.avatarUrl, msg.chatId);
     }
   });
+  
   state.socket.on('messageDelivered', ({ messageId }) => {
     const el = document.getElementById('msg-' + messageId); if (!el) return;
     const statusEl = el.querySelector('.msg-status');
     if (statusEl && statusEl.dataset.state === 'sent') { statusEl.dataset.state = 'delivered'; statusEl.classList.add('delivered'); statusEl.innerHTML = `<span class="tick">✓</span><span class="tick">✓</span>`; }
   });
+  
   state.socket.on('messagesRead', ({ messageIds }) => {
     messageIds.forEach(id => {
       const el = document.getElementById('msg-' + id); if (!el) return;
@@ -1756,6 +1805,7 @@ function connectSocket() {
       if (statusEl) { statusEl.dataset.state = 'read'; statusEl.classList.remove('delivered'); statusEl.classList.add('read'); statusEl.innerHTML = `<span class="tick">✓</span><span class="tick">✓</span>`; }
     });
   });
+  
   state.socket.on('messageDeleted', ({ messageId, type }) => {
     const el = document.getElementById('msg-' + messageId); if (!el) return;
     const isAdmin = state.me && ['sysadmin', 'admin'].includes(state.me.role);
@@ -1764,6 +1814,7 @@ function connectSocket() {
       if (msgDiv && !msgDiv.classList.contains('deleted-msg')) { msgDiv.classList.add('deleted-msg'); msgDiv.innerHTML = '<div><i>Сообщение удалено</i></div><div class="deleted-label" style="display:flex">🗑️ Удалено</div>'; }
     } else el.remove();
   });
+  
   state.socket.on('chatCleared', ({ chatId }) => { if (state.currentChat && state.currentChat.id === chatId) document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; });
 
   state.socket.on('allMessagesWiped', () => {
@@ -1929,6 +1980,13 @@ function getAttIcon(a) {
   }
   tick();
 })();
+
+// Запрос на системные уведомления
+setTimeout(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+    }
+}, 3000);
 
 (async () => {
   if (state.token) {
