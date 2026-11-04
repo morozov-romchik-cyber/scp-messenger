@@ -1580,16 +1580,33 @@ window.deleteSelectedFromReport = async function(reportId) {
 };
 
 window.banFromReport = async function(userId, reportId, defaultReason) {
+  const checkboxes = document.querySelectorAll(`.report-del-checkbox-${reportId}:checked`);
+  const selectedMsgIds = Array.from(checkboxes).map(cb => cb.value);
+  
+  let confirmText = `Забанить пользователя?`;
+  if (selectedMsgIds.length > 0) confirmText = `Забанить пользователя и удалить ${selectedMsgIds.length} выбранных сообщений?`;
+  
+  if (!confirm(confirmText)) return;
+  
   const duration = prompt('Введите время бана в минутах (или -1 для пермача):', '1440');
   if (duration === null) return;
   const reason = prompt('Введите причину бана (увидит пользователь):', defaultReason);
   if (reason === null) return;
   
   try {
+    // 1. Delete messages if selected
+    for (const msgId of selectedMsgIds) {
+      await api('/messages/' + msgId, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
+    }
+    
+    // 2. Ban user
     const user = await api('/users/' + userId);
     await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username: user.username, duration: Number(duration), reason }) });
-    await resolveReport(reportId, 'banned', { duration: Number(duration) }); 
-    alert('Пользователь забанен, жалоба закрыта.');
+    
+    // 3. Resolve report and notify
+    await resolveReport(reportId, 'banned', { duration: Number(duration) });
+    
+    alert(`Пользователь забанен${selectedMsgIds.length > 0 ? `, удалено сообщений: ${selectedMsgIds.length}` : ''}. Жалоба закрыта.`);
   } catch (e) { alert(e.message); }
 };
 
