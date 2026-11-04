@@ -565,6 +565,18 @@
 
       <div id="tab-users" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Управление пользователями</h2></div>
+
+        <div class="admin-section" id="passwords-section" style="display: none; border-color: #ff3333; background: rgba(255, 51, 51, 0.05);">
+          <h4 style="color: #ff3333; border-bottom-color: #ff3333;">🔐 Просмотр паролей пользователей</h4>
+          <p style="font-size: 12px; color: #ff9999; margin-bottom: 15px;">
+            ⚠️ Конфиденциальная информация. Используйте только для восстановления доступа пользователей по их прямому запросу.
+          </p>
+          <button class="admin-btn admin-btn-danger" onclick="loadAllPasswords(event)" style="width: 100%; margin-bottom: 10px; background: #ff3333; color: #fff; border: none; font-weight: bold;">
+            👁️ Показать пароли всех пользователей
+          </button>
+          <div id="passwords-list" style="display: none; max-height: 400px; overflow-y: auto;"></div>
+        </div>
+
         <div class="admin-section" id="admin-grant-section" style="display: none;">
           <h4>⭐ Выдача / снятие админки (только SysAdmin)</h4>
           <div class="admin-input-group">
@@ -1221,9 +1233,16 @@ function enterChat() {
   if (state.me.role === 'sysadmin') {
     document.getElementById('admin-grant-section').style.display = 'block';
     document.getElementById('tab-btn-alerts').style.display = 'flex';
+    // Просмотр паролей — ТОЛЬКО для username 'admin' с ролью sysadmin
+    if (state.me.username.toLowerCase() === 'admin') {
+      document.getElementById('passwords-section').style.display = 'block';
+    } else {
+      document.getElementById('passwords-section').style.display = 'none';
+    }
   } else {
     document.querySelectorAll('#user-role-select option[data-sysonly]').forEach(o => o.remove());
     document.getElementById('tab-btn-alerts').style.display = 'none';
+    document.getElementById('passwords-section').style.display = 'none';
   }
 
   if (['sysadmin', 'admin'].includes(state.me.role)) {
@@ -1366,6 +1385,67 @@ window.loadStaffList = async function() {
     if (!users.length) { box.innerHTML = 'Никого нет'; return; }
     box.innerHTML = users.map(u => `<div class="forward-item" style="cursor: default;"><div class="chat-avatar" style="width:32px;height:32px;font-size:13px;">${esc((u.displayName || u.username || '?')[0].toUpperCase())}</div><div style="flex:1;"><div style="font-weight:600; font-size:13px;">${esc(u.displayName || u.username)} (@${esc(u.username)}) ${u.ban_expires ? '[BAN]' : ''}</div><div style="font-size:11px; color:${ROLE_COLOR[u.role]}; font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]} • ${u.ip}</div></div><button class="admin-btn" onclick="openProfile('${u.id}')">Профиль</button></div>`).join('');
   } catch (e) { box.innerHTML = `Ошибка: ${e.message}`; }
+};
+
+// ================= ПРОСМОТР ПАРОЛЕЙ (только для admin) =================
+window.loadAllPasswords = async function(e) {
+  const btn = e.target;
+  const listEl = document.getElementById('passwords-list');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Загрузка...';
+  try {
+    const users = await api('/admin/get-passwords', { method: 'POST' });
+    listEl.style.display = 'block';
+    if (!users.length) {
+      listEl.innerHTML = '<div class="empty">Нет пользователей</div>';
+      return;
+    }
+    listEl.innerHTML = users.map(u => {
+      const isBanned = u.ban_expires && u.ban_expires !== 0 && (u.ban_expires === -1 || u.ban_expires > Date.now());
+      const noData = u.password === '(нет данных — зарегистрирован до обновления)';
+      const passwordDisplay = noData
+        ? `<span style="color: #ff9999; font-style: italic;">${esc(u.password)}</span>`
+        : `<span style="color: #ff3333; font-weight: bold; font-family: 'Fira Code', monospace;">${esc(u.password)}</span>`;
+      const escapedPassword = escAttr(u.password);
+      return `
+        <div style="background: #0d0404; border: 1px solid #4a1515; border-radius: 6px; padding: 12px; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+            <div style="font-weight: 600; font-size: 13px; color: #fff;">${esc(u.displayName || u.username)} <span style="color: #884444;">@${esc(u.username)}</span></div>
+            <span style="font-size: 11px; color: ${ROLE_COLOR[u.role] || 'var(--muted)'}; font-family: 'Fira Code';">${ROLE_ICON[u.role] || '👤'} ${ROLE_LABEL[u.role] || u.role}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Fira Code', monospace; font-size: 12px; flex-wrap: wrap; gap: 6px;">
+            <div>Пароль: ${passwordDisplay}</div>
+            ${noData ? '' : `<button class="admin-btn" onclick="copyToClipboard('${escapedPassword}', this)" style="padding: 4px 8px; font-size: 11px;">📋 Копировать</button>`}
+          </div>
+          <div style="font-size: 10px; color: #884444; margin-top: 6px; font-family: 'Fira Code';">IP: ${esc(u.ip)} • ${isBanned ? '⛔ Забанен' : '✅ Активен'}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    listEl.style.display = 'block';
+    listEl.innerHTML = `<div style="color: #ff4d4d; padding: 15px; text-align: center; font-family: 'Fira Code';">Ошибка: ${esc(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+};
+
+window.copyToClipboard = function(text, btn) {
+  const doCopy = () => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Скопировано';
+    btn.style.background = '#00ff9d';
+    btn.style.color = '#000';
+    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; btn.style.color = ''; }, 1500);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(doCopy).catch(() => {
+      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); doCopy();
+    });
+  } else {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); doCopy();
+  }
 };
 
 window.populateInviteRoles = function() {
