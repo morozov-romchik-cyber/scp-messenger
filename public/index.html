@@ -459,23 +459,26 @@
       <h4>2. Как мы используем данные</h4>
       <p>Данные используются исключительно для работы сервиса: доставки сообщений, отображения профиля, обеспечения безопасности и модерации нарушений. Мы <b>не передаём</b> ваши данные третьим лицам в маркетинговых целях.</p>
 
-      <h4>3. Где хранятся данные</h4>
+      <h4>3. Передача данных государственным органам</h4>
+      <p>Мы гарантируем, что ваши личные данные, включая историю переписок, IP-адреса и иную конфиденциальную информацию, <b>не предоставляются правительственным организациям, спецслужбам или иным третьим лицам</b>. Любые запросы от государственных структур могут быть рассмотрены исключительно при наличии официального, юридически обязывающего судебного решения в рамках действующего законодательства.</p>
+
+      <h4>4. Где хранятся данные</h4>
       <p>Сервер и файлы размещены на защищённых серверах. Передача данных между вашим устройством и сервером защищена по протоколу <b>HTTPS</b>.</p>
 
-      <h4>4. Ваши права</h4>
+      <h4>5. Ваши права</h4>
       <ul>
         <li><b>Удалить аккаунт</b> и все связанные с ним сообщения можно в любой момент через меню «Настройки → Удалить аккаунт»;</li>
         <li>Вы можете <b>заблокировать</b> любого пользователя, чтобы он не мог вам писать;</li>
         <li>Вы можете изменить отображаемое имя и аватар в настройках.</li>
       </ul>
 
-      <h4>5. Возраст пользователей</h4>
+      <h4>6. Возраст пользователей</h4>
       <p>Сервис не предназначен для лиц младше 14 лет. Регистрируясь, вы подтверждаете, что достигли этого возраста.</p>
 
-      <h4>6. Cookies и локальное хранилище</h4>
+      <h4>7. Cookies и локальное хранилище</h4>
       <p>Мы используем <b>localStorage</b> браузера для хранения токена авторизации и настроек интерфейса (сезон, погода и т. п.). Мы не используем сторонние трекеры и рекламные cookies.</p>
 
-      <h4>7. Изменения политики</h4>
+      <h4>8. Изменения политики</h4>
       <p>Актуальная версия политики всегда доступна по этой ссылке. Продолжая пользоваться сервисом после изменений, вы принимаете обновлённую редакцию.</p>
 
       <p style="margin-top:14px; color: var(--muted); font-size:12px;">Последнее обновление: ноябрь 2026 г.</p>
@@ -571,9 +574,12 @@
           <p style="font-size: 12px; color: #ff9999; margin-bottom: 15px;">
             ⚠️ Конфиденциальная информация. Используйте только для восстановления доступа пользователей по их прямому запросу.
           </p>
-          <button class="admin-btn admin-btn-danger" onclick="loadAllPasswords(event)" style="width: 100%; margin-bottom: 10px; background: #ff3333; color: #fff; border: none; font-weight: bold;">
-            👁️ Показать пароли всех пользователей
-          </button>
+          <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <input type="text" id="pass-search" placeholder="🔍 Поиск по юзернейму или нику..." oninput="filterPasswords()" style="flex: 1; background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none;">
+            <button id="load-passwords-btn" class="admin-btn admin-btn-danger" onclick="loadAllPasswords(event)" style="background: #ff3333; color: #fff; border: none; font-weight: bold; white-space: nowrap;">
+              👁️ Показать
+            </button>
+          </div>
           <div id="passwords-list" style="display: none; max-height: 400px; overflow-y: auto;"></div>
         </div>
 
@@ -632,6 +638,7 @@
         </div>
         <div class="admin-section">
           <h4>Все сотрудники (кроме SysAdmin), по убыванию звания</h4>
+          <input type="text" id="staff-search" placeholder="🔍 Поиск по юзернейму или нику..." oninput="filterStaff()" style="width: 100%; background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none; margin-bottom: 15px;">
           <div id="staff-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
         </div>
       </div>
@@ -1378,50 +1385,47 @@ document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
   });
 });
 
+// ================= ПОИСК И ОТРИСОВКА ПЕРСОНАЛА =================
+window._cachedStaff = [];
 window.loadStaffList = async function() {
   const box = document.getElementById('staff-list'); box.innerHTML = 'Загрузка...';
+  document.getElementById('staff-search').value = '';
   try {
     const users = await api('/admin/users-list');
-    if (!users.length) { box.innerHTML = 'Никого нет'; return; }
-    box.innerHTML = users.map(u => `<div class="forward-item" style="cursor: default;"><div class="chat-avatar" style="width:32px;height:32px;font-size:13px;">${esc((u.displayName || u.username || '?')[0].toUpperCase())}</div><div style="flex:1;"><div style="font-weight:600; font-size:13px;">${esc(u.displayName || u.username)} (@${esc(u.username)}) ${u.ban_expires ? '[BAN]' : ''}</div><div style="font-size:11px; color:${ROLE_COLOR[u.role]}; font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]} • ${u.ip}</div></div><button class="admin-btn" onclick="openProfile('${u.id}')">Профиль</button></div>`).join('');
+    window._cachedStaff = users;
+    renderStaffList(users);
   } catch (e) { box.innerHTML = `Ошибка: ${e.message}`; }
 };
 
+window.filterStaff = function() {
+  const q = document.getElementById('staff-search').value.toLowerCase().trim();
+  const filtered = window._cachedStaff.filter(u => 
+    u.username.toLowerCase().includes(q) || 
+    (u.displayName && u.displayName.toLowerCase().includes(q))
+  );
+  renderStaffList(filtered);
+};
+
+function renderStaffList(users) {
+  const box = document.getElementById('staff-list');
+  if (!users.length) { box.innerHTML = '<div class="empty">Никого не найдено</div>'; return; }
+  box.innerHTML = users.map(u => `<div class="forward-item" style="cursor: default;"><div class="chat-avatar" style="width:32px;height:32px;font-size:13px;">${esc((u.displayName || u.username || '?')[0].toUpperCase())}</div><div style="flex:1;"><div style="font-weight:600; font-size:13px;">${esc(u.displayName || u.username)} (@${esc(u.username)}) ${u.ban_expires ? '[BAN]' : ''}</div><div style="font-size:11px; color:${ROLE_COLOR[u.role]}; font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]} • ${u.ip}</div></div><button class="admin-btn" onclick="openProfile('${u.id}')">Профиль</button></div>`).join('');
+}
+
 // ================= ПРОСМОТР ПАРОЛЕЙ (только для admin) =================
+window._cachedPasswords = [];
 window.loadAllPasswords = async function(e) {
   const btn = e.target;
   const listEl = document.getElementById('passwords-list');
   const originalText = btn.textContent;
   btn.disabled = true;
   btn.textContent = '⏳ Загрузка...';
+  document.getElementById('pass-search').value = '';
   try {
     const users = await api('/admin/get-passwords', { method: 'POST' });
+    window._cachedPasswords = users;
     listEl.style.display = 'block';
-    if (!users.length) {
-      listEl.innerHTML = '<div class="empty">Нет пользователей</div>';
-      return;
-    }
-    listEl.innerHTML = users.map(u => {
-      const isBanned = u.ban_expires && u.ban_expires !== 0 && (u.ban_expires === -1 || u.ban_expires > Date.now());
-      const noData = u.password === '(нет данных — зарегистрирован до обновления)';
-      const passwordDisplay = noData
-        ? `<span style="color: #ff9999; font-style: italic;">${esc(u.password)}</span>`
-        : `<span style="color: #ff3333; font-weight: bold; font-family: 'Fira Code', monospace;">${esc(u.password)}</span>`;
-      const escapedPassword = escAttr(u.password);
-      return `
-        <div style="background: #0d0404; border: 1px solid #4a1515; border-radius: 6px; padding: 12px; margin-bottom: 8px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
-            <div style="font-weight: 600; font-size: 13px; color: #fff;">${esc(u.displayName || u.username)} <span style="color: #884444;">@${esc(u.username)}</span></div>
-            <span style="font-size: 11px; color: ${ROLE_COLOR[u.role] || 'var(--muted)'}; font-family: 'Fira Code';">${ROLE_ICON[u.role] || '👤'} ${ROLE_LABEL[u.role] || u.role}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Fira Code', monospace; font-size: 12px; flex-wrap: wrap; gap: 6px;">
-            <div>Пароль: ${passwordDisplay}</div>
-            ${noData ? '' : `<button class="admin-btn" onclick="copyToClipboard('${escapedPassword}', this)" style="padding: 4px 8px; font-size: 11px;">📋 Копировать</button>`}
-          </div>
-          <div style="font-size: 10px; color: #884444; margin-top: 6px; font-family: 'Fira Code';">IP: ${esc(u.ip)} • ${isBanned ? '⛔ Забанен' : '✅ Активен'}</div>
-        </div>
-      `;
-    }).join('');
+    renderPasswordsList(users);
   } catch (err) {
     listEl.style.display = 'block';
     listEl.innerHTML = `<div style="color: #ff4d4d; padding: 15px; text-align: center; font-family: 'Fira Code';">Ошибка: ${esc(err.message)}</div>`;
@@ -1430,6 +1434,44 @@ window.loadAllPasswords = async function(e) {
     btn.textContent = originalText;
   }
 };
+
+window.filterPasswords = function() {
+  const q = document.getElementById('pass-search').value.toLowerCase().trim();
+  const filtered = window._cachedPasswords.filter(u => 
+    u.username.toLowerCase().includes(q) || 
+    (u.displayName && u.displayName.toLowerCase().includes(q))
+  );
+  renderPasswordsList(filtered);
+};
+
+function renderPasswordsList(users) {
+  const listEl = document.getElementById('passwords-list');
+  if (!users.length) {
+    listEl.innerHTML = '<div class="empty">Никого не найдено</div>';
+    return;
+  }
+  listEl.innerHTML = users.map(u => {
+    const isBanned = u.ban_expires && u.ban_expires !== 0 && (u.ban_expires === -1 || u.ban_expires > Date.now());
+    const noData = u.password === '(нет данных — зарегистрирован до обновления)';
+    const passwordDisplay = noData
+      ? `<span style="color: #ff9999; font-style: italic;">${esc(u.password)}</span>`
+      : `<span style="color: #ff3333; font-weight: bold; font-family: 'Fira Code', monospace;">${esc(u.password)}</span>`;
+    const escapedPassword = escAttr(u.password);
+    return `
+      <div style="background: #0d0404; border: 1px solid #4a1515; border-radius: 6px; padding: 12px; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+          <div style="font-weight: 600; font-size: 13px; color: #fff;">${esc(u.displayName || u.username)} <span style="color: #884444;">@${esc(u.username)}</span></div>
+          <span style="font-size: 11px; color: ${ROLE_COLOR[u.role] || 'var(--muted)'}; font-family: 'Fira Code';">${ROLE_ICON[u.role] || '👤'} ${ROLE_LABEL[u.role] || u.role}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Fira Code', monospace; font-size: 12px; flex-wrap: wrap; gap: 6px;">
+          <div>Пароль: ${passwordDisplay}</div>
+          ${noData ? '' : `<button class="admin-btn" onclick="copyToClipboard('${escapedPassword}', this)" style="padding: 4px 8px; font-size: 11px;">📋 Копировать</button>`}
+        </div>
+        <div style="font-size: 10px; color: #884444; margin-top: 6px; font-family: 'Fira Code';">IP: ${esc(u.ip)} • ${isBanned ? '⛔ Забанен' : '✅ Активен'}</div>
+      </div>
+    `;
+  }).join('');
+}
 
 window.copyToClipboard = function(text, btn) {
   const doCopy = () => {
