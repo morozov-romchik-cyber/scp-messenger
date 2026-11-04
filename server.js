@@ -550,6 +550,26 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   res.json({ ok: true, chatId: channelId, username: cleanUsername });
 });
 
+// ИСПРАВЛЕННЫЙ МАРШРУТ СМЕНЫ ССЫЛКИ
+app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
+  const chatId = req.params.chatId;
+  const chat = db.chats.find(c => c.id === chatId);
+  if (!chat || !chat.is_channel) return res.status(400).json({ error: 'Не является каналом' });
+  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может менять ссылку' });
+
+  let cleanUsername = String(req.body.username || '').trim().toLowerCase().replace(/^@/, '');
+  if (!/^[a-z0-9_]{3,32}$/.test(cleanUsername)) return res.status(400).json({ error: 'Юзернейм: 3-32 символа (a-z, 0-9, _)' });
+  if (db.chats.some(c => c.username === cleanUsername && c.id !== chatId)) return res.status(400).json({ error: 'Этот адрес уже занят' });
+
+  chat.username = cleanUsername;
+  const group = db.chats.find(c => c.is_group && !c.is_channel && c.username === chat.username && c.creator_id === req.userId);
+  if (group) group.username = cleanUsername;
+
+  saveDb();
+  io.emit('refreshData');
+  res.json({ ok: true, username: cleanUsername });
+});
+
 app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
