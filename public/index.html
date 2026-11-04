@@ -510,8 +510,7 @@
     </div>
     <div class="profile-info-box">
       <div class="profile-info-row"><span>Роль:</span><span id="profile-role" style="font-weight: 600;">-</span></div>
-      <div class="profile-info-row"><span>ID:</span><span id="profile-id" style="color: #ffd700;">-</span></div>
-      <div class="profile-info-row" style="margin-bottom: 0;"><span>IP:</span><span id="profile-ip" style="color: #00ff9d;">-</span></div>
+      <div class="profile-info-row" style="margin-bottom: 0;"><span>ID:</span><span id="profile-id" style="color: #ffd700;">-</span></div>
     </div>
     <div id="profile-ban" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; border-radius: 6px; text-align: center; font-size: 12px; margin-bottom: 12px;"></div>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('profile-modal').classList.remove('visible')">Закрыть</button>
@@ -575,7 +574,7 @@
             ⚠️ Конфиденциальная информация. Используйте только для восстановления доступа пользователей по их прямому запросу.
           </p>
           <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-            <input type="text" id="pass-search" placeholder="🔍 Поиск по юзернейму или нику..." oninput="filterPasswords()" style="flex: 1; background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none;">
+            <input type="text" id="pass-search" placeholder="🔍 Поиск по юзернейму..." oninput="filterPasswords()" style="flex: 1; background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none;">
             <button id="load-passwords-btn" class="admin-btn admin-btn-danger" onclick="loadAllPasswords(event)" style="background: #ff3333; color: #fff; border: none; font-weight: bold; white-space: nowrap;">
               👁️ Показать
             </button>
@@ -638,7 +637,7 @@
         </div>
         <div class="admin-section">
           <h4>Все сотрудники (кроме SysAdmin), по убыванию звания</h4>
-          <input type="text" id="staff-search" placeholder="🔍 Поиск по юзернейму или нику..." oninput="filterStaff()" style="width: 100%; background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none; margin-bottom: 15px;">
+          <input type="text" id="staff-search" placeholder="🔍 Поиск по юзернейму..." oninput="filterStaff()" style="width: 100%; background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none; margin-bottom: 15px;">
           <div id="staff-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
         </div>
       </div>
@@ -1331,7 +1330,6 @@ window.openProfile = async function(userId) {
     document.getElementById('profile-username').textContent = '@' + u.username;
     document.getElementById('profile-role').innerHTML = `<span style="color:${ROLE_COLOR[u.role] || 'var(--muted)'}">${ROLE_ICON[u.role] || '👤'} ${ROLE_LABEL[u.role] || u.role}</span>`;
     document.getElementById('profile-id').textContent = u.id;
-    document.getElementById('profile-ip').textContent = u.ip || 'Скрыт';
     const onlineEl = document.getElementById('profile-online');
     if (u.status === 'online') { onlineEl.textContent = '🟢 В сети'; onlineEl.style.color = '#00ff9d'; }
     else { onlineEl.textContent = '⚪ Не в сети'; onlineEl.style.color = 'var(--muted)'; }
@@ -1400,8 +1398,7 @@ window.loadStaffList = async function() {
 window.filterStaff = function() {
   const q = document.getElementById('staff-search').value.toLowerCase().trim();
   const filtered = window._cachedStaff.filter(u => 
-    u.username.toLowerCase().includes(q) || 
-    (u.displayName && u.displayName.toLowerCase().includes(q))
+    u.username.toLowerCase().includes(q)
   );
   renderStaffList(filtered);
 };
@@ -1409,7 +1406,7 @@ window.filterStaff = function() {
 function renderStaffList(users) {
   const box = document.getElementById('staff-list');
   if (!users.length) { box.innerHTML = '<div class="empty">Никого не найдено</div>'; return; }
-  box.innerHTML = users.map(u => `<div class="forward-item" style="cursor: default;"><div class="chat-avatar" style="width:32px;height:32px;font-size:13px;">${esc((u.displayName || u.username || '?')[0].toUpperCase())}</div><div style="flex:1;"><div style="font-weight:600; font-size:13px;">${esc(u.displayName || u.username)} (@${esc(u.username)}) ${u.ban_expires ? '[BAN]' : ''}</div><div style="font-size:11px; color:${ROLE_COLOR[u.role]}; font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]} • ${u.ip}</div></div><button class="admin-btn" onclick="openProfile('${u.id}')">Профиль</button></div>`).join('');
+  box.innerHTML = users.map(u => `<div class="forward-item" style="cursor: default;"><div class="chat-avatar" style="width:32px;height:32px;font-size:13px;">${esc((u.displayName || u.username || '?')[0].toUpperCase())}</div><div style="flex:1;"><div style="font-weight:600; font-size:13px;">${esc(u.displayName || u.username)} (@${esc(u.username)}) ${u.ban_expires ? '[BAN]' : ''}</div><div style="font-size:11px; color:${ROLE_COLOR[u.role]}; font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]}</div></div><button class="admin-btn" onclick="openProfile('${u.id}')">Профиль</button></div>`).join('');
 }
 
 // ================= ПРОСМОТР ПАРОЛЕЙ (только для admin) =================
@@ -1438,8 +1435,7 @@ window.loadAllPasswords = async function(e) {
 window.filterPasswords = function() {
   const q = document.getElementById('pass-search').value.toLowerCase().trim();
   const filtered = window._cachedPasswords.filter(u => 
-    u.username.toLowerCase().includes(q) || 
-    (u.displayName && u.displayName.toLowerCase().includes(q))
+    u.username.toLowerCase().includes(q)
   );
   renderPasswordsList(filtered);
 };
@@ -1467,7 +1463,7 @@ function renderPasswordsList(users) {
           <div>Пароль: ${passwordDisplay}</div>
           ${noData ? '' : `<button class="admin-btn" onclick="copyToClipboard('${escapedPassword}', this)" style="padding: 4px 8px; font-size: 11px;">📋 Копировать</button>`}
         </div>
-        <div style="font-size: 10px; color: #884444; margin-top: 6px; font-family: 'Fira Code';">IP: ${esc(u.ip)} • ${isBanned ? '⛔ Забанен' : '✅ Активен'}</div>
+        <div style="font-size: 10px; color: #884444; margin-top: 6px; font-family: 'Fira Code';">${isBanned ? '⛔ Забанен' : '✅ Активен'}</div>
       </div>
     `;
   }).join('');
