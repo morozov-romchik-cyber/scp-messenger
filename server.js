@@ -161,8 +161,13 @@ function authMiddleware(req, res, next) {
     const user = db.users.find(u => u.id === req.userId);
     if (user && user.ban_expires && user.ban_expires !== 0) {
       const now = Date.now();
-      if (user.ban_expires === -1 || user.ban_expires > now) return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires, ban_reason: user.ban_reason || 'Нарушение правил' });
-      else { user.ban_expires = 0; user.ban_reason = ''; saveDb(); }
+      if (user.ban_expires === -1 || user.ban_expires > now) {
+        return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires, ban_reason: user.ban_reason || 'Нарушение правил' });
+      } else {
+        user.ban_expires = 0;
+        user.ban_reason = '';
+        saveDb();
+      }
     }
     next();
   } catch { res.status(401).json({ error: 'Invalid token' }); }
@@ -244,6 +249,7 @@ app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
   if (!report) return res.status(404).json({ error: 'Жалоба не найдена' });
   
   const action = req.body.action || 'ignored';
+  const banDuration = req.body.duration;
   report.status = action;
 
   // Отправка уведомления в SCP_Helper
@@ -255,14 +261,25 @@ app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
     db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: HELPER_ID });
   }
   
+  const targetUser = db.users.find(u => u.id === report.target_user_id);
+  const targetName = targetUser ? `@${targetUser.username}` : 'неизвестного пользователя';
+
   let statusText = '';
-  if (action === 'banned') statusText = 'Нарушитель заблокирован.';
-  else if (action === 'deleted') statusText = 'Сообщение нарушителя удалено.';
+  if (action === 'banned') {
+    let timeStr = 'навсегда';
+    if (banDuration > 0) {
+      if (banDuration >= 1440) timeStr = `на ${Math.floor(banDuration / 1440)} дн.`;
+      else if (banDuration >= 60) timeStr = `на ${Math.floor(banDuration / 60)} ч.`;
+      else timeStr = `на ${banDuration} мин.`;
+    }
+    statusText = `Пользователь забанен (${timeStr}).`;
+  } 
+  else if (action === 'deleted') statusText = 'Сообщения нарушителя удалены.';
   else statusText = 'Жалоба отклонена (нарушений не найдено).';
 
   const sysMsg = {
     id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID,
-    text: `📋 **Рассмотрение жалобы**\nВаша жалоба на пользователя рассмотрена.\nСтатус: ${statusText}`,
+    text: `📋 **Рассмотрение жалобы**\nВаша жалоба на пользователя ${targetName} рассмотрена.\nСтатус: ${statusText}`,
     created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
   };
   db.messages.push(sysMsg);
@@ -1081,7 +1098,10 @@ io.on('connection', (socket) => {
   try {
     const user = db.users.find(u => u.id === socket.userId);
     if (user) {
-      if (user.ban_expires && (user.ban_expires === -1 || user.ban_expires > Date.now())) { socket.emit('forceLogout', { ban_expires: user.ban_expires, ban_reason: user.ban_reason }); return socket.disconnect(); }
+      if (user.ban_expires && (user.ban_expires === -1 || user.ban_expires > Date.now())) { 
+        socket.emit('forceLogout', { ban_expires: user.ban_expires, ban_reason: user.ban_reason }); 
+        return socket.disconnect(); 
+      }
       user.status = 'online'; saveDb(); io.emit('refreshData');
     }
     socket.join(`user:${socket.userId}`);
