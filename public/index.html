@@ -201,6 +201,37 @@
   #composer button#send-btn { background: var(--accent); color: #000; border: none; }
   #composer button#send-btn:hover { opacity: 0.8; }
 
+  /* СТИЛИ ДЛЯ ПАНЕЛИ СМАЙЛИКОВ */
+  .emoji-picker {
+    position: absolute;
+    bottom: 70px;
+    left: 24px;
+    background: var(--panel);
+    border: 1px solid var(--border-hover);
+    border-radius: 8px;
+    width: 300px;
+    max-width: calc(100vw - 48px);
+    height: 250px;
+    overflow-y: auto;
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+    gap: 4px;
+    padding: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 100;
+  }
+  .emoji-picker.visible { display: grid; }
+  .emoji-item {
+    font-size: 24px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 4px;
+    transition: background 0.2s;
+    user-select: none;
+  }
+  .emoji-item:hover { background: var(--border); }
+
   .file-progress { position: absolute; bottom: 90px; right: 24px; padding: 10px 16px; font-size: 12px; color: var(--text); font-family: 'Fira Code', monospace; background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 10; align-items: center; gap: 12px; }
   .file-progress.visible { display: flex; }
   .file-progress button { background: #ff4d4d; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; }
@@ -304,6 +335,7 @@
     .admin-tab { border-left: none; border-bottom: 3px solid transparent; padding: 12px; white-space: nowrap; }
     .admin-tab.active { border-left-color: transparent; border-bottom-color: var(--admin-accent); }
     .toast-msg { width: calc(100vw - 40px); }
+    .emoji-picker { left: 12px; bottom: 60px; }
   }
   .back-btn { display: none; }
   .empty { text-align: center; color: var(--muted); font-family: 'Fira Code', monospace; font-size: 13px; padding: 60px 20px; letter-spacing: 1px; }
@@ -755,8 +787,12 @@
       <button class="close-reply" id="close-reply">×</button>
     </div>
 
+    <!-- ПАНЕЛЬ СМАЙЛИКОВ -->
+    <div class="emoji-picker" id="emoji-picker"></div>
+
     <form id="composer">
       <textarea id="msg-input" placeholder="Введите сообщение..." rows="1"></textarea>
+      <button type="button" class="file" id="emoji-btn" title="Emoji">😀</button>
       <button type="button" class="file" id="file-btn" title="Attach">📎</button>
       <button type="submit" id="send-btn" title="Send">▶</button>
     </form>
@@ -779,6 +815,37 @@ const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', m
 const ROLE_ICON = { user: '👤', helper: '🤝', moderator: '🛡️', admin: '🔰', sysadmin: '👑' };
 const ROLE_COLOR = { user: 'var(--muted)', helper: '#00ccff', moderator: '#ffcc00', admin: '#ff9933', sysadmin: '#ffffff' };
 
+// ================= СМАЙЛИКИ =================
+const EMOJIS = "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 🤡 💩 👻 💀 ☠️ 👽 👾 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾 👋 🤚 🖐 ✋ 🖖 👌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🦷 🦴 👀 👁 👅 👄 💋 🩸".split(' ');
+
+function initEmojiPicker() {
+  const picker = document.getElementById('emoji-picker');
+  picker.innerHTML = EMOJIS.map(e => `<div class="emoji-item">${e}</div>`).join('');
+  picker.addEventListener('click', (e) => {
+    if (e.target.classList.contains('emoji-item')) {
+      const input = document.getElementById('msg-input');
+      const startPos = input.selectionStart;
+      const endPos = input.selectionEnd;
+      input.value = input.value.substring(0, startPos) + e.target.textContent + input.value.substring(endPos, input.value.length);
+      input.focus();
+      input.selectionStart = startPos + e.target.textContent.length;
+      input.selectionEnd = startPos + e.target.textContent.length;
+    }
+  });
+  
+  document.getElementById('emoji-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    picker.classList.toggle('visible');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!picker.contains(e.target) && e.target.id !== 'emoji-btn') {
+      picker.classList.remove('visible');
+    }
+  });
+}
+
+// ================= УВЕДОМЛЕНИЯ И ЗВУК =================
 let globalAudioCtx = null;
 function unlockAudio() {
     if (!globalAudioCtx) { globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -864,6 +931,7 @@ function showNotification(sender, text, avatarUrl, chatId) {
     }
 }
 
+// =========================================================
 document.getElementById('tab-login').addEventListener('click', () => {
   authMode = 'login'; document.getElementById('tab-login').classList.add('active'); document.getElementById('tab-register').classList.remove('active');
   document.getElementById('a-submit').textContent = 'Войти'; document.getElementById('a-invite').style.display = 'none';
@@ -965,6 +1033,7 @@ function enterChat() {
     document.getElementById('tab-btn-support').style.display = 'flex';
   }
   populateInviteRoles();
+  initEmojiPicker();
 }
 
 const visualSettings = {
@@ -1349,6 +1418,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   state.unreadCounts[chatId] = 0; updatePageTitle();
   
   document.getElementById('chat-title').textContent = name;
+  document.getElementById('emoji-picker').classList.remove('visible');
   
   const verifiedStar = document.getElementById('verified-star');
   if (isHelper) {
