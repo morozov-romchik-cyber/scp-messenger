@@ -1515,7 +1515,12 @@ window.loadReports = async function() {
       const date = new Date(r.created_at * 1000).toLocaleString();
       const targetName = r.targetUser ? `@${r.targetUser.username}` : 'Неизвестный';
       
-      const msgsHtml = (r.targetMessages || []).map(m => `<div style="color: #ccc; font-style: italic; font-size: 12px; margin-bottom: 4px;">"${esc((m.text || '(вложение)').slice(0, 100))}"</div>`).join('');
+      const msgsHtml = (r.targetMessages || []).map(m => `
+        <label style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; cursor: pointer;">
+          <input type="checkbox" class="report-del-checkbox-${r.id}" value="${m.id}" style="margin-top: 3px; accent-color: #ff3333;">
+          <span style="color: #ccc; font-style: italic; font-size: 12px;">"${esc((m.text || '(вложение)').slice(0, 100))}"</span>
+        </label>
+      `).join('');
       
       return `
         <div style="background: #0d0404; border: 1px solid #ff3333; border-radius: 8px; padding: 15px; box-shadow: 0 4px 10px rgba(255, 51, 51, 0.1);">
@@ -1533,7 +1538,9 @@ window.loadReports = async function() {
           </div>
           <div style="display: flex; gap: 10px;">
             ${r.targetUser ? `<button class="admin-btn admin-btn-danger" style="flex: 1; padding: 8px; font-size: 12px;" onclick="banFromReport('${r.targetUser.id}', '${r.id}', '${escAttr(r.reason)}')">🚫 Забанить</button>` : ''}
-            ${r.targetMessages && r.targetMessages.length > 0 ? `<button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px; color: #ff9933; border-color: #ff9933;" onclick="deleteMsgFromReport('${r.targetMessages[0].id}', '${r.id}')">🗑️ Удалить первое</button>` : ''}
+            
+            ${r.targetMessages && r.targetMessages.length > 0 ? `<button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px; color: #ff9933; border-color: #ff9933;" onclick="deleteSelectedFromReport('${r.id}')">🗑️ Удалить выбранные</button>` : ''}
+            
             <button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px; color: #8b949e; border-color: #8b949e;" onclick="resolveReport('${r.id}', 'ignored')">❌ Отклонить</button>
           </div>
         </div>
@@ -1544,12 +1551,32 @@ window.loadReports = async function() {
   }
 };
 
-window.resolveReport = async function(reportId, action) {
+window.resolveReport = async function(reportId, action, extraData = {}) {
   try {
-    await api(`/admin/reports/${reportId}/resolve`, { method: 'POST', body: JSON.stringify({ action }) });
+    await api(`/admin/reports/${reportId}/resolve`, { method: 'POST', body: JSON.stringify({ action, ...extraData }) });
     loadReports();
     updatePendingReportsCount();
   } catch (e) { alert(e.message); }
+};
+
+window.deleteSelectedFromReport = async function(reportId) {
+  const checkboxes = document.querySelectorAll(`.report-del-checkbox-${reportId}:checked`);
+  
+  if (checkboxes.length === 0) {
+    return alert('Пожалуйста, отметьте галочками сообщения, которые нужно удалить.');
+  }
+  
+  if (!confirm(`Удалить ${checkboxes.length} выбранных сообщений у всех?`)) return;
+  
+  try {
+    for (const cb of checkboxes) {
+      await api('/messages/' + cb.value, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
+    }
+    await resolveReport(reportId, 'deleted');
+    alert('Выбранные сообщения удалены, жалоба закрыта.');
+  } catch (e) {
+    alert(e.message);
+  }
 };
 
 window.banFromReport = async function(userId, reportId, defaultReason) {
@@ -1561,17 +1588,8 @@ window.banFromReport = async function(userId, reportId, defaultReason) {
   try {
     const user = await api('/users/' + userId);
     await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username: user.username, duration: Number(duration), reason }) });
-    await resolveReport(reportId, 'banned');
+    await resolveReport(reportId, 'banned', { duration: Number(duration) }); 
     alert('Пользователь забанен, жалоба закрыта.');
-  } catch (e) { alert(e.message); }
-};
-
-window.deleteMsgFromReport = async function(msgId, reportId) {
-  if (!confirm('Удалить это сообщение у всех?')) return;
-  try {
-    await api('/messages/' + msgId, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
-    await resolveReport(reportId, 'deleted');
-    alert('Сообщение удалено, жалоба закрыта.');
   } catch (e) { alert(e.message); }
 };
 
