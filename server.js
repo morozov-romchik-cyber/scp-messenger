@@ -100,14 +100,12 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 const genId = () => crypto.randomBytes(12).toString('hex');
 const signToken = (userId) => jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: '30d' });
 
-// publicUser содержит IP — используйте только там, где отдаете данные самому пользователю / админу
 const publicUser = (u) => ({
   id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url,
   status: u.status, level: u.level || 1, read_deleted: u.read_deleted || false,
   ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null, ban_expires: u.ban_expires || 0
 });
 
-// Безопасная версия — без IP. Используется при отдаче данных другим пользователям
 const publicUserSafe = (u) => {
   const safe = publicUser(u);
   delete safe.ip;
@@ -180,6 +178,20 @@ const findUserByUsername = (username) => {
   return db.users.find(u => u.username.toLowerCase() === cleanName);
 };
 
+// НОВАЯ ФУНКЦИЯ: Ищет пользователя и по юзернейму, и по ID
+const findUserByIdentifier = (identifier) => {
+  const clean = String(identifier || '').trim().replace(/^@/, '').toLowerCase();
+  if (!clean) return null;
+  
+  // Проверяем, похоже ли это на ID (24 символа hex)
+  if (/^[a-f0-9]{24}$/i.test(clean)) {
+    const byId = db.users.find(u => u.id.toLowerCase() === clean);
+    if (byId) return byId;
+  }
+  // Если не ID или не найдено, ищем по юзернейму
+  return db.users.find(u => u.username.toLowerCase() === clean);
+};
+
 const chatIsBlocked = (chatId, myId) => {
   const chat = db.chats.find(c => c.id === chatId);
   if (chat && chat.is_group) return false;
@@ -194,7 +206,7 @@ app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const { username, duration } = req.body;
-  const target = findUserByUsername(username);
+  const target = findUserByIdentifier(username); // Используем новую функцию
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя забанить SCP_Helper' });
   if (target.role === 'sysadmin') return res.status(403).json({ error: 'НЕЛЬЗЯ забанить системного администратора (SysAdmin)!' });
@@ -215,7 +227,7 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const { username } = req.body;
-  const target = findUserByUsername(username);
+  const target = findUserByIdentifier(username); // Используем новую функцию
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя удалить SCP_Helper' });
   if (target.role === 'sysadmin') return res.status(400).json({ error: 'Нельзя удалить SysAdmin' });
@@ -254,7 +266,7 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const { username, role } = req.body;
   if (!['user', 'helper', 'moderator', 'admin', 'sysadmin'].includes(role)) return res.status(400).json({ error: 'Неизвестная роль' });
-  const target = findUserByUsername(username);
+  const target = findUserByIdentifier(username); // Используем новую функцию
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить роль SCP_Helper' });
   if (target.id === me.id) return res.status(400).json({ error: 'Нельзя изменить свою роль' });
@@ -283,11 +295,9 @@ app.get('/api/admin/users-list', authMiddleware, (req, res) => {
   res.json(users);
 });
 
-// ================= ПРОСМОТР ПАРОЛЕЙ (только для главного admin) =================
 app.post('/api/admin/get-passwords', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me) return res.status(403).json({ error: 'Доступ запрещён' });
-  // Только username 'admin' с ролью sysadmin
   if (me.username.toLowerCase() !== 'admin' || me.role !== 'sysadmin') {
     return res.status(403).json({ error: 'Доступ только для главного администратора (admin)' });
   }
@@ -540,14 +550,12 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       ban_expires: banExpires, createdAt: c.created_at, isSelf: isSelf,
       isGroup: !!c.is_group, creatorId: c.creator_id,
       isChannel: !!c.is_channel, username: c.username || null,
-      // группа не может быть «helper»-чатом
       isHelper: !c.is_group && !isSelf && otherId === HELPER_ID
     };
   });
   res.json(chats);
 });
 
-// Обычная группа = ОДИН чат, канал = канал + группа обсуждения.
 app.post('/api/chats/group', authMiddleware, (req, res) => {
   const { name, memberIds, is_channel, username } = req.body;
   if (!name || !memberIds || !Array.isArray(memberIds)) {
@@ -569,7 +577,6 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   const uniqueMembers = [...new Set([req.userId, ...memberIds])];
 
   if (is_channel) {
-    // ==== КАНАЛ + ГРУППА ОБСУЖДЕНИЯ ====
     const channelId = genId();
     db.chats.push({
       id: channelId, created_at: Math.floor(Date.now() / 1000),
@@ -604,7 +611,6 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     return res.json({ ok: true, chatId: channelId, username: cleanUsername });
   }
 
-  // ==== ОБЫЧНАЯ ГРУППА (один чат) ====
   const groupId = genId();
   db.chats.push({
     id: groupId, created_at: Math.floor(Date.now() / 1000),
@@ -638,7 +644,6 @@ app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
   res.json({ ok: true, username: cleanUsername });
 });
 
-// Используем publicUserSafe (без IP) при отдаче списка участников
 app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
@@ -745,7 +750,6 @@ function buildMessagePayload(m) {
   }
   return {
     id: m.id, chatId: m.chat_id, text: m.text,
-    // отдаем отправителя без IP другим пользователям
     sender: sender ? publicUserSafe(sender) : { id: m.sender_id, username: 'Unknown', displayName: null },
     createdAt: m.created_at, is_deleted: m.is_deleted || false,
     delivered, read, isSelfChat,
