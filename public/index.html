@@ -518,10 +518,30 @@
   </div>
 </div>
 
+<!-- МОДАЛКА ЖАЛОБЫ -->
+<div class="modal" id="report-modal">
+  <div class="modal-content" style="border-color: #ff9933;">
+    <h3 style="color: #ff9933;">🚩 ЖАЛОБА НА СООБЩЕНИЕ</h3>
+    <p style="font-size: 12px; color: var(--muted); margin-bottom: 15px; text-align: center;">Пожалуйста, укажите причину жалобы. Ложные жалобы могут привести к блокировке.</p>
+    
+    <select id="report-reason" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none;">
+      <option value="spam">Спам или реклама</option>
+      <option value="insult">Оскорбления / Токсичность</option>
+      <option value="nsfw">Материалы 18+ / NSFW</option>
+      <option value="scam">Мошенничество</option>
+      <option value="other">Другое (описать в чате поддержки)</option>
+    </select>
+    
+    <button class="modal-btn" onclick="submitReport()" style="background: #ff9933; color: #000; font-weight: bold; margin-bottom: 8px;">Отправить жалобу</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('report-modal').classList.remove('visible')">Отмена</button>
+  </div>
+</div>
+
 <div class="modal" id="admin-dashboard-modal">
   <div class="modal-content">
     <div class="admin-sidebar">
       <div class="admin-tab active" data-tab="server">👑 Управление сервером</div>
+      <div class="admin-tab" data-tab="reports" id="tab-btn-reports" style="display: none; color: #ff3333;">🚨 Жалобы <span id="report-badge" style="background: #ff3333; color: #fff; border-radius: 10px; padding: 2px 6px; font-size: 10px; margin-left: auto; display: none;">0</span></div>
       <div class="admin-tab" data-tab="moderation" id="tab-btn-moderation" style="display: none;">🛡️ Модерация контента</div>
       <div class="admin-tab" data-tab="users">👥 Управление пользователями</div>
       <div class="admin-tab" data-tab="staff">📋 Список персонала</div>
@@ -531,6 +551,15 @@
       <div class="admin-tab" style="color: #ff3333; border-left-color: transparent;" onclick="document.getElementById('admin-dashboard-modal').classList.remove('visible')">✖ Закрыть</div>
     </div>
     <div class="admin-main">
+      
+      <div id="tab-reports" class="admin-tab-content" style="display: none;">
+        <div class="admin-header">
+          <h2>Рассмотрение жалоб</h2>
+          <button class="admin-btn" onclick="loadReports()">🔄 Обновить</button>
+        </div>
+        <div id="reports-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+      </div>
+
       <div id="tab-server" class="admin-tab-content">
         <div class="admin-header"><h2>Управление сервером</h2></div>
         <div class="admin-section" id="invite-section">
@@ -715,6 +744,7 @@
     <h3>ДЕЙСТВИЯ</h3>
     <button class="modal-btn" id="msg-reply-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Ответить</button>
     <button class="modal-btn" id="msg-forward-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Переслать</button>
+    <button class="modal-btn" id="msg-report-btn" style="background: transparent; color: #ff9933; border: 1px solid #ff9933; margin-bottom: 10px;">🚩 Пожаловаться</button>
     <button class="modal-btn" id="msg-del-me-btn" style="background: transparent; color: #ff4d4d; border: 1px solid #ff4d4d; margin-bottom: 10px;">Удалить у себя</button>
     <button class="modal-btn" id="msg-del-all-btn" style="background: #ff4d4d; color: #fff; margin-bottom: 10px; display: none;">Удалить у всех</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('msg-actions-modal').classList.remove('visible')">Отмена</button>
@@ -917,7 +947,7 @@
       </div>
       <div id="my-role-badge" style="font-size: 12px; font-family: 'Fira Code'; margin-right: 15px; font-weight: bold; color: var(--muted);"></div>
       <button class="header-btn" id="chat-options-btn" style="display: none;" title="Options">⋮</button>
-      <button class="header-btn" id="admin-header-btn" style="display: none; color: #ff3333; font-size: 18px;" title="Admin Panel">👑</button>
+      <button class="header-btn" id="admin-header-btn" style="display: none; color: #ff3333; font-size: 18px; position: relative;" title="Admin Panel">👑</button>
       <button class="header-btn" id="open-settings" title="Settings">⚙️</button>
     </div>
 
@@ -1240,7 +1270,6 @@ function enterChat() {
   if (state.me.role === 'sysadmin') {
     document.getElementById('admin-grant-section').style.display = 'block';
     document.getElementById('tab-btn-alerts').style.display = 'flex';
-    // Просмотр паролей — ТОЛЬКО для username 'admin' с ролью sysadmin
     if (state.me.username.toLowerCase() === 'admin') {
       document.getElementById('passwords-section').style.display = 'block';
     } else {
@@ -1252,12 +1281,17 @@ function enterChat() {
     document.getElementById('passwords-section').style.display = 'none';
   }
 
+  if (['sysadmin', 'admin', 'moderator'].includes(state.me.role)) {
+    document.getElementById('tab-btn-reports').style.display = 'flex';
+  }
+
   if (['sysadmin', 'admin'].includes(state.me.role)) {
     document.getElementById('tab-btn-moderation').style.display = 'flex';
     document.getElementById('tab-btn-support').style.display = 'flex';
   }
   populateInviteRoles();
   initEmojiPicker();
+  updatePendingReportsCount();
 }
 
 const visualSettings = {
@@ -1332,7 +1366,6 @@ window.openProfile = async function(userId) {
     document.getElementById('profile-role').innerHTML = `<span style="color:${ROLE_COLOR[u.role] || 'var(--muted)'}">${ROLE_ICON[u.role] || '👤'} ${ROLE_LABEL[u.role] || u.role}</span>`;
     document.getElementById('profile-id').textContent = u.id;
     
-    // Показ IP только для модераторов, админов и сис админов
     const ipRow = document.getElementById('profile-ip-row');
     if (['moderator', 'admin', 'sysadmin'].includes(state.me.role)) {
       document.getElementById('profile-ip').textContent = u.ip || 'Скрыт';
@@ -1391,8 +1424,118 @@ document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
     document.querySelectorAll('.admin-tab-content').forEach(c => c.style.display = 'none');
     tab.classList.add('active'); document.getElementById('tab-' + tab.dataset.tab).style.display = 'block';
     if (tab.dataset.tab === 'staff') loadStaffList();
+    if (tab.dataset.tab === 'reports') loadReports();
   });
 });
+
+// ================= СИСТЕМА ЖАЛОБ =================
+window.openReportModal = function() {
+  document.getElementById('msg-actions-modal').classList.remove('visible');
+  document.getElementById('report-modal').classList.add('visible');
+};
+
+window.submitReport = async function() {
+  const reason = document.getElementById('report-reason').value;
+  const msg = state.activeMsg;
+  if (!msg) return;
+  
+  try {
+    await api('/reports', {
+      method: 'POST',
+      body: JSON.stringify({ target_user_id: msg.sender.id, target_message_id: msg.id, reason })
+    });
+    document.getElementById('report-modal').classList.remove('visible');
+    alert('Жалоба отправлена. Модераторы скоро её рассмотрят.');
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
+window.updatePendingReportsCount = async function() {
+  if (!state.me || !['sysadmin', 'admin', 'moderator'].includes(state.me.role)) return;
+  try {
+    const reports = await api('/admin/reports');
+    const badge = document.getElementById('report-badge');
+    if (reports.length > 0) {
+      badge.textContent = reports.length;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch (e) { }
+};
+
+window.loadReports = async function() {
+  const box = document.getElementById('reports-list');
+  box.innerHTML = 'Загрузка...';
+  try {
+    const reports = await api('/admin/reports');
+    if (!reports.length) {
+      box.innerHTML = '<div class="empty">Нет активных жалоб</div>';
+      return;
+    }
+    
+    box.innerHTML = reports.map(r => {
+      const date = new Date(r.created_at * 1000).toLocaleString();
+      const targetName = r.targetUser ? `@${r.targetUser.username}` : 'Неизвестный';
+      const msgText = r.targetMessage ? (r.targetMessage.text || '(вложение)').slice(0, 100) : '(сообщение удалено)';
+      
+      return `
+        <div style="background: #0d0404; border: 1px solid #ff3333; border-radius: 8px; padding: 15px; box-shadow: 0 4px 10px rgba(255, 51, 51, 0.1);">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #331111; padding-bottom: 10px;">
+            <span style="color: #ff9999; font-size: 12px; font-family: 'Fira Code';">От: @${esc(r.reporter)}</span>
+            <span style="color: #ff9999; font-size: 12px; font-family: 'Fira Code';">${date}</span>
+          </div>
+          <div style="font-size: 14px; margin-bottom: 10px;">
+            <span style="color: #fff;">Нарушитель:</span> 
+            <a href="#" onclick="document.getElementById('admin-dashboard-modal').classList.remove('visible'); openProfile('${r.targetUser?.id || ''}'); return false;" style="color: #ff3333; text-decoration: underline; font-weight: bold;">${targetName}</a>
+          </div>
+          <div style="font-size: 14px; margin-bottom: 15px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; border-left: 3px solid #ff3333;">
+            <span style="color: #ff9999; font-size: 11px; display: block; margin-bottom: 4px;">Причина: ${esc(r.reason.toUpperCase())}</span>
+            <span style="color: #ccc; font-style: italic;">"${esc(msgText)}"</span>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            ${r.targetUser ? `<button class="admin-btn admin-btn-danger" style="flex: 1; padding: 8px; font-size: 12px;" onclick="banFromReport('${r.targetUser.id}', '${r.id}')">🚫 Забанить</button>` : ''}
+            ${r.targetMessage ? `<button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px; color: #ff9933; border-color: #ff9933;" onclick="deleteMsgFromReport('${r.targetMessage.id}', '${r.id}')">🗑️ Удалить сообщение</button>` : ''}
+            <button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px; color: #8b949e; border-color: #8b949e;" onclick="resolveReport('${r.id}', 'ignored')">❌ Отклонить</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = `<div style="color: #ff4d4d;">Ошибка: ${esc(e.message)}</div>`;
+  }
+};
+
+window.resolveReport = async function(reportId, action) {
+  try {
+    await api(`/admin/reports/${reportId}/resolve`, { method: 'POST', body: JSON.stringify({ action }) });
+    loadReports();
+    updatePendingReportsCount();
+  } catch (e) { alert(e.message); }
+};
+
+window.banFromReport = async function(userId, reportId) {
+  const duration = prompt('Введите время бана в минутах (или -1 для пермача):', '1440');
+  if (duration === null) return;
+  try {
+    // Нам нужно получить username по id, так как API бана принимает username (или id, если мы обновили сервер)
+    const user = await api('/users/' + userId);
+    await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username: user.username, duration: Number(duration) }) });
+    await resolveReport(reportId, 'action_taken');
+    alert('Пользователь забанен, жалоба закрыта.');
+  } catch (e) { alert(e.message); }
+};
+
+window.deleteMsgFromReport = async function(msgId, reportId) {
+  if (!confirm('Удалить это сообщение у всех?')) return;
+  try {
+    await api('/messages/' + msgId, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
+    await resolveReport(reportId, 'action_taken');
+    alert('Сообщение удалено, жалоба закрыта.');
+  } catch (e) { alert(e.message); }
+};
+
 
 // ================= ПОИСК И ОТРИСОВКА ПЕРСОНАЛА =================
 window._cachedStaff = [];
@@ -2030,6 +2173,7 @@ function openMsgActions(msg) {
   const isOwn = msg.sender.id === state.me.id;
   const canDeleteAll = isOwn || ['sysadmin', 'admin', 'moderator'].includes(state.me.role);
   document.getElementById('msg-del-all-btn').style.display = canDeleteAll ? 'block' : 'none';
+  document.getElementById('msg-report-btn').style.display = isOwn ? 'none' : 'block'; 
   document.getElementById('msg-actions-modal').classList.add('visible');
 }
 document.getElementById('msg-reply-btn').addEventListener('click', () => {
@@ -2449,6 +2593,13 @@ function connectSocket() {
     renderChatList();
   });
 
+  state.socket.on('newReport', () => {
+    updatePendingReportsCount();
+    if (document.getElementById('admin-dashboard-modal').classList.contains('visible') && document.getElementById('tab-reports').style.display === 'block') {
+      loadReports();
+    }
+  });
+
   state.socket.on('urgentAlert', (data) => {
     document.getElementById('urgent-alert-text').textContent = data.text;
     document.getElementById('urgent-alert-sender').textContent = `Отправитель: @${data.sender}`;
@@ -2504,6 +2655,8 @@ document.getElementById('back-btn').addEventListener('click', () => { document.g
 const msgInput = document.getElementById('msg-input');
 msgInput.addEventListener('input', () => { msgInput.style.height = 'auto'; msgInput.style.height = Math.min(msgInput.scrollHeight, 140) + 'px'; });
 msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('composer').dispatchEvent(new Event('submit')); } });
+
+document.getElementById('msg-report-btn').addEventListener('click', openReportModal);
 
 let _attViewerState = { attachments: [], index: 0, chatName: '', senderName: '' };
 window.openAttViewer = function(msgId, index) {
