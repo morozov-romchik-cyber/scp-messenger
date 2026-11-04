@@ -2312,6 +2312,62 @@ setTimeout(() => {
     catch (e) { if (e.message !== 'Banned') { localStorage.removeItem('scp_token'); state.token = null; } }
   }
 })();
+  // ================= ОБРАБОТЧИКИ КНОПОК УПРАВЛЕНИЯ ЧАТОМ =================
+document.getElementById('view-profile-btn').addEventListener('click', () => {
+  if (state.currentChat && state.currentChat.otherUserId) {
+    document.getElementById('chat-settings-modal').classList.remove('visible');
+    openProfile(state.currentChat.otherUserId);
+  }
+});
+
+document.getElementById('block-user-btn').addEventListener('click', async () => {
+  if (!state.currentChat || !state.currentChat.otherUserId) return;
+  if (!confirm('Вы уверены, что хотите заблокировать этого пользователя?')) return;
+  try {
+    await api('/users/' + state.currentChat.otherUserId + '/block', { method: 'POST' });
+    document.getElementById('chat-settings-modal').classList.remove('visible');
+    await loadChats();
+    // Обновляем текущий чат, чтобы применился статус блокировки
+    const chat = state.chats.find(c => c.id === state.currentChat.id);
+    if (chat) {
+      openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper);
+    }
+  } catch (e) { alert(e.message); }
+});
+
+document.getElementById('unblock-user-btn').addEventListener('click', async () => {
+  if (!state.currentChat || !state.currentChat.otherUserId) return;
+  try {
+    await api('/users/' + state.currentChat.otherUserId + '/unblock', { method: 'POST' });
+    document.getElementById('chat-settings-modal').classList.remove('visible');
+    await loadChats();
+    // Обновляем текущий чат, чтобы снять статус блокировки
+    const chat = state.chats.find(c => c.id === state.currentChat.id);
+    if (chat) {
+      openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper);
+    }
+  } catch (e) { alert(e.message); }
+});
+
+document.getElementById('delete-chat-btn').addEventListener('click', async () => {
+  if (!state.currentChat) return;
+  if (!confirm('Вы уверены, что хотите удалить этот чат? Он исчезнет из вашего списка.')) return;
+  try {
+    // Так как бекенд не поддерживает полное удаление личных чатов, мы их очищаем
+    await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'me' }) });
+    
+    // Сбрасываем интерфейс
+    state.currentChat = null;
+    document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
+    document.getElementById('chat-title').textContent = 'Выберите чат';
+    document.getElementById('composer').style.display = 'none';
+    document.getElementById('chat-options-btn').style.display = 'none';
+    document.getElementById('clear-chat-btn').style.display = 'none';
+    document.getElementById('header-avatar').style.display = 'none';
+    document.getElementById('chat-settings-modal').classList.remove('visible');
+    await loadChats();
+  } catch (e) { alert(e.message); }
+});
 </script>
 </body>
 </html>
