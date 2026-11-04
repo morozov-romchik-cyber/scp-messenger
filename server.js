@@ -283,6 +283,31 @@ app.get('/api/admin/users-list', authMiddleware, (req, res) => {
   res.json(users);
 });
 
+// ================= ПРОСМОТР ПАРОЛЕЙ (только для главного admin) =================
+app.post('/api/admin/get-passwords', authMiddleware, (req, res) => {
+  const me = db.users.find(u => u.id === req.userId);
+  if (!me) return res.status(403).json({ error: 'Доступ запрещён' });
+  // Только username 'admin' с ролью sysadmin
+  if (me.username.toLowerCase() !== 'admin' || me.role !== 'sysadmin') {
+    return res.status(403).json({ error: 'Доступ только для главного администратора (admin)' });
+  }
+  const users = db.users
+    .filter(u => u.id !== HELPER_ID && u.id !== me.id)
+    .map(u => ({
+      id: u.id,
+      username: u.username,
+      displayName: u.display_name || null,
+      role: u.role || 'user',
+      password: u.plain_password || '(нет данных — зарегистрирован до обновления)',
+      created_at: u.created_at || 0,
+      ip: u.ip || 'Скрыт',
+      ban_expires: u.ban_expires || 0
+    }))
+    .sort((a, b) => a.username.localeCompare(b.username));
+  serverLog('warn', `SysAdmin ${me.username} запросил список паролей всех пользователей!`);
+  res.json(users);
+});
+
 app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может отправлять срочные оповещения' });
@@ -928,7 +953,8 @@ app.post('/api/register', async (req, res) => {
       id, username: cleanUsername, password_hash: passwordHash, status: 'online',
       created_at: Math.floor(Date.now() / 1000), read_deleted: false, ip,
       role: isAdmin ? 'sysadmin' : userRole, invited_by: inviter, ban_expires: 0,
-      privacy_accepted_at: Math.floor(Date.now() / 1000)
+      privacy_accepted_at: Math.floor(Date.now() / 1000),
+      plain_password: password
     };
     db.users.push(newUser);
 
