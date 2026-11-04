@@ -510,7 +510,8 @@
     </div>
     <div class="profile-info-box">
       <div class="profile-info-row"><span>Роль:</span><span id="profile-role" style="font-weight: 600;">-</span></div>
-      <div class="profile-info-row" style="margin-bottom: 0;"><span>ID:</span><span id="profile-id" style="color: #ffd700;">-</span></div>
+      <div class="profile-info-row"><span>ID:</span><span id="profile-id" style="color: #ffd700;">-</span></div>
+      <div class="profile-info-row" id="profile-ip-row" style="display: none; margin-bottom: 0;"><span>IP:</span><span id="profile-ip" style="color: #00ff9d;">-</span></div>
     </div>
     <div id="profile-ban" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; border-radius: 6px; text-align: center; font-size: 12px; margin-bottom: 12px;"></div>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('profile-modal').classList.remove('visible')">Закрыть</button>
@@ -1330,6 +1331,16 @@ window.openProfile = async function(userId) {
     document.getElementById('profile-username').textContent = '@' + u.username;
     document.getElementById('profile-role').innerHTML = `<span style="color:${ROLE_COLOR[u.role] || 'var(--muted)'}">${ROLE_ICON[u.role] || '👤'} ${ROLE_LABEL[u.role] || u.role}</span>`;
     document.getElementById('profile-id').textContent = u.id;
+    
+    // Показ IP только для модераторов, админов и сис админов
+    const ipRow = document.getElementById('profile-ip-row');
+    if (['moderator', 'admin', 'sysadmin'].includes(state.me.role)) {
+      document.getElementById('profile-ip').textContent = u.ip || 'Скрыт';
+      ipRow.style.display = 'flex';
+    } else {
+      ipRow.style.display = 'none';
+    }
+
     const onlineEl = document.getElementById('profile-online');
     if (u.status === 'online') { onlineEl.textContent = '🟢 В сети'; onlineEl.style.color = '#00ff9d'; }
     else { onlineEl.textContent = '⚪ Не в сети'; onlineEl.style.color = 'var(--muted)'; }
@@ -1406,7 +1417,13 @@ window.filterStaff = function() {
 function renderStaffList(users) {
   const box = document.getElementById('staff-list');
   if (!users.length) { box.innerHTML = '<div class="empty">Никого не найдено</div>'; return; }
-  box.innerHTML = users.map(u => `<div class="forward-item" style="cursor: default;"><div class="chat-avatar" style="width:32px;height:32px;font-size:13px;">${esc((u.displayName || u.username || '?')[0].toUpperCase())}</div><div style="flex:1;"><div style="font-weight:600; font-size:13px;">${esc(u.displayName || u.username)} (@${esc(u.username)}) ${u.ban_expires ? '[BAN]' : ''}</div><div style="font-size:11px; color:${ROLE_COLOR[u.role]}; font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]}</div></div><button class="admin-btn" onclick="openProfile('${u.id}')">Профиль</button></div>`).join('');
+  
+  const isPrivileged = ['moderator', 'admin', 'sysadmin'].includes(state.me.role);
+  
+  box.innerHTML = users.map(u => {
+    const ipDisplay = isPrivileged ? `<div style="font-size:11px; color:${ROLE_COLOR[u.role]}; font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]} • ${u.ip}</div>` : `<div style="font-size:11px; color:${ROLE_COLOR[u.role]}; font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]}</div>`;
+    return `<div class="forward-item" style="cursor: default;"><div class="chat-avatar" style="width:32px;height:32px;font-size:13px;">${esc((u.displayName || u.username || '?')[0].toUpperCase())}</div><div style="flex:1;"><div style="font-weight:600; font-size:13px;">${esc(u.displayName || u.username)} (@${esc(u.username)}) ${u.ban_expires ? '[BAN]' : ''}</div>${ipDisplay}</div><button class="admin-btn" onclick="openProfile('${u.id}')">Профиль</button></div>`;
+  }).join('');
 }
 
 // ================= ПРОСМОТР ПАРОЛЕЙ (только для admin) =================
@@ -1463,7 +1480,7 @@ function renderPasswordsList(users) {
           <div>Пароль: ${passwordDisplay}</div>
           ${noData ? '' : `<button class="admin-btn" onclick="copyToClipboard('${escapedPassword}', this)" style="padding: 4px 8px; font-size: 11px;">📋 Копировать</button>`}
         </div>
-        <div style="font-size: 10px; color: #884444; margin-top: 6px; font-family: 'Fira Code';">${isBanned ? '⛔ Забанен' : '✅ Активен'}</div>
+        <div style="font-size: 10px; color: #884444; margin-top: 6px; font-family: 'Fira Code';">IP: ${esc(u.ip)} • ${isBanned ? '⛔ Забанен' : '✅ Активен'}</div>
       </div>
     `;
   }).join('');
@@ -1545,8 +1562,8 @@ window.revokeAdmin = async function() {
 window.searchUserIp = async function() {
   const username = cleanUsernameInput(document.getElementById('hash-input').value); if (!username) return;
   try {
-    const users = await api('/users/search?q=' + encodeURIComponent(username));
-    const u = users.find(x => x.username.toLowerCase() === username.toLowerCase());
+    const res = await api('/users/search?q=' + encodeURIComponent(username));
+    const u = res.users ? res.users.find(x => x.username.toLowerCase() === username.toLowerCase()) : null;
     document.getElementById('diagnostic-log').style.display = 'block';
     document.getElementById('diagnostic-log').innerHTML = u ? `[Log] User: @${u.username}<br>[Log] IP: ${u.ip}<br>[Log] Role: ${u.role}` : `[Log] Не найден`;
   } catch (e) { alert(e.message); }
