@@ -520,17 +520,22 @@
 
 <!-- МОДАЛКА ЖАЛОБЫ -->
 <div class="modal" id="report-modal">
-  <div class="modal-content" style="border-color: #ff9933;">
-    <h3 style="color: #ff9933;">🚩 ЖАЛОБА НА СООБЩЕНИЕ</h3>
-    <p style="font-size: 12px; color: var(--muted); margin-bottom: 15px; text-align: center;">Пожалуйста, укажите причину жалобы. Ложные жалобы могут привести к блокировке.</p>
+  <div class="modal-content" style="border-color: #ff9933; width: 440px;">
+    <h3 style="color: #ff9933;">🚩 ЖАЛОБА</h3>
+    <p style="font-size: 12px; color: var(--muted); margin-bottom: 10px; text-align: center;">Выберите сообщения, на которые хотите пожаловаться:</p>
     
-    <select id="report-reason" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none;">
-      <option value="spam">Спам или реклама</option>
+    <div id="report-msgs-container" style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px; background: var(--bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
+      <!-- Checkboxes go here -->
+    </div>
+
+    <select id="report-reason" onchange="toggleCustomReason(this.value)" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none;">
+      <option value="spam">Спам</option>
       <option value="insult">Оскорбления / Токсичность</option>
       <option value="nsfw">Материалы 18+ / NSFW</option>
-      <option value="scam">Мошенничество</option>
-      <option value="other">Другое (описать в чате поддержки)</option>
+      <option value="other">Другое</option>
     </select>
+
+    <textarea id="report-custom-text" placeholder="Опишите причину жалобы..." style="display: none; width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none; resize: vertical; min-height: 60px;"></textarea>
     
     <button class="modal-btn" onclick="submitReport()" style="background: #ff9933; color: #000; font-weight: bold; margin-bottom: 8px;">Отправить жалобу</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('report-modal').classList.remove('visible')">Отмена</button>
@@ -1209,7 +1214,7 @@ async function api(path, opts = {}) {
             throw new Error('Сессия истекла. Войдите заново.'); 
         }
     }
-    if (res.status === 403 && data.error === 'BANNED') { showBanMessage(data.ban_expires); throw new Error('Banned'); }
+    if (res.status === 403 && data.error === 'BANNED') { showBanMessage(data.ban_expires, data.ban_reason); throw new Error('Banned'); }
     if (!res.ok) throw new Error(data.error || `Ошибка ${res.status}`);
     return data;
   } catch (err) { 
@@ -1218,9 +1223,9 @@ async function api(path, opts = {}) {
   }
 }
 
-function showBanMessage(ban_expires) {
+function showBanMessage(ban_expires, ban_reason) {
   let timeStr = ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(ban_expires).toLocaleString();
-  document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;margin-bottom:10px;font-size:13px;line-height:1.4;">⛔ <b>АККАУНТ ЗАБЛОКИРОВАН</b><br>Срок: ${timeStr}</div>`;
+  document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;margin-bottom:10px;font-size:13px;line-height:1.4;">⛔ <b>АККАУНТ ЗАБЛОКИРОВАН</b><br>Срок: ${timeStr}<br>Причина: ${esc(ban_reason || 'Нарушение правил')}</div>`;
   localStorage.removeItem('scp_token'); state.token = null;
 }
 
@@ -1429,20 +1434,51 @@ document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
 });
 
 // ================= СИСТЕМА ЖАЛОБ =================
-window.openReportModal = function() {
+window.toggleCustomReason = function(val) {
+  const el = document.getElementById('report-custom-text');
+  el.style.display = val === 'other' ? 'block' : 'none';
+  if (val === 'other') el.focus();
+};
+
+window.openReportModal = async function() {
   document.getElementById('msg-actions-modal').classList.remove('visible');
   document.getElementById('report-modal').classList.add('visible');
+  
+  const container = document.getElementById('report-msgs-container');
+  container.innerHTML = 'Загрузка...';
+  
+  try {
+    const msgs = await api('/chats/' + state.currentChat.id + '/messages');
+    const targetUserMsgs = msgs.filter(m => m.sender.id === state.activeMsg.sender.id).slice(-10);
+    
+    container.innerHTML = targetUserMsgs.map(m => `
+      <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 12px; padding: 4px; border-bottom: 1px solid #222; color: var(--text);">
+        <input type="checkbox" class="report-msg-checkbox" value="${m.id}" ${m.id === state.activeMsg.id ? 'checked' : ''} style="margin-top: 2px; accent-color: #ff9933;">
+        <span style="word-break: break-word;">${esc(m.text || '(вложение)')}</span>
+      </label>
+    `).join('');
+  } catch(e) {
+    container.innerHTML = `<div style="color: #ff4d4d;">Ошибка загрузки сообщений: ${esc(e.message)}</div>`;
+  }
 };
 
 window.submitReport = async function() {
-  const reason = document.getElementById('report-reason').value;
-  const msg = state.activeMsg;
-  if (!msg) return;
+  let reason = document.getElementById('report-reason').value;
+  if (reason === 'other') {
+    const custom = document.getElementById('report-custom-text').value.trim();
+    if (!custom) return alert('Пожалуйста, опишите причину.');
+    reason = 'Другое: ' + custom;
+  }
+  
+  const checked = document.querySelectorAll('.report-msg-checkbox:checked');
+  const target_message_ids = Array.from(checked).map(cb => cb.value);
+  
+  if (!target_message_ids.length) return alert('Выберите хотя бы одно сообщение.');
   
   try {
     await api('/reports', {
       method: 'POST',
-      body: JSON.stringify({ target_user_id: msg.sender.id, target_message_id: msg.id, reason })
+      body: JSON.stringify({ target_user_id: state.activeMsg.sender.id, target_message_ids, reason })
     });
     document.getElementById('report-modal').classList.remove('visible');
     alert('Жалоба отправлена. Модераторы скоро её рассмотрят.');
@@ -1478,7 +1514,8 @@ window.loadReports = async function() {
     box.innerHTML = reports.map(r => {
       const date = new Date(r.created_at * 1000).toLocaleString();
       const targetName = r.targetUser ? `@${r.targetUser.username}` : 'Неизвестный';
-      const msgText = r.targetMessage ? (r.targetMessage.text || '(вложение)').slice(0, 100) : '(сообщение удалено)';
+      
+      const msgsHtml = (r.targetMessages || []).map(m => `<div style="color: #ccc; font-style: italic; font-size: 12px; margin-bottom: 4px;">"${esc((m.text || '(вложение)').slice(0, 100))}"</div>`).join('');
       
       return `
         <div style="background: #0d0404; border: 1px solid #ff3333; border-radius: 8px; padding: 15px; box-shadow: 0 4px 10px rgba(255, 51, 51, 0.1);">
@@ -1491,12 +1528,12 @@ window.loadReports = async function() {
             <a href="#" onclick="document.getElementById('admin-dashboard-modal').classList.remove('visible'); openProfile('${r.targetUser?.id || ''}'); return false;" style="color: #ff3333; text-decoration: underline; font-weight: bold;">${targetName}</a>
           </div>
           <div style="font-size: 14px; margin-bottom: 15px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; border-left: 3px solid #ff3333;">
-            <span style="color: #ff9999; font-size: 11px; display: block; margin-bottom: 4px;">Причина: ${esc(r.reason.toUpperCase())}</span>
-            <span style="color: #ccc; font-style: italic;">"${esc(msgText)}"</span>
+            <span style="color: #ff9999; font-size: 11px; display: block; margin-bottom: 6px;">Причина: ${esc(r.reason.toUpperCase())}</span>
+            ${msgsHtml}
           </div>
           <div style="display: flex; gap: 10px;">
-            ${r.targetUser ? `<button class="admin-btn admin-btn-danger" style="flex: 1; padding: 8px; font-size: 12px;" onclick="banFromReport('${r.targetUser.id}', '${r.id}')">🚫 Забанить</button>` : ''}
-            ${r.targetMessage ? `<button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px; color: #ff9933; border-color: #ff9933;" onclick="deleteMsgFromReport('${r.targetMessage.id}', '${r.id}')">🗑️ Удалить сообщение</button>` : ''}
+            ${r.targetUser ? `<button class="admin-btn admin-btn-danger" style="flex: 1; padding: 8px; font-size: 12px;" onclick="banFromReport('${r.targetUser.id}', '${r.id}', '${escAttr(r.reason)}')">🚫 Забанить</button>` : ''}
+            ${r.targetMessages && r.targetMessages.length > 0 ? `<button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px; color: #ff9933; border-color: #ff9933;" onclick="deleteMsgFromReport('${r.targetMessages[0].id}', '${r.id}')">🗑️ Удалить первое</button>` : ''}
             <button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px; color: #8b949e; border-color: #8b949e;" onclick="resolveReport('${r.id}', 'ignored')">❌ Отклонить</button>
           </div>
         </div>
@@ -1515,14 +1552,16 @@ window.resolveReport = async function(reportId, action) {
   } catch (e) { alert(e.message); }
 };
 
-window.banFromReport = async function(userId, reportId) {
+window.banFromReport = async function(userId, reportId, defaultReason) {
   const duration = prompt('Введите время бана в минутах (или -1 для пермача):', '1440');
   if (duration === null) return;
+  const reason = prompt('Введите причину бана (увидит пользователь):', defaultReason);
+  if (reason === null) return;
+  
   try {
-    // Нам нужно получить username по id, так как API бана принимает username (или id, если мы обновили сервер)
     const user = await api('/users/' + userId);
-    await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username: user.username, duration: Number(duration) }) });
-    await resolveReport(reportId, 'action_taken');
+    await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username: user.username, duration: Number(duration), reason }) });
+    await resolveReport(reportId, 'banned');
     alert('Пользователь забанен, жалоба закрыта.');
   } catch (e) { alert(e.message); }
 };
@@ -1531,7 +1570,7 @@ window.deleteMsgFromReport = async function(msgId, reportId) {
   if (!confirm('Удалить это сообщение у всех?')) return;
   try {
     await api('/messages/' + msgId, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
-    await resolveReport(reportId, 'action_taken');
+    await resolveReport(reportId, 'deleted');
     alert('Сообщение удалено, жалоба закрыта.');
   } catch (e) { alert(e.message); }
 };
@@ -1683,7 +1722,9 @@ window.banUser = async function() {
   const preset = document.getElementById('user-ban-duration').value;
   let duration = preset === 'custom' ? parseInt(document.getElementById('user-ban-custom-minutes').value, 10) : parseInt(preset, 10);
   if (!username) return alert('Введите Username или ID'); if (isNaN(duration)) return alert('Неверно время');
-  try { await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username, duration }) }); alert('Пользователь забанен'); } catch (e) { alert(e.message); }
+  const reason = prompt('Введите причину бана (увидит пользователь):', 'Нарушение правил');
+  if (reason === null) return;
+  try { await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username, duration, reason }) }); alert('Пользователь забанен'); } catch (e) { alert(e.message); }
 };
 window.unbanUser = async function() {
   const username = cleanUsernameInput(document.getElementById('user-ban-input').value); if (!username) return alert('Введите Username или ID');
@@ -2525,7 +2566,7 @@ function connectSocket() {
   state.socket.on('forceLogout', (data) => {
     state.socket.disconnect(); document.getElementById('chat').classList.remove('visible'); document.getElementById('auth').style.display = 'flex';
     if (data.deleted) document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;">Аккаунт удален.</div>`;
-    else showBanMessage(data.ban_expires);
+    else showBanMessage(data.ban_expires, data.ban_reason);
   });
   
   state.socket.on('roleChanged', async () => { 
