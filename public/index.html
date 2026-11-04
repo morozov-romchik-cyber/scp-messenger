@@ -586,7 +586,7 @@
         <div class="admin-section" id="admin-grant-section" style="display: none;">
           <h4>⭐ Выдача / снятие админки (только SysAdmin)</h4>
           <div class="admin-input-group">
-            <input type="text" placeholder="Username (с @ или без)" id="grant-admin-input">
+            <input type="text" placeholder="Username или ID" id="grant-admin-input">
             <button class="admin-btn" onclick="grantAdmin()">Выдать админа</button>
             <button class="admin-btn admin-btn-danger" onclick="revokeAdmin()">Снять админа</button>
           </div>
@@ -594,7 +594,7 @@
         <div class="admin-section">
           <h4>Блокировка аккаунта (Бан) — SysAdmin защищен</h4>
           <div class="admin-input-group" style="flex-wrap: wrap;">
-            <input type="text" placeholder="Username (с @ или без)" id="user-ban-input" style="flex: 2; min-width: 140px;">
+            <input type="text" placeholder="Username или ID" id="user-ban-input" style="flex: 2; min-width: 140px;">
             <select id="user-ban-duration" style="flex: 1; min-width: 120px;" onchange="handleBanPresetChange(this.value)">
               <option value="custom">Свое время (мин)</option>
               <option value="60">1 час</option>
@@ -611,7 +611,7 @@
         <div class="admin-section">
           <h4>Назначение ролей</h4>
           <div class="admin-input-group">
-            <input type="text" placeholder="Username (с @ или без)" id="user-role-input">
+            <input type="text" placeholder="Username или ID" id="user-role-input">
             <select id="user-role-select">
               <option value="user">Пользователь</option>
               <option value="helper">Хелпер</option>
@@ -625,7 +625,7 @@
         <div class="admin-section">
           <h4>Удаление пользователя</h4>
           <div class="admin-input-group">
-            <input type="text" placeholder="Username (с @ или без)" id="user-action-input">
+            <input type="text" placeholder="Username или ID" id="user-action-input">
             <button class="admin-btn admin-btn-danger" onclick="deleteUser()">Удалить навсегда</button>
           </div>
         </div>
@@ -1539,16 +1539,16 @@ window.banUser = async function() {
   const username = cleanUsernameInput(document.getElementById('user-ban-input').value);
   const preset = document.getElementById('user-ban-duration').value;
   let duration = preset === 'custom' ? parseInt(document.getElementById('user-ban-custom-minutes').value, 10) : parseInt(preset, 10);
-  if (!username) return alert('Введите Username'); if (isNaN(duration)) return alert('Неверно время');
+  if (!username) return alert('Введите Username или ID'); if (isNaN(duration)) return alert('Неверно время');
   try { await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username, duration }) }); alert('Пользователь забанен'); } catch (e) { alert(e.message); }
 };
 window.unbanUser = async function() {
-  const username = cleanUsernameInput(document.getElementById('user-ban-input').value); if (!username) return alert('Введите Username');
+  const username = cleanUsernameInput(document.getElementById('user-ban-input').value); if (!username) return alert('Введите Username или ID');
   try { await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username, duration: 0 }) }); alert('Пользователь разбанен'); } catch (e) { alert(e.message); }
 };
 window.assignRole = async function() {
   const username = cleanUsernameInput(document.getElementById('user-role-input').value); const role = document.getElementById('user-role-select').value;
-  if (!username) return alert('Введите Username');
+  if (!username) return alert('Введите Username или ID');
   try { await api('/admin/set-role', { method: 'POST', body: JSON.stringify({ username, role }) }); alert('Роль назначена'); } catch (e) { alert(e.message); }
 };
 window.grantAdmin = async function() {
