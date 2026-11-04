@@ -100,7 +100,7 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 const genId = () => crypto.randomBytes(12).toString('hex');
 const signToken = (userId) => jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: '30d' });
 const publicUser = (u) => ({
-  id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url,
+  id: u.id, username: u.username, displayName: u.display_name || null, avatarUrl: u.avatar_url,
   status: u.status, level: u.level || 1, read_deleted: u.read_deleted || false,
   ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null, ban_expires: u.ban_expires || 0
 });
@@ -263,7 +263,7 @@ app.get('/api/admin/users-list', authMiddleware, (req, res) => {
   if (!me || !['sysadmin', 'admin', 'moderator', 'helper'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const canSeeIp = (me.role === 'sysadmin');
   const users = db.users.filter(u => u.role !== 'sysadmin' && u.id !== HELPER_ID).map(u => ({
-      id: u.id, username: u.username, role: u.role || 'user', status: u.status || 'offline',
+      id: u.id, username: u.username, displayName: u.display_name || u.username, role: u.role || 'user', status: u.status || 'offline',
       avatarUrl: u.avatar_url || null, ip: canSeeIp ? (u.ip || 'Скрыт') : 'Скрыт',
       ban_expires: u.ban_expires || 0, created_at: u.created_at || 0
     })).sort((a, b) => {
@@ -319,6 +319,17 @@ app.get('/api/me', authMiddleware, (req, res) => {
   res.json(publicUser(user));
 });
 
+app.put('/api/users/profile', authMiddleware, (req, res) => {
+  const user = db.users.find(u => u.id === req.userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (typeof req.body.display_name === 'string') {
+    user.display_name = req.body.display_name.trim().slice(0, 32);
+  }
+  saveDb(); 
+  io.emit('refreshData');
+  res.json(publicUser(user));
+});
+
 app.get('/api/users/search', authMiddleware, (req, res) => {
   const q = (req.query.q || '').toString().toLowerCase().trim().replace(/^@/, '');
   if (!q) return res.json({ users: [], chats: [] });
@@ -334,8 +345,8 @@ app.get('/api/users/search', authMiddleware, (req, res) => {
      id: c.id, name: c.name, username: c.username, isChannel: !!c.is_channel, isGroup: !!c.is_group, creatorId: c.creator_id
   }));
 
-  const matchedUsers = db.users.filter(u => u.id !== req.userId && u.id !== HELPER_ID && u.username.toLowerCase().includes(q)).slice(0, 10).map(u => ({
-      id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url,
+  const matchedUsers = db.users.filter(u => u.id !== req.userId && u.id !== HELPER_ID && (u.username.toLowerCase().includes(q) || (u.display_name && u.display_name.toLowerCase().includes(q)))).slice(0, 10).map(u => ({
+      id: u.id, username: u.username, displayName: u.display_name || null, avatarUrl: u.avatar_url,
       status: u.status, level: u.level || 1, role: u.role || 'user', ip: 'Скрыт', ban_expires: u.ban_expires || 0
   }));
 
@@ -470,7 +481,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     if (c.is_group) { chatName = c.name || 'Групповой чат'; }
     else if (isSelf) { chatName = 'Избранное'; chatAvatar = other ? other.avatar_url : null; }
     else if (other) {
-        chatName = other.id === HELPER_ID ? 'SCP_Helper' : other.username;
+        chatName = other.id === HELPER_ID ? 'SCP_Helper' : (other.display_name || other.username);
         chatAvatar = other.avatar_url;
         otherRole = other.role;
     }
@@ -600,7 +611,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
       return res.json({ id: chatId, name: 'Избранное', avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: true, ban_expires: 0, isGroup: false });
     }
     if (!isSelf && members.length === 2 && members.some(m => m.user_id === userId)) {
-      return res.json({ id: chatId, name: other.username, avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: chatIsBlocked(chatId, req.userId), isSelf: false, ban_expires: other.ban_expires || 0, isGroup: false });
+      return res.json({ id: chatId, name: other.display_name || other.username, avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: chatIsBlocked(chatId, req.userId), isSelf: false, ban_expires: other.ban_expires || 0, isGroup: false });
     }
   }
   const chatId = genId();
@@ -608,7 +619,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
   db.chat_members.push({ id: genId(), chat_id: chatId, user_id: req.userId });
   if (!isSelf) db.chat_members.push({ id: genId(), chat_id: chatId, user_id: other.id });
   saveDb();
-  res.json({ id: chatId, name: isSelf ? 'Избранное' : other.username, avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: isSelf, ban_expires: isSelf ? 0 : (other.ban_expires || 0), isGroup: false });
+  res.json({ id: chatId, name: isSelf ? 'Избранное' : (other.display_name || other.username), avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: isSelf, ban_expires: isSelf ? 0 : (other.ban_expires || 0), isGroup: false });
 });
 
 function buildMessagePayload(m) {
@@ -626,7 +637,7 @@ function buildMessagePayload(m) {
   }
   return {
     id: m.id, chatId: m.chat_id, text: m.text,
-    sender: sender ? publicUser(sender) : { id: m.sender_id, username: 'Unknown' },
+    sender: sender ? publicUser(sender) : { id: m.sender_id, username: 'Unknown', displayName: null },
     createdAt: m.created_at, is_deleted: m.is_deleted || false,
     delivered, read, isSelfChat,
     attachments: atts.map(a => ({ url: a.url, mime: a.mime_type, name: a.original_name, size: a.size }))
