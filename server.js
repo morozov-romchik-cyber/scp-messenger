@@ -103,7 +103,7 @@ const signToken = (userId) => jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn:
 const publicUser = (u) => ({
   id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url,
   status: u.status, level: u.level || 1, read_deleted: u.read_deleted || false,
-  ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null, ban_expires: u.ban_expires || 0
+  ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null, ban_expires: u.ban_expires || 0, ban_reason: u.ban_reason || ''
 });
 
 const publicUserSafe = (u) => {
@@ -161,8 +161,8 @@ function authMiddleware(req, res, next) {
     const user = db.users.find(u => u.id === req.userId);
     if (user && user.ban_expires && user.ban_expires !== 0) {
       const now = Date.now();
-      if (user.ban_expires === -1 || user.ban_expires > now) return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires });
-      else { user.ban_expires = 0; saveDb(); }
+      if (user.ban_expires === -1 || user.ban_expires > now) return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires, ban_reason: user.ban_reason || 'Нарушение правил' });
+      else { user.ban_expires = 0; user.ban_reason = ''; saveDb(); }
     }
     next();
   } catch { res.status(401).json({ error: 'Invalid token' }); }
@@ -199,19 +199,15 @@ const chatIsBlocked = (chatId, myId) => {
 
 // ================= REPORTS =================
 app.post('/api/reports', authMiddleware, (req, res) => {
-  const { target_user_id, target_message_id, reason } = req.body;
+  const { target_user_id, target_message_ids, reason } = req.body;
   if (!reason) return res.status(400).json({ error: 'Укажите причину' });
   
-  const existing = db.reports.find(r => r.reporter_id === req.userId && r.target_message_id === target_message_id && r.status === 'pending');
-  if (existing) return res.status(400).json({ error: 'Вы уже пожаловались на это сообщение' });
-
   db.reports.push({
-    id: genId(), reporter_id: req.userId, target_user_id, target_message_id,
+    id: genId(), reporter_id: req.userId, target_user_id, target_message_ids,
     reason, status: 'pending', created_at: Math.floor(Date.now() / 1000)
   });
   saveDb();
   
-  // Отправляем сигнал админам
   io.emit('newReport');
   res.json({ ok: true });
 });
@@ -223,13 +219,17 @@ app.get('/api/admin/reports', authMiddleware, (req, res) => {
   const reports = db.reports.filter(r => r.status === 'pending').map(r => {
     const reporter = db.users.find(u => u.id === r.reporter_id);
     const targetUser = db.users.find(u => u.id === r.target_user_id);
-    const targetMsg = r.target_message_id ? db.messages.find(m => m.id === r.target_message_id) : null;
+    
+    const targetMessages = (r.target_message_ids || []).map(id => {
+      const msg = db.messages.find(m => m.id === id);
+      return msg ? { id: msg.id, text: msg.text, chat_id: msg.chat_id } : null;
+    }).filter(Boolean);
     
     return {
       id: r.id, reason: r.reason, created_at: r.created_at,
       reporter: reporter ? reporter.username : 'Unknown',
       targetUser: targetUser ? { id: targetUser.id, username: targetUser.username, role: targetUser.role } : null,
-      targetMessage: targetMsg ? { id: targetMsg.id, text: targetMsg.text, chat_id: targetMsg.chat_id } : null
+      targetMessages
     };
   }).sort((a, b) => b.created_at - a.created_at);
   
@@ -243,8 +243,32 @@ app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
   const report = db.reports.find(r => r.id === req.params.id);
   if (!report) return res.status(404).json({ error: 'Жалоба не найдена' });
   
-  report.status = req.body.action || 'resolved';
+  const action = req.body.action || 'ignored';
+  report.status = action;
+
+  // Отправка уведомления в SCP_Helper
+  let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === report.reporter_id) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
+  if (!helperChat) {
+    helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
+    db.chats.push(helperChat);
+    db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: report.reporter_id });
+    db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: HELPER_ID });
+  }
+  
+  let statusText = '';
+  if (action === 'banned') statusText = 'Нарушитель заблокирован.';
+  else if (action === 'deleted') statusText = 'Сообщение нарушителя удалено.';
+  else statusText = 'Жалоба отклонена (нарушений не найдено).';
+
+  const sysMsg = {
+    id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID,
+    text: `📋 **Рассмотрение жалобы**\nВаша жалоба на пользователя рассмотрена.\nСтатус: ${statusText}`,
+    created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+  };
+  db.messages.push(sysMsg);
   saveDb();
+  
+  emitToChatMembers(helperChat.id, 'newMessage', buildMessagePayload(sysMsg));
   res.json({ ok: true });
 });
 
@@ -252,22 +276,27 @@ app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
 app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
-  const { username, duration } = req.body;
+  const { username, duration, reason } = req.body;
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя забанить SCP_Helper' });
   if (target.role === 'sysadmin') return res.status(403).json({ error: 'НЕЛЬЗЯ забанить системного администратора (SysAdmin)!' });
   if (target.role === 'admin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может банить админов' });
   if (target.id === me.id) return res.status(400).json({ error: 'Нельзя забанить себя' });
+  
   const numDuration = Number(duration);
   if (isNaN(numDuration)) return res.status(400).json({ error: 'Неверно указано время бана' });
   if (numDuration === 0) target.ban_expires = 0;
   else if (numDuration === -1) target.ban_expires = -1;
   else target.ban_expires = Date.now() + numDuration * 60 * 1000;
+  
+  if (numDuration !== 0) target.ban_reason = reason || 'Нарушение правил сообщества';
+  else target.ban_reason = '';
+
   saveDb();
-  if (target.ban_expires !== 0) io.to(`user:${target.id}`).emit('forceLogout', { ban_expires: target.ban_expires });
+  if (target.ban_expires !== 0) io.to(`user:${target.id}`).emit('forceLogout', { ban_expires: target.ban_expires, ban_reason: target.ban_reason });
   io.emit('refreshData');
-  res.json({ ok: true, ban_expires: target.ban_expires });
+  res.json({ ok: true, ban_expires: target.ban_expires, ban_reason: target.ban_reason });
 });
 
 app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
@@ -977,7 +1006,7 @@ app.post('/api/register', async (req, res) => {
     if (existing) {
       if (existing.ban_expires && existing.ban_expires !== 0) {
         const now = Date.now();
-        if (existing.ban_expires === -1 || existing.ban_expires > now) return res.status(403).json({ error: 'Этот никнейм заблокирован', ban_expires: existing.ban_expires });
+        if (existing.ban_expires === -1 || existing.ban_expires > now) return res.status(403).json({ error: 'Этот никнейм заблокирован', ban_expires: existing.ban_expires, ban_reason: existing.ban_reason });
       }
       return res.status(409).json({ error: 'Ник занят' });
     }
@@ -1003,7 +1032,7 @@ app.post('/api/register', async (req, res) => {
     const newUser = {
       id, username: cleanUsername, password_hash: passwordHash, status: 'online',
       created_at: Math.floor(Date.now() / 1000), read_deleted: false, ip,
-      role: isAdmin ? 'sysadmin' : userRole, invited_by: inviter, ban_expires: 0,
+      role: isAdmin ? 'sysadmin' : userRole, invited_by: inviter, ban_expires: 0, ban_reason: '',
       privacy_accepted_at: Math.floor(Date.now() / 1000),
       plain_password: password
     };
@@ -1032,8 +1061,8 @@ app.post('/api/login', async (req, res) => {
 
     if (user.ban_expires && user.ban_expires !== 0) {
       const now = Date.now();
-      if (user.ban_expires === -1 || user.ban_expires > now) return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires });
-      else user.ban_expires = 0;
+      if (user.ban_expires === -1 || user.ban_expires > now) return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires, ban_reason: user.ban_reason || 'Нарушение правил' });
+      else { user.ban_expires = 0; user.ban_reason = ''; }
     }
 
     user.status = 'online'; user.ip = ip;
@@ -1052,7 +1081,7 @@ io.on('connection', (socket) => {
   try {
     const user = db.users.find(u => u.id === socket.userId);
     if (user) {
-      if (user.ban_expires && (user.ban_expires === -1 || user.ban_expires > Date.now())) { socket.emit('forceLogout', { ban_expires: user.ban_expires }); return socket.disconnect(); }
+      if (user.ban_expires && (user.ban_expires === -1 || user.ban_expires > Date.now())) { socket.emit('forceLogout', { ban_expires: user.ban_expires, ban_reason: user.ban_reason }); return socket.disconnect(); }
       user.status = 'online'; saveDb(); io.emit('refreshData');
     }
     socket.join(`user:${socket.userId}`);
@@ -1120,6 +1149,7 @@ io.on('connection', (socket) => {
   db.users.forEach(u => {
     if (u.username.toLowerCase() === 'admin' && u.role === 'admin') { u.role = 'sysadmin'; migrated = true; }
     if (!u.role) u.role = 'user';
+    if (!u.ban_reason) u.ban_reason = '';
   });
   if (migrated) saveDb();
 
