@@ -100,7 +100,7 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 const genId = () => crypto.randomBytes(12).toString('hex');
 const signToken = (userId) => jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: '30d' });
 const publicUser = (u) => ({
-  id: u.id, username: u.username, displayName: u.display_name || null, avatarUrl: u.avatar_url,
+  id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url,
   status: u.status, level: u.level || 1, read_deleted: u.read_deleted || false,
   ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null, ban_expires: u.ban_expires || 0
 });
@@ -550,7 +550,6 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   res.json({ ok: true, chatId: channelId, username: cleanUsername });
 });
 
-// ИСПРАВЛЕННЫЙ МАРШРУТ СМЕНЫ ССЫЛКИ
 app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   const chat = db.chats.find(c => c.id === chatId);
@@ -606,14 +605,35 @@ app.delete('/api/chats/:chatId', authMiddleware, (req, res) => {
   const { chatId } = req.params;
   const chat = db.chats.find(c => c.id === chatId);
   if (!chat) return res.status(404).json({ error: 'Чат не найден' });
-  if (!chat.is_group) return res.status(400).json({ error: 'Это не групповой чат' });
-  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может удалить' });
-  db.chats = db.chats.filter(c => c.id !== chatId);
-  db.chat_members = db.chat_members.filter(m => m.chat_id !== chatId);
-  const msgIds = db.messages.filter(m => m.chat_id === chatId).map(m => m.id);
-  db.attachments = db.attachments.filter(a => !msgIds.includes(a.message_id));
-  db.messages = db.messages.filter(m => m.chat_id !== chatId);
-  saveDb(); io.emit('refreshData'); res.json({ ok: true });
+  
+  const isMember = db.chat_members.some(m => m.chat_id === chatId && m.user_id === req.userId);
+  if (!isMember) return res.status(403).json({ error: 'Вы не участник этого чата' });
+
+  if (chat.is_group) {
+    // Если это группа, удалять может только создатель
+    if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может удалить' });
+    db.chats = db.chats.filter(c => c.id !== chatId);
+    db.chat_members = db.chat_members.filter(m => m.chat_id !== chatId);
+    const msgIds = db.messages.filter(m => m.chat_id === chatId).map(m => m.id);
+    db.attachments = db.attachments.filter(a => !msgIds.includes(a.message_id));
+    db.messages = db.messages.filter(m => m.chat_id !== chatId);
+  } else {
+    // Если это личный чат, мы просто удаляем текущего пользователя из участников
+    db.chat_members = db.chat_members.filter(m => !(m.chat_id === chatId && m.user_id === req.userId));
+    
+    // Если в чате больше никого не осталось, удаляем его полностью
+    const remainingMembers = db.chat_members.filter(m => m.chat_id === chatId);
+    if (remainingMembers.length === 0) {
+      db.chats = db.chats.filter(c => c.id !== chatId);
+      const msgIds = db.messages.filter(m => m.chat_id === chatId).map(m => m.id);
+      db.attachments = db.attachments.filter(a => !msgIds.includes(a.message_id));
+      db.messages = db.messages.filter(m => m.chat_id !== chatId);
+    }
+  }
+  
+  saveDb(); 
+  io.emit('refreshData'); 
+  res.json({ ok: true });
 });
 
 app.post('/api/chats', authMiddleware, (req, res) => {
