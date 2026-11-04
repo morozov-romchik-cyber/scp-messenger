@@ -100,14 +100,14 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 const genId = () => crypto.randomBytes(12).toString('hex');
 const signToken = (userId) => jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: '30d' });
 
-// ВНИМАНИЕ: publicUser содержит IP — используйте только там, где отдаете данные самому пользователю / админу.
+// publicUser содержит IP — используйте только там, где отдаете данные самому пользователю / админу
 const publicUser = (u) => ({
   id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url,
   status: u.status, level: u.level || 1, read_deleted: u.read_deleted || false,
   ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null, ban_expires: u.ban_expires || 0
 });
 
-// Безопасная версия — без IP. Используется при отдаче данных другим пользователям.
+// Безопасная версия — без IP. Используется при отдаче данных другим пользователям
 const publicUserSafe = (u) => {
   const safe = publicUser(u);
   delete safe.ip;
@@ -515,14 +515,14 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       ban_expires: banExpires, createdAt: c.created_at, isSelf: isSelf,
       isGroup: !!c.is_group, creatorId: c.creator_id,
       isChannel: !!c.is_channel, username: c.username || null,
-      // ИСПРАВЛЕНО: группа не может быть «helper»-чатом
+      // группа не может быть «helper»-чатом
       isHelper: !c.is_group && !isSelf && otherId === HELPER_ID
     };
   });
   res.json(chats);
 });
 
-// ИСПРАВЛЕНО: обычная группа = ОДИН чат, канал = канал + группа обсуждения.
+// Обычная группа = ОДИН чат, канал = канал + группа обсуждения.
 app.post('/api/chats/group', authMiddleware, (req, res) => {
   const { name, memberIds, is_channel, username } = req.body;
   if (!name || !memberIds || !Array.isArray(memberIds)) {
@@ -613,7 +613,7 @@ app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
   res.json({ ok: true, username: cleanUsername });
 });
 
-// ИСПРАВЛЕНО: используем publicUserSafe (без IP) при отдаче списка участников
+// Используем publicUserSafe (без IP) при отдаче списка участников
 app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
@@ -720,7 +720,7 @@ function buildMessagePayload(m) {
   }
   return {
     id: m.id, chatId: m.chat_id, text: m.text,
-    // ИСПРАВЛЕНО: отдаем отправителя без IP другим пользователям
+    // отдаем отправителя без IP другим пользователям
     sender: sender ? publicUserSafe(sender) : { id: m.sender_id, username: 'Unknown', displayName: null },
     createdAt: m.created_at, is_deleted: m.is_deleted || false,
     delivered, read, isSelfChat,
@@ -890,8 +890,9 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
 // ================= AUTH =================
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, password, invited_by } = req.body || {};
+    const { username, password, invited_by, accepted_privacy } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'Заполните все поля' });
+    if (accepted_privacy !== true) return res.status(400).json({ error: 'Необходимо принять политику конфиденциальности' });
     const cleanUsername = String(username).trim().replace(/^@/, '');
     if (!/^[a-z0-9_]{3,32}$/i.test(cleanUsername)) return res.status(400).json({ error: 'Ник: 3–32 символа (a-z, 0-9, _)' });
     if (password.length < 10) return res.status(400).json({ error: 'Пароль: минимум 10 символов' });
@@ -923,7 +924,12 @@ app.post('/api/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 12);
     const isAdmin = cleanUsername.toLowerCase() === 'admin';
 
-    const newUser = { id, username: cleanUsername, password_hash: passwordHash, status: 'online', created_at: Math.floor(Date.now()/1000), read_deleted: false, ip, role: isAdmin ? 'sysadmin' : userRole, invited_by: inviter, ban_expires: 0 };
+    const newUser = {
+      id, username: cleanUsername, password_hash: passwordHash, status: 'online',
+      created_at: Math.floor(Date.now() / 1000), read_deleted: false, ip,
+      role: isAdmin ? 'sysadmin' : userRole, invited_by: inviter, ban_expires: 0,
+      privacy_accepted_at: Math.floor(Date.now() / 1000)
+    };
     db.users.push(newUser);
 
     const plainCodes = [];
