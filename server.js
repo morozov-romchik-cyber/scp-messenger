@@ -489,10 +489,21 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     let banExpires = other ? (other.ban_expires || 0) : 0;
     if (banExpires > 0 && banExpires <= Date.now()) banExpires = 0;
 
+    // ИСПРАВЛЕНИЕ БЛОКИРОВОК
+    let blockedByMe = false;
+    let blockedByThem = false;
+    if (!c.is_group && !isSelf && other) {
+        blockedByMe = db.blocks.some(b => b.blocker === req.userId && b.blocked === other.id);
+        blockedByThem = db.blocks.some(b => b.blocker === other.id && b.blocked === req.userId);
+    }
+
     return {
       id: c.id, name: chatName, avatarUrl: chatAvatar,
       otherUserId: c.is_group ? null : (other ? other.id : null),
-      role: otherRole, isBlocked: c.is_group ? false : (isSelf ? false : chatIsBlocked(c.id, req.userId)),
+      role: otherRole, 
+      isBlocked: blockedByMe || blockedByThem,
+      blockedByMe: blockedByMe,
+      blockedByThem: blockedByThem,
       ban_expires: banExpires, createdAt: c.created_at, isSelf: isSelf,
       isGroup: !!c.is_group, creatorId: c.creator_id,
       isChannel: !!c.is_channel, username: c.username || null,
@@ -610,7 +621,6 @@ app.delete('/api/chats/:chatId', authMiddleware, (req, res) => {
   if (!isMember) return res.status(403).json({ error: 'Вы не участник этого чата' });
 
   if (chat.is_group) {
-    // Если это группа, удалять может только создатель
     if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может удалить' });
     db.chats = db.chats.filter(c => c.id !== chatId);
     db.chat_members = db.chat_members.filter(m => m.chat_id !== chatId);
@@ -618,10 +628,7 @@ app.delete('/api/chats/:chatId', authMiddleware, (req, res) => {
     db.attachments = db.attachments.filter(a => !msgIds.includes(a.message_id));
     db.messages = db.messages.filter(m => m.chat_id !== chatId);
   } else {
-    // Если это личный чат, мы просто удаляем текущего пользователя из участников
     db.chat_members = db.chat_members.filter(m => !(m.chat_id === chatId && m.user_id === req.userId));
-    
-    // Если в чате больше никого не осталось, удаляем его полностью
     const remainingMembers = db.chat_members.filter(m => m.chat_id === chatId);
     if (remainingMembers.length === 0) {
       db.chats = db.chats.filter(c => c.id !== chatId);
@@ -651,7 +658,9 @@ app.post('/api/chats', authMiddleware, (req, res) => {
       return res.json({ id: chatId, name: 'Избранное', avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: true, ban_expires: 0, isGroup: false });
     }
     if (!isSelf && members.length === 2 && members.some(m => m.user_id === userId)) {
-      return res.json({ id: chatId, name: other.display_name || other.username, avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: chatIsBlocked(chatId, req.userId), isSelf: false, ban_expires: other.ban_expires || 0, isGroup: false });
+      let blockedByMe = db.blocks.some(b => b.blocker === req.userId && b.blocked === other.id);
+      let blockedByThem = db.blocks.some(b => b.blocker === other.id && b.blocked === req.userId);
+      return res.json({ id: chatId, name: other.display_name || other.username, avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: blockedByMe || blockedByThem, blockedByMe, blockedByThem, isSelf: false, ban_expires: other.ban_expires || 0, isGroup: false });
     }
   }
   const chatId = genId();
@@ -659,7 +668,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
   db.chat_members.push({ id: genId(), chat_id: chatId, user_id: req.userId });
   if (!isSelf) db.chat_members.push({ id: genId(), chat_id: chatId, user_id: other.id });
   saveDb();
-  res.json({ id: chatId, name: isSelf ? 'Избранное' : (other.display_name || other.username), avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: isSelf, ban_expires: isSelf ? 0 : (other.ban_expires || 0), isGroup: false });
+  res.json({ id: chatId, name: isSelf ? 'Избранное' : (other.display_name || other.username), avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, blockedByMe: false, blockedByThem: false, isSelf: isSelf, ban_expires: isSelf ? 0 : (other.ban_expires || 0), isGroup: false });
 });
 
 function buildMessagePayload(m) {
