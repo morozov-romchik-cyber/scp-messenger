@@ -62,6 +62,59 @@
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .error { color: #ff7b72; font-size: 13px; margin: 4px 0 12px; min-height: 16px; font-weight: 500; text-align: center; line-height: 1.3; }
 
+  /* === ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ === */
+  .privacy-row {
+    display: none;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    text-align: left;
+    line-height: 1.4;
+  }
+  .privacy-row.visible { display: flex; }
+  .privacy-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 2px;
+    margin-bottom: 0;
+    padding: 0;
+  }
+  .privacy-row a {
+    color: #1d9bf0;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  #privacy-modal .modal-content {
+    max-width: 560px;
+    max-height: 85vh;
+    text-align: left;
+  }
+  #privacy-modal .privacy-text {
+    overflow-y: auto;
+    max-height: 55vh;
+    padding-right: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+  #privacy-modal .privacy-text h4 {
+    color: var(--accent);
+    font-family: 'Fira Code', monospace;
+    margin: 14px 0 6px;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+  #privacy-modal .privacy-text h4:first-child { margin-top: 0; }
+  #privacy-modal .privacy-text p { margin-bottom: 8px; }
+  #privacy-modal .privacy-text ul { padding-left: 20px; margin-bottom: 8px; }
+  #privacy-modal .privacy-text li { margin-bottom: 4px; }
+
   #chat { display: none; height: 100%; height: 100dvh; width: 100vw; position: relative; z-index: 1; }
   #chat.visible { display: flex; }
 
@@ -369,6 +422,7 @@
     .admin-tab.active { border-left-color: transparent; border-bottom-color: var(--admin-accent); }
     .toast-msg { width: calc(100vw - 40px); }
     .emoji-picker { top: 60px; right: 12px; width: calc(100vw - 24px); height: 40vh; }
+    #privacy-modal .modal-content { width: calc(100vw - 32px); max-width: none; }
   }
   .back-btn { display: none; }
   .empty { text-align: center; color: var(--muted); font-family: 'Fira Code', monospace; font-size: 13px; padding: 60px 20px; letter-spacing: 1px; }
@@ -387,6 +441,48 @@
 <svg id="landscape" viewBox="0 0 1440 320" preserveAspectRatio="none">
   <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
+
+<div class="modal" id="privacy-modal">
+  <div class="modal-content">
+    <h3>ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ</h3>
+    <div class="privacy-text">
+      <h4>1. Какие данные мы собираем</h4>
+      <p>При регистрации и использовании SCP Messenger мы собираем и храним:</p>
+      <ul>
+        <li><b>Имя пользователя (username)</b> и хэш пароля (сам пароль в открытом виде не хранится);</li>
+        <li><b>Отображаемое имя</b> и аватар (если вы его загрузили);</li>
+        <li><b>IP-адрес</b> — для защиты от спама и блокировок; виден только системному администратору;</li>
+        <li><b>Содержимое сообщений и файлов</b> — хранится для обеспечения работы мессенджера;</li>
+        <li><b>Технические метаданные</b>: время отправки сообщений, статусы «доставлено / прочитано».</li>
+      </ul>
+
+      <h4>2. Как мы используем данные</h4>
+      <p>Данные используются исключительно для работы сервиса: доставки сообщений, отображения профиля, обеспечения безопасности и модерации нарушений. Мы <b>не передаём</b> ваши данные третьим лицам в маркетинговых целях.</p>
+
+      <h4>3. Где хранятся данные</h4>
+      <p>Сервер и файлы размещены на защищённых серверах. Передача данных между вашим устройством и сервером защищена по протоколу <b>HTTPS</b>.</p>
+
+      <h4>4. Ваши права</h4>
+      <ul>
+        <li><b>Удалить аккаунт</b> и все связанные с ним сообщения можно в любой момент через меню «Настройки → Удалить аккаунт»;</li>
+        <li>Вы можете <b>заблокировать</b> любого пользователя, чтобы он не мог вам писать;</li>
+        <li>Вы можете изменить отображаемое имя и аватар в настройках.</li>
+      </ul>
+
+      <h4>5. Возраст пользователей</h4>
+      <p>Сервис не предназначен для лиц младше 14 лет. Регистрируясь, вы подтверждаете, что достигли этого возраста.</p>
+
+      <h4>6. Cookies и локальное хранилище</h4>
+      <p>Мы используем <b>localStorage</b> браузера для хранения токена авторизации и настроек интерфейса (сезон, погода и т. п.). Мы не используем сторонние трекеры и рекламные cookies.</p>
+
+      <h4>7. Изменения политики</h4>
+      <p>Актуальная версия политики всегда доступна по этой ссылке. Продолжая пользоваться сервисом после изменений, вы принимаете обновлённую редакцию.</p>
+
+      <p style="margin-top:14px; color: var(--muted); font-size:12px;">Последнее обновление: ноябрь 2026 г.</p>
+    </div>
+    <button class="modal-btn" onclick="document.getElementById('privacy-modal').classList.remove('visible')">Закрыть</button>
+  </div>
+</div>
 
 <div class="modal" id="scp-verify-modal" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);">
   <div class="modal-content" style="border: 1px solid #1d9bf0; box-shadow: 0 0 30px rgba(29,155,240,0.2); text-align: center; max-width: 400px;">
@@ -743,6 +839,10 @@
     <input id="a-username" placeholder="username" autocomplete="username" />
     <input id="a-password" type="password" placeholder="пароль (мин. 10 символов)" autocomplete="current-password" />
     <input id="a-invite" placeholder="Код приглашения (если есть)" style="display: none;" />
+    <label class="privacy-row" id="privacy-row">
+      <input type="checkbox" id="a-privacy" />
+      <span>Я принимаю <a onclick="document.getElementById('privacy-modal').classList.add('visible'); return false;">политику конфиденциальности</a> и согласен на обработку персональных данных</span>
+    </label>
     <div class="error" id="a-error"></div>
     <button class="btn" id="a-submit">Войти</button>
   </div>
@@ -1027,10 +1127,12 @@ function showNotification(sender, text, avatarUrl, chatId) {
 document.getElementById('tab-login').addEventListener('click', () => {
   authMode = 'login'; document.getElementById('tab-login').classList.add('active'); document.getElementById('tab-register').classList.remove('active');
   document.getElementById('a-submit').textContent = 'Войти'; document.getElementById('a-invite').style.display = 'none';
+  document.getElementById('privacy-row').classList.remove('visible');
 });
 document.getElementById('tab-register').addEventListener('click', () => {
   authMode = 'register'; document.getElementById('tab-register').classList.add('active'); document.getElementById('tab-login').classList.remove('active');
   document.getElementById('a-submit').textContent = 'Регистрация'; document.getElementById('a-invite').style.display = 'block';
+  document.getElementById('privacy-row').classList.add('visible');
 });
 
 async function api(path, opts = {}) {
@@ -1079,10 +1181,14 @@ document.getElementById('a-submit').addEventListener('click', async () => {
   const invited_by = document.getElementById('a-invite').value.trim() || null;
   const errEl = document.getElementById('a-error'); errEl.textContent = '';
   if (!username || !password) return errEl.textContent = 'Заполните все поля';
+  if (authMode === 'register' && !document.getElementById('a-privacy').checked) {
+    return errEl.textContent = 'Необходимо принять политику конфиденциальности';
+  }
+  const accepted_privacy = authMode === 'register';
   const btn = document.getElementById('a-submit'); const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Загрузка...';
   try {
     const url = authMode === 'register' ? '/register' : '/login';
-    const data = await api(url, { method: 'POST', body: JSON.stringify({ username, password, invited_by }) });
+    const data = await api(url, { method: 'POST', body: JSON.stringify({ username, password, invited_by, accepted_privacy }) });
     state.token = data.token; state.me = data.user; state.read_deleted = data.user.read_deleted || false;
     localStorage.setItem('scp_token', data.token); localStorage.setItem('scp_saved_username', data.user.username);
     if (authMode === 'register' && data.recoveryCodes) alert('СОХРАНИТЕ КОДЫ:\n\n' + data.recoveryCodes.join('\n'));
