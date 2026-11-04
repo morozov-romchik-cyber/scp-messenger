@@ -65,7 +65,7 @@ const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const DB_FILE = path.join(__dirname, 'scp-db.json');
-let db = { users: [], recovery_codes: [], chats: [], chat_members: [], messages: [], attachments: [], blocks: [], banned_ips: [], invite_codes: [] };
+let db = { users: [], recovery_codes: [], chats: [], chat_members: [], messages: [], attachments: [], blocks: [], banned_ips: [], invite_codes: [], reports: [] };
 
 let isS3Syncing = false;
 let pendingS3Sync = false;
@@ -178,17 +178,13 @@ const findUserByUsername = (username) => {
   return db.users.find(u => u.username.toLowerCase() === cleanName);
 };
 
-// НОВАЯ ФУНКЦИЯ: Ищет пользователя и по юзернейму, и по ID
 const findUserByIdentifier = (identifier) => {
   const clean = String(identifier || '').trim().replace(/^@/, '').toLowerCase();
   if (!clean) return null;
-  
-  // Проверяем, похоже ли это на ID (24 символа hex)
   if (/^[a-f0-9]{24}$/i.test(clean)) {
     const byId = db.users.find(u => u.id.toLowerCase() === clean);
     if (byId) return byId;
   }
-  // Если не ID или не найдено, ищем по юзернейму
   return db.users.find(u => u.username.toLowerCase() === clean);
 };
 
@@ -201,12 +197,63 @@ const chatIsBlocked = (chatId, myId) => {
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
+// ================= REPORTS =================
+app.post('/api/reports', authMiddleware, (req, res) => {
+  const { target_user_id, target_message_id, reason } = req.body;
+  if (!reason) return res.status(400).json({ error: 'Укажите причину' });
+  
+  const existing = db.reports.find(r => r.reporter_id === req.userId && r.target_message_id === target_message_id && r.status === 'pending');
+  if (existing) return res.status(400).json({ error: 'Вы уже пожаловались на это сообщение' });
+
+  db.reports.push({
+    id: genId(), reporter_id: req.userId, target_user_id, target_message_id,
+    reason, status: 'pending', created_at: Math.floor(Date.now() / 1000)
+  });
+  saveDb();
+  
+  // Отправляем сигнал админам
+  io.emit('newReport');
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/reports', authMiddleware, (req, res) => {
+  const me = db.users.find(u => u.id === req.userId);
+  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  
+  const reports = db.reports.filter(r => r.status === 'pending').map(r => {
+    const reporter = db.users.find(u => u.id === r.reporter_id);
+    const targetUser = db.users.find(u => u.id === r.target_user_id);
+    const targetMsg = r.target_message_id ? db.messages.find(m => m.id === r.target_message_id) : null;
+    
+    return {
+      id: r.id, reason: r.reason, created_at: r.created_at,
+      reporter: reporter ? reporter.username : 'Unknown',
+      targetUser: targetUser ? { id: targetUser.id, username: targetUser.username, role: targetUser.role } : null,
+      targetMessage: targetMsg ? { id: targetMsg.id, text: targetMsg.text, chat_id: targetMsg.chat_id } : null
+    };
+  }).sort((a, b) => b.created_at - a.created_at);
+  
+  res.json(reports);
+});
+
+app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
+  const me = db.users.find(u => u.id === req.userId);
+  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  
+  const report = db.reports.find(r => r.id === req.params.id);
+  if (!report) return res.status(404).json({ error: 'Жалоба не найдена' });
+  
+  report.status = req.body.action || 'resolved';
+  saveDb();
+  res.json({ ok: true });
+});
+
 // ================= ADMIN =================
 app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const { username, duration } = req.body;
-  const target = findUserByIdentifier(username); // Используем новую функцию
+  const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя забанить SCP_Helper' });
   if (target.role === 'sysadmin') return res.status(403).json({ error: 'НЕЛЬЗЯ забанить системного администратора (SysAdmin)!' });
@@ -227,7 +274,7 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const { username } = req.body;
-  const target = findUserByIdentifier(username); // Используем новую функцию
+  const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя удалить SCP_Helper' });
   if (target.role === 'sysadmin') return res.status(400).json({ error: 'Нельзя удалить SysAdmin' });
@@ -266,7 +313,7 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const { username, role } = req.body;
   if (!['user', 'helper', 'moderator', 'admin', 'sysadmin'].includes(role)) return res.status(400).json({ error: 'Неизвестная роль' });
-  const target = findUserByIdentifier(username); // Используем новую функцию
+  const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить роль SCP_Helper' });
   if (target.id === me.id) return res.status(400).json({ error: 'Нельзя изменить свою роль' });
@@ -1067,7 +1114,7 @@ io.on('connection', (socket) => {
     }
   }
 
-  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments'].forEach(key => { if (!db[key]) db[key] = []; });
+  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments', 'reports'].forEach(key => { if (!db[key]) db[key] = []; });
 
   let migrated = false;
   db.users.forEach(u => {
