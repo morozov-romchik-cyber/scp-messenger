@@ -2351,22 +2351,32 @@ document.getElementById('unblock-user-btn').addEventListener('click', async () =
 
 document.getElementById('delete-chat-btn').addEventListener('click', async () => {
   if (!state.currentChat) return;
-  if (!confirm('Вы уверены, что хотите удалить этот чат? Он исчезнет из вашего списка.')) return;
+  if (!confirm('Вы уверены, что хотите удалить этот чат?')) return;
+  
   try {
-    // Так как бекенд не поддерживает полное удаление личных чатов, мы их очищаем
-    await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'me' }) });
+    // Отправляем DELETE запрос на сервер
+    await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
     
-    // Сбрасываем интерфейс
+    // Очищаем интерфейс справа
     state.currentChat = null;
     document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
     document.getElementById('chat-title').textContent = 'Выберите чат';
+    document.getElementById('chat-subtitle').textContent = '';
     document.getElementById('composer').style.display = 'none';
     document.getElementById('chat-options-btn').style.display = 'none';
     document.getElementById('clear-chat-btn').style.display = 'none';
     document.getElementById('header-avatar').style.display = 'none';
+    document.getElementById('header-chat-role-badge').innerHTML = '';
+    
+    // Закрываем модалку и обновляем список слева
     document.getElementById('chat-settings-modal').classList.remove('visible');
     await loadChats();
-  } catch (e) { alert(e.message); }
+    
+    // На телефоне возвращаем к списку чатов
+    document.getElementById('sidebar').classList.remove('mobile-open');
+  } catch (e) { 
+    alert('Ошибка при удалении: ' + e.message); 
+  }
 });
 </script>
 </body>
