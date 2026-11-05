@@ -1449,8 +1449,14 @@ window.openReportModal = async function() {
   
   try {
     const msgs = await api('/chats/' + state.currentChat.id + '/messages');
-    const targetUserMsgs = msgs.filter(m => m.sender.id === state.activeMsg.sender.id).slice(-10);
+    // Фильтруем: сообщения от того же пользователя И не удаленные
+    const targetUserMsgs = msgs.filter(m => m.sender.id === state.activeMsg.sender.id && !m.is_deleted).slice(-10);
     
+    if (targetUserMsgs.length === 0) {
+      document.getElementById('report-modal').classList.remove('visible');
+      return alert('Нет доступных сообщений для жалобы (возможно, они были удалены).');
+    }
+
     container.innerHTML = targetUserMsgs.map(m => `
       <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 12px; padding: 4px; border-bottom: 1px solid #222; color: var(--text);">
         <input type="checkbox" class="report-msg-checkbox" value="${m.id}" ${m.id === state.activeMsg.id ? 'checked' : ''} style="margin-top: 2px; accent-color: #ff9933;">
@@ -2249,7 +2255,10 @@ function openMsgActions(msg) {
   const isOwn = msg.sender.id === state.me.id;
   const canDeleteAll = isOwn || ['sysadmin', 'admin', 'moderator'].includes(state.me.role);
   document.getElementById('msg-del-all-btn').style.display = canDeleteAll ? 'block' : 'none';
-  document.getElementById('msg-report-btn').style.display = isOwn ? 'none' : 'block'; 
+  
+  // НЕ показываем кнопку "Пожаловаться", если сообщение удалено или это свой аккаунт
+  document.getElementById('msg-report-btn').style.display = (isOwn || msg.is_deleted) ? 'none' : 'block'; 
+  
   document.getElementById('msg-actions-modal').classList.add('visible');
 }
 document.getElementById('msg-reply-btn').addEventListener('click', () => {
