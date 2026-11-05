@@ -1406,15 +1406,27 @@ document.getElementById('avatar-upload-btn').addEventListener('click', () => doc
 document.getElementById('avatar-input').addEventListener('change', () => {
   const file = document.getElementById('avatar-input').files[0]; if (!file) return;
   const fd = new FormData(); fd.append('avatar', file);
+  
   fetch('/api/users/avatar', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token }, body: fd })
-  .then(r => r.json()).then(data => {
+  .then(async r => {
+    const text = await r.text();
+    try { return JSON.parse(text); } 
+    catch (e) { 
+        if (r.status === 413) throw new Error('Файл слишком большой (максимум 20 МБ). Попробуйте другое фото.');
+        if (text.startsWith('<html>')) throw new Error(`Ошибка сервера (${r.status}). Возможно, файл слишком большой (Nginx).`);
+        throw new Error('Ошибка сервера. Попробуйте позже.'); 
+    }
+  })
+  .then(data => {
     if(data.error) return alert(data.error);
     state.me = data; 
     const preview = document.getElementById('settings-avatar-preview');
     preview.src = data.avatarUrl; 
     preview.style.display = 'block'; 
     loadChats();
-  }).catch(e => alert(e.message));
+    alert('Аватар успешно обновлен!');
+  })
+  .catch(e => alert(e.message));
 });
 
 document.getElementById('admin-header-btn').addEventListener('click', () => {
@@ -2193,6 +2205,7 @@ function appendMessage(msg, scroll = true) {
   let pressTimer = null;
 
   const startPress = (e) => {
+    if (msg.is_deleted) return; // Блокируем любые действия с удаленными сообщениями
     if (['IMG', 'VIDEO', 'AUDIO', 'A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip, .reply-quote')) return;
     pressTimer = setTimeout(() => {
       pressTimer = null;
@@ -2251,13 +2264,14 @@ window.openLinkChat = async function(link) {
 }
 
 function openMsgActions(msg) {
+  if (msg.is_deleted) return; // Двойная защита
   state.activeMsgId = msg.id; state.activeMsg = msg;
   const isOwn = msg.sender.id === state.me.id;
   const canDeleteAll = isOwn || ['sysadmin', 'admin', 'moderator'].includes(state.me.role);
   document.getElementById('msg-del-all-btn').style.display = canDeleteAll ? 'block' : 'none';
   
-  // НЕ показываем кнопку "Пожаловаться", если сообщение удалено или это свой аккаунт
-  document.getElementById('msg-report-btn').style.display = (isOwn || msg.is_deleted) ? 'none' : 'block'; 
+  // НЕ показываем кнопку "Пожаловаться", если это свой аккаунт
+  document.getElementById('msg-report-btn').style.display = isOwn ? 'none' : 'block'; 
   
   document.getElementById('msg-actions-modal').classList.add('visible');
 }
