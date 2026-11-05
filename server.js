@@ -92,7 +92,7 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 server.requestTimeout = 0; server.headersTimeout = 0; server.timeout = 0;
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '20mb' })); // Увеличен лимит JSON
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.use('/uploads', express.static(UPLOAD_DIR));
@@ -136,7 +136,7 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({
-  storage, limits: { fileSize: 10 * 1024 * 1024 },
+  storage, limits: { fileSize: 20 * 1024 * 1024 }, // Увеличен лимит до 20 МБ для фото с телефонов
   fileFilter: (req, file, cb) => {
     const originalName = decodeFilename(file.originalname);
     const ext = path.extname(originalName).toLowerCase();
@@ -146,7 +146,10 @@ const upload = multer({
 });
 const uploadSingle = (field) => (req, res, next) => {
   upload.single(field)(req, res, (err) => {
-    if (err) return res.status(400).json({ error: err.message || 'Ошибка загрузки' });
+    if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Файл слишком большой. Максимум 20 МБ.' });
+        return res.status(400).json({ error: err.message || 'Ошибка загрузки' });
+    }
     next();
   });
 };
