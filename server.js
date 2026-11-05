@@ -92,7 +92,7 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 server.requestTimeout = 0; server.headersTimeout = 0; server.timeout = 0;
 
-app.use(express.json({ limit: '20mb' })); // Увеличен лимит JSON
+app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.use('/uploads', express.static(UPLOAD_DIR));
@@ -136,7 +136,7 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({
-  storage, limits: { fileSize: 20 * 1024 * 1024 }, // Увеличен лимит до 20 МБ для фото с телефонов
+  storage, limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const originalName = decodeFilename(file.originalname);
     const ext = path.extname(originalName).toLowerCase();
@@ -255,7 +255,6 @@ app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
   const banDuration = req.body.duration;
   report.status = action;
 
-  // Отправка уведомления в SCP_Helper
   let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === report.reporter_id) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
   if (!helperChat) {
     helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
@@ -585,6 +584,8 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     const members = db.chat_members.filter(m => m.chat_id === c.id);
     if (!c.is_group && members.length === 1 && members[0].user_id === req.userId) selfChatIds.push(c.id);
   });
+  
+  // Если есть старые чаты с самим собой, удаляем лишние
   if (selfChatIds.length > 1) {
     const toDelete = selfChatIds.slice(1);
     db.chats = db.chats.filter(c => !toDelete.includes(c.id));
@@ -610,7 +611,11 @@ app.get('/api/chats', authMiddleware, (req, res) => {
 
   const chats = db.chats.filter(c => myChatIds.includes(c.id)).map(c => {
     const members = db.chat_members.filter(m => m.chat_id === c.id);
-    const isSelf = !c.is_group && members.length === 1 && members[0].user_id === req.userId;
+    
+    // ИСПРАВЛЕНИЕ: используем флаг is_saved, чтобы не путать удаленные чаты с Избранным
+    const isSaved = c.is_saved === true;
+    const isSelf = !c.is_group && (isSaved || (c.is_saved === undefined && members.length === 1 && members[0].user_id === req.userId));
+    
     const otherId = isSelf ? req.userId : members.find(m => m.user_id !== req.userId)?.user_id;
     const other = otherId ? db.users.find(u => u.id === otherId) : null;
 
@@ -648,7 +653,8 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       isChannel: !!c.is_channel, username: c.username || null,
       isHelper: !c.is_group && !isSelf && otherId === HELPER_ID
     };
-  });
+  }).filter(c => c.isSelf || c.otherUserId); // Фильтруем "осиротевшие" чаты, где собеседник удалился
+
   res.json(chats);
 });
 
@@ -815,6 +821,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
     if (chat && chat.is_group) continue;
     const members = db.chat_members.filter(m => m.chat_id === chatId);
     if (isSelf && members.length === 1 && members[0].user_id === req.userId) {
+      chat.is_saved = true; saveDb(); // Помечаем как Избранное
       return res.json({ id: chatId, name: 'Избранное', avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: true, ban_expires: 0, isGroup: false });
     }
     if (!isSelf && members.length === 2 && members.some(m => m.user_id === userId)) {
@@ -824,7 +831,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
     }
   }
   const chatId = genId();
-  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: false });
+  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: false, is_saved: isSelf });
   db.chat_members.push({ id: genId(), chat_id: chatId, user_id: req.userId });
   if (!isSelf) db.chat_members.push({ id: genId(), chat_id: chatId, user_id: other.id });
   saveDb();
