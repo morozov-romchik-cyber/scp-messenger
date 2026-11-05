@@ -1393,8 +1393,8 @@ window.openProfile = async function(userId) {
 
 document.getElementById('header-avatar').addEventListener('click', () => {
   if (state.currentChat) {
-    if (state.currentChat.isGroup) return;
-    openProfile(state.currentChat.otherUserId || state.me.id);
+    if (state.currentChat.isGroup || state.currentChat.isSelf) return;
+    openProfile(state.currentChat.otherUserId);
   }
 });
 document.getElementById('logout-btn').addEventListener('click', () => { localStorage.removeItem('scp_token'); window.location.reload(); });
@@ -1461,7 +1461,6 @@ window.openReportModal = async function() {
   
   try {
     const msgs = await api('/chats/' + state.currentChat.id + '/messages');
-    // Фильтруем: сообщения от того же пользователя И не удаленные
     const targetUserMsgs = msgs.filter(m => m.sender.id === state.activeMsg.sender.id && !m.is_deleted).slice(-10);
     
     if (targetUserMsgs.length === 0) {
@@ -1920,7 +1919,7 @@ window.createGroup = async function() {
     });
     document.getElementById('create-group-modal').classList.remove('visible');
     await loadChats();
-    openChat(res.chatId, name, null, false, null, 0, true, state.me.id, isCreatingChannel, res.username, false);
+    openChat(res.chatId, name, null, false, null, 0, true, state.me.id, isCreatingChannel, res.username, false, false, false, false);
   } catch (e) {
     alert(e.message);
   }
@@ -1935,7 +1934,7 @@ window.toggleFavorite = function(chatId, event) {
 window.openSavedMessages = async function() {
   try {
     const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId: state.me.id }) });
-    await loadChats(); openChat(chat.id, 'Избранное ⭐', state.me.avatarUrl, false, state.me.id, 0);
+    await loadChats(); openChat(chat.id, 'Избранное ⭐', state.me.avatarUrl, false, state.me.id, 0, false, '', false, '', false, false, false, true);
   } catch (e) { alert(e.message); }
 };
 
@@ -1954,7 +1953,7 @@ function renderChatList() {
     const avatarInner = c.avatarUrl 
         ? `<img src="${escAttr(c.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerText='${isGroupOrChannel}'">` 
         : isGroupOrChannel;
-    const avatar = `<div class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')">${avatarInner}</div>`;
+    const avatar = `<div class="chat-avatar" onclick="event.stopPropagation(); if(!c.isSelf) openProfile('${escAttr(targetId)}')">${avatarInner}</div>`;
     
     const active = state.currentChat && state.currentChat.id === c.id ? ' active' : '';
     const starBtn = visualSettings.favorites ? `<div onclick="toggleFavorite('${escAttr(c.id)}', event)" style="font-size: 18px; cursor: pointer; color: ${isFav ? '#ffd700' : 'var(--border)'}; margin-left: auto; padding: 0 5px;">★</div>` : '';
@@ -1963,13 +1962,13 @@ function renderChatList() {
     let checkmarkHtml = '';
     if (c.isHelper) checkmarkHtml = `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: #1d9bf0; display: inline-block; vertical-align: middle; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
     
-    if (c.role && c.role !== 'user' && !c.isGroup) {
+    if (c.role && c.role !== 'user' && !c.isGroup && !c.isSelf) {
       roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 4px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
     }
     
     const isBanned = c.ban_expires && c.ban_expires !== 0 && (c.ban_expires === -1 || c.ban_expires > Date.now());
     
-    return `<div class="chat-item${active}" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0}, ${c.isGroup ? 'true' : 'false'}, '${escAttr(c.creatorId || '')}', ${c.isChannel ? 'true' : 'false'}, '${escAttr(c.username || '')}', ${c.isHelper ? 'true' : 'false'}, ${c.blockedByMe ? 'true' : 'false'}, ${c.blockedByThem ? 'true' : 'false'})">
+    return `<div class="chat-item${active}" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0}, ${c.isGroup ? 'true' : 'false'}, '${escAttr(c.creatorId || '')}', ${c.isChannel ? 'true' : 'false'}, '${escAttr(c.username || '')}', ${c.isHelper ? 'true' : 'false'}, ${c.blockedByMe ? 'true' : 'false'}, ${c.blockedByThem ? 'true' : 'false'}, ${c.isSelf ? 'true' : 'false'})">
       ${avatar}
       <div class="chat-info" style="flex: 1; min-width: 0;">
         <div class="name" style="display:flex; align-items:center;">
@@ -1984,8 +1983,8 @@ function renderChatList() {
   }).join('');
 }
 
-async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires = 0, isGroup = false, creatorId = '', isChannel = false, username = '', isHelper = false, blockedByMe = false, blockedByThem = false) {
-  state.currentChat = { id: chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires, isGroup, creatorId, isChannel, username, isHelper, blockedByMe, blockedByThem };
+async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires = 0, isGroup = false, creatorId = '', isChannel = false, username = '', isHelper = false, blockedByMe = false, blockedByThem = false, isSelf = false) {
+  state.currentChat = { id: chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires, isGroup, creatorId, isChannel, username, isHelper, blockedByMe, blockedByThem, isSelf };
   state.unreadCounts[chatId] = 0; updatePageTitle();
   
   document.getElementById('chat-title').textContent = name;
@@ -2007,7 +2006,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   }
 
   const headerBadge = document.getElementById('header-chat-role-badge');
-  if (!isGroup && state.chats) {
+  if (!isGroup && !isSelf && state.chats) {
     const current = state.chats.find(c => c.id === chatId);
     if (current && current.role && current.role !== 'user') {
       headerBadge.innerHTML = `<span class="rotating-badge badge-${current.role}" style="margin-left: 8px;">${(ROLE_LABEL[current.role] || current.role).toUpperCase()}</span>`;
@@ -2045,13 +2044,13 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   document.getElementById('chat-options-btn').style.display = isHelper ? 'none' : 'inline-block';
   document.getElementById('group-members-btn').style.display = isGroup ? 'block' : 'none';
 
-  document.getElementById('view-profile-btn').style.display = isGroup ? 'none' : 'block';
-  document.getElementById('block-user-btn').style.display = (isGroup || isHelper || blockedByMe) ? 'none' : 'block';
-  document.getElementById('unblock-user-btn').style.display = (isGroup || isHelper || !blockedByMe) ? 'none' : 'block';
+  document.getElementById('view-profile-btn').style.display = (isGroup || isSelf || !otherUserId) ? 'none' : 'block';
+  document.getElementById('block-user-btn').style.display = (isGroup || isSelf || isHelper || blockedByMe || !otherUserId) ? 'none' : 'block';
+  document.getElementById('unblock-user-btn').style.display = (isGroup || isSelf || isHelper || !blockedByMe) ? 'none' : 'block';
   
   document.getElementById('leave-group-btn').style.display = (isGroup && !isCreator) ? 'block' : 'none';
   document.getElementById('delete-group-btn').style.display = (isGroup && isCreator) ? 'block' : 'none';
-  document.getElementById('delete-chat-btn').style.display = (isGroup || isHelper) ? 'none' : 'block';
+  document.getElementById('delete-chat-btn').style.display = (isGroup || isHelper || isSelf) ? 'none' : 'block';
 
   const channelLinkBox = document.getElementById('channel-link-box');
   const setChannelUsernameSection = document.getElementById('set-channel-username-section');
@@ -2264,15 +2263,12 @@ window.openLinkChat = async function(link) {
 }
 
 function openMsgActions(msg) {
-  if (msg.is_deleted) return; // Двойная защита
+  if (msg.is_deleted) return;
   state.activeMsgId = msg.id; state.activeMsg = msg;
   const isOwn = msg.sender.id === state.me.id;
   const canDeleteAll = isOwn || ['sysadmin', 'admin', 'moderator'].includes(state.me.role);
   document.getElementById('msg-del-all-btn').style.display = canDeleteAll ? 'block' : 'none';
-  
-  // НЕ показываем кнопку "Пожаловаться", если это свой аккаунт
   document.getElementById('msg-report-btn').style.display = isOwn ? 'none' : 'block'; 
-  
   document.getElementById('msg-actions-modal').classList.add('visible');
 }
 document.getElementById('msg-reply-btn').addEventListener('click', () => {
@@ -2584,7 +2580,7 @@ window.setChannelUsername = async function() {
     alert('Ссылка успешно установлена: scp.me/' + res.username);
     document.getElementById('chat-settings-modal').classList.remove('visible');
     loadChats();
-    openChat(state.currentChat.id, state.currentChat.name, state.currentChat.avatarUrl, state.currentChat.isBlocked, state.currentChat.otherUserId, state.currentChat.ban_expires, true, state.currentChat.creatorId, true, res.username, false, state.currentChat.blockedByMe, state.currentChat.blockedByThem);
+    openChat(state.currentChat.id, state.currentChat.name, state.currentChat.avatarUrl, state.currentChat.isBlocked, state.currentChat.otherUserId, state.currentChat.ban_expires, true, state.currentChat.creatorId, true, res.username, false, state.currentChat.blockedByMe, state.currentChat.blockedByThem, false);
   } catch (e) {
     alert(e.message);
   }
@@ -2599,7 +2595,7 @@ document.getElementById('block-user-btn').addEventListener('click', async () => 
     await loadChats();
     const chat = state.chats.find(c => c.id === state.currentChat.id);
     if (chat) {
-      openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem);
+      openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem, chat.isSelf);
     }
   } catch (e) { alert(e.message); }
 });
@@ -2612,7 +2608,7 @@ document.getElementById('unblock-user-btn').addEventListener('click', async () =
     await loadChats();
     const chat = state.chats.find(c => c.id === state.currentChat.id);
     if (chat) {
-      openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem);
+      openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem, chat.isSelf);
     }
   } catch (e) { alert(e.message); }
 });
@@ -2747,7 +2743,7 @@ document.getElementById('user-search').addEventListener('input', (e) => {
 });
 
 window.startChat = async function(userId) {
-  try { const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId }) }); await loadChats(); document.getElementById('user-search').value = ''; openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires || 0, false); } catch (e) { alert(e.message); }
+  try { const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId }) }); await loadChats(); document.getElementById('user-search').value = ''; openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires || 0, false, '', false, '', false, chat.blockedByMe, chat.blockedByThem, chat.isSelf); } catch (e) { alert(e.message); }
 };
 
 document.getElementById('back-btn').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('mobile-open'); });
