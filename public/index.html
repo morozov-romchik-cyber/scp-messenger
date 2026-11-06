@@ -281,8 +281,8 @@
   .toast-sender { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 2px; }
   .toast-text { font-size: 13px; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* БЕЛАЯ ДОСКА */
-  #whiteboard-modal .modal-content { width: 100vw; height: 100vh; max-width: none; border-radius: 0; padding: 0; border: none; background: #e5e5e5; display: flex; flex-direction: column; }
+  /* БЕЛАЯ ДОСКА (ТЕПЕРЬ ЧЕРНАЯ) */
+  #whiteboard-modal .modal-content { width: 100vw; height: 100vh; max-width: none; border-radius: 0; padding: 0; border: none; background: #0d1117; display: flex; flex-direction: column; }
   .wb-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; z-index: 10; }
   .wb-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
   .wb-btn:hover { background: var(--border); }
@@ -291,22 +291,21 @@
   .wb-color { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.2s; }
   .wb-color.active { border-color: #fff; transform: scale(1.2); box-shadow: 0 0 0 2px #1d9bf0; }
   
-  /* ИСПРАВЛЕННЫЙ КОНТЕЙНЕР ХОЛСТА */
-  .wb-canvas-wrapper { flex: 1; overflow: auto; background: #ccc; position: relative; display: flex; justify-content: center; align-items: flex-start; cursor: crosshair; }
-  #wb-canvas-container { position: relative; display: inline-block; }
-  #wb-canvas { background: #fff; display: block; box-shadow: 0 0 20px rgba(0,0,0,0.2); touch-action: none; cursor: crosshair; }
+  .wb-canvas-wrapper { flex: 1; overflow: auto; background: #1a1a1a; position: relative; display: block; cursor: crosshair; }
+  #wb-canvas-container { position: relative; display: inline-block; margin: 0 auto; }
+  #wb-canvas, #wb-preview-canvas { background: #121212; display: block; box-shadow: 0 0 20px rgba(0,0,0,0.8); touch-action: none; cursor: crosshair; }
+  #wb-preview-canvas { position: absolute; top: 0; left: 0; pointer-events: none; background: transparent; }
   
-  /* ЖИВОЙ ВВОД ТЕКСТА И ПРЕДПРОСМОТР */
   .wb-text-input {
-    position: absolute; background: transparent; border: 1px dashed #1d9bf0; color: #000;
+    position: absolute; background: transparent; border: 1px dashed rgba(255, 255, 255, 0.4); color: #ffffff;
     font-family: Inter, sans-serif; font-size: 24px; outline: none; resize: none;
     padding: 0; margin: 0; transform-origin: top left; z-index: 1000; overflow: hidden;
-    white-space: pre; line-height: 1.2; min-width: 10px; min-height: 28px;
+    white-space: pre; line-height: 28px; min-width: 10px; min-height: 28px;
   }
   .wb-ghost-text {
-    position: absolute; color: rgba(0,0,0,0.3); font-family: Inter, sans-serif;
+    position: absolute; color: rgba(255, 255, 255, 0.4); font-family: Inter, sans-serif;
     font-size: 24px; pointer-events: none; transform-origin: top left;
-    white-space: pre; z-index: 999; display: none; line-height: 1.2;
+    white-space: pre; z-index: 999; display: none; line-height: 28px;
   }
 
   .wb-send-btn { background: #00ff9d !important; color: #000 !important; border: none !important; font-weight: bold !important; margin-left: 10px; }
@@ -370,6 +369,7 @@
       <button class="wb-btn" id="wb-tool-line" onclick="setWbTool('line')" title="Линия">📏 <span class="tool-text">Линия</span></button>
       <button class="wb-btn" id="wb-tool-rect" onclick="setWbTool('rect')" title="Прямоугольник">⬜ <span class="tool-text">Квадрат</span></button>
       <button class="wb-btn" id="wb-tool-circle" onclick="setWbTool('circle')" title="Круг">⭕ <span class="tool-text">Круг</span></button>
+      <button class="wb-btn" id="wb-tool-ellipse" onclick="setWbTool('ellipse')" title="Овал">🔵 <span class="tool-text">Овал</span></button>
       <button class="wb-btn" id="wb-tool-triangle" onclick="setWbTool('triangle')" title="Треугольник">🔺 <span class="tool-text">Треуг.</span></button>
       <button class="wb-btn" id="wb-tool-text" onclick="setWbTool('text')" title="Текст">🔤 <span class="tool-text">Текст</span></button>
       
@@ -383,7 +383,7 @@
       <button class="wb-btn" onclick="clearWb()" title="Очистить">🗑️ <span class="tool-text">Очистить</span></button>
       
       <div class="wb-colors" id="wb-colors">
-        <div class="wb-color active" style="background:#000000;" data-color="#000000" onclick="setWbColor(this)"></div>
+        <div class="wb-color active" style="background:#ffffff;" data-color="#ffffff" onclick="setWbColor(this)"></div>
         <div class="wb-color" style="background:#ff3333;" data-color="#ff3333" onclick="setWbColor(this)"></div>
         <div class="wb-color" style="background:#1d9bf0;" data-color="#1d9bf0" onclick="setWbColor(this)"></div>
         <div class="wb-color" style="background:#00ff9d;" data-color="#00ff9d" onclick="setWbColor(this)"></div>
@@ -396,6 +396,7 @@
     <div class="wb-canvas-wrapper" id="wb-canvas-wrapper">
       <div id="wb-canvas-container">
         <canvas id="wb-canvas"></canvas>
+        <canvas id="wb-preview-canvas"></canvas>
         <textarea id="wb-text-input" class="wb-text-input" style="display: none;"></textarea>
         <div id="wb-ghost-text" class="wb-ghost-text">Текст</div>
       </div>
@@ -1042,15 +1043,17 @@ function showNotification(sender, text, avatarUrl, chatId) {
     }
 }
 
-// ================= БЕЛАЯ ДОСКА (WHITEBOARD) =================
+// ================= БЕЛАЯ ДОСКА (ЧЕРНАЯ) =================
 let wbCanvas = document.getElementById('wb-canvas');
 let wbCtx = wbCanvas.getContext('2d');
+let wbPreviewCanvas = document.getElementById('wb-preview-canvas');
+let wbPreviewCtx = wbPreviewCanvas.getContext('2d');
+
 let wbIsDrawing = false;
 let wbTool = 'pen';
-let wbColor = '#000000';
+let wbColor = '#ffffff'; // Белый цвет по умолчанию
 let wbLastX = 0;
 let wbLastY = 0;
-let wbSnapshot = null;
 let wbHistory = [];
 let wbTextRotation = 0;
 let isEditingText = false;
@@ -1059,10 +1062,21 @@ let wbGhostTextEl = document.getElementById('wb-ghost-text');
 let wbTextInputEl = document.getElementById('wb-text-input');
 
 function initWhiteboard() {
-  wbCanvas.width = 2000;
-  wbCanvas.height = 4000; 
-  wbCtx.fillStyle = '#ffffff';
-  wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
+  // Размер холста
+  const w = 2000;
+  const h = 4000;
+  
+  // Настройка основного холста
+  wbCanvas.width = w;
+  wbCanvas.height = h;
+  wbCtx.fillStyle = '#121212'; // Черный фон
+  wbCtx.fillRect(0, 0, w, h);
+  
+  // Настройка холста предпросмотра
+  wbPreviewCanvas.width = w;
+  wbPreviewCanvas.height = h;
+  wbPreviewCtx.clearRect(0, 0, w, h);
+
   wbHistory = [];
   saveWbState();
   document.getElementById('wb-canvas-wrapper').scrollTop = 0;
@@ -1076,7 +1090,7 @@ function initWhiteboard() {
 }
 
 function saveWbState() {
-  if (wbHistory.length > 20) wbHistory.shift();
+  if (wbHistory.length > 15) wbHistory.shift(); // Ограничиваем историю для памяти
   wbHistory.push(wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height));
 }
 
@@ -1085,8 +1099,9 @@ function undoWb() {
     wbHistory.pop();
     const prevState = wbHistory[wbHistory.length - 1];
     wbCtx.putImageData(prevState, 0, 0);
+    wbPreviewCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
   } else if (wbHistory.length === 1) {
-    wbCtx.fillStyle = '#ffffff';
+    wbCtx.fillStyle = '#121212';
     wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
     saveWbState();
   }
@@ -1094,8 +1109,9 @@ function undoWb() {
 
 function clearWb() {
   if (!confirm('Очистить всю доску?')) return;
-  wbCtx.fillStyle = '#ffffff';
+  wbCtx.fillStyle = '#121212';
   wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
+  wbPreviewCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
   saveWbState();
 }
 
@@ -1115,7 +1131,7 @@ function setWbColor(el) {
   document.querySelectorAll('.wb-color').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   wbColor = el.dataset.color;
-  if (wbTool === 'eraser') setWbTool('pen');
+  if (wbTool === 'eraser') setWbTool('pen'); // При выборе цвета переключаемся с ластика
   if (wbTool === 'text' && !isEditingText) wbGhostTextEl.style.color = wbColor;
 }
 
@@ -1126,7 +1142,6 @@ document.getElementById('whiteboard-btn').addEventListener('click', () => {
   setTimeout(initWhiteboard, 50);
 });
 
-// Слушатель ползунка поворота текста
 document.getElementById('wb-text-rotation').addEventListener('input', (e) => {
   wbTextRotation = parseInt(e.target.value, 10);
   document.getElementById('wb-text-rotation-val').textContent = wbTextRotation + '°';
@@ -1138,9 +1153,12 @@ document.getElementById('wb-text-rotation').addEventListener('input', (e) => {
   }
 });
 
+// ТОЧНЫЙ РАСЧЕТ КООРДИНАТ С УЧЕТОМ СКРОЛЛА
 function getWbCoords(e) {
+  // getBoundingClientRect всегда возвращает актуальное положение холста с учетом скролла
   const rect = wbCanvas.getBoundingClientRect();
   let clientX, clientY;
+  
   if (e.touches && e.touches.length > 0) {
     clientX = e.touches[0].clientX;
     clientY = e.touches[0].clientY;
@@ -1151,6 +1169,7 @@ function getWbCoords(e) {
     clientX = e.clientX;
     clientY = e.clientY;
   }
+  
   return {
     x: clientX - rect.left,
     y: clientY - rect.top
@@ -1172,7 +1191,6 @@ function updateWbCoords(e) {
   }
 }
 
-// Функция запуска прямого ввода текста
 function startTextInput(x, y) {
   isEditingText = true;
   wbGhostTextEl.style.display = 'none';
@@ -1183,11 +1201,10 @@ function startTextInput(x, y) {
   wbTextInputEl.style.color = wbColor;
   wbTextInputEl.value = '';
   wbTextInputEl.style.height = 'auto';
-  wbTextInputEl.style.width = '100px'; // начальная ширина
+  wbTextInputEl.style.width = '20px';
   wbTextInputEl.focus();
 }
 
-// Функция завершения ввода и отрисовки на Canvas
 function finalizeText() {
   if (!isEditingText) return;
   const text = wbTextInputEl.value.trim();
@@ -1215,7 +1232,6 @@ function finalizeText() {
   wbTextInputEl.value = '';
 }
 
-// Обработчики для поля ввода
 wbTextInputEl.addEventListener('input', () => {
     wbTextInputEl.style.height = 'auto';
     wbTextInputEl.style.height = wbTextInputEl.scrollHeight + 'px';
@@ -1239,6 +1255,33 @@ wbTextInputEl.addEventListener('blur', () => {
     finalizeText();
 });
 
+// Отрисовка фигур (используется и для предпросмотра, и для финального)
+function drawShapeOnCtx(ctx, tool, startX, startY, curX, curY, color) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 4;
+    
+    if (tool === 'line') {
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(curX, curY);
+    } else if (tool === 'rect') {
+      ctx.rect(startX, startY, curX - startX, curY - startY);
+    } else if (tool === 'circle') {
+      const radius = Math.sqrt(Math.pow(curX - startX, 2) + Math.pow(curY - startY, 2));
+      ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+    } else if (tool === 'ellipse') {
+      const rx = Math.abs(curX - startX);
+      const ry = Math.abs(curY - startY);
+      ctx.ellipse(startX, startY, rx, ry, 0, 0, 2 * Math.PI);
+    } else if (tool === 'triangle') {
+      ctx.moveTo(startX + (curX - startX) / 2, startY); 
+      ctx.lineTo(curX, curY); 
+      ctx.lineTo(startX, curY); 
+      ctx.closePath();
+    }
+    ctx.stroke();
+}
+
 function startWbDraw(e) {
   if (e.type === 'touchstart') e.preventDefault();
   
@@ -1261,12 +1304,8 @@ function startWbDraw(e) {
   if (wbTool === 'pen' || wbTool === 'eraser') {
     wbCtx.lineCap = 'round';
     wbCtx.lineJoin = 'round';
-    wbCtx.strokeStyle = wbTool === 'eraser' ? '#ffffff' : wbColor;
+    wbCtx.strokeStyle = wbTool === 'eraser' ? '#121212' : wbColor; // Ластик цвета фона
     wbCtx.lineWidth = wbTool === 'eraser' ? 20 : 4;
-  } else {
-    wbSnapshot = wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height);
-    wbCtx.strokeStyle = wbColor;
-    wbCtx.lineWidth = 3;
   }
 }
 
@@ -1280,36 +1319,32 @@ function drawWb(e) {
   if (wbTool === 'pen' || wbTool === 'eraser') {
     wbCtx.lineTo(coords.x, coords.y);
     wbCtx.stroke();
-  } else if (wbTool === 'line' || wbTool === 'rect' || wbTool === 'circle' || wbTool === 'triangle') {
-    if (wbSnapshot) wbCtx.putImageData(wbSnapshot, 0, 0); 
-    wbCtx.beginPath();
-    
-    if (wbTool === 'line') {
-      wbCtx.moveTo(wbLastX, wbLastY);
-      wbCtx.lineTo(coords.x, coords.y);
-    } else if (wbTool === 'rect') {
-      wbCtx.rect(wbLastX, wbLastY, coords.x - wbLastX, coords.y - wbLastY);
-    } else if (wbTool === 'circle') {
-      const radius = Math.sqrt(Math.pow(coords.x - wbLastX, 2) + Math.pow(coords.y - wbLastY, 2));
-      wbCtx.arc(wbLastX, wbLastY, radius, 0, 2 * Math.PI);
-    } else if (wbTool === 'triangle') {
-      wbCtx.moveTo(wbLastX + (coords.x - wbLastX) / 2, wbLastY); 
-      wbCtx.lineTo(coords.x, coords.y); 
-      wbCtx.lineTo(wbLastX, coords.y); 
-      wbCtx.closePath();
-    }
-    wbCtx.stroke();
+  } else if (wbTool === 'line' || wbTool === 'rect' || wbTool === 'circle' || wbTool === 'ellipse' || wbTool === 'triangle') {
+    // ИСПОЛЬЗУЕМ ОТДЕЛЬНЫЙ ХОЛСТ ДЛЯ ПРЕДПРОСМОТРА (Это решает проблему тормозов)
+    wbPreviewCtx.clearRect(0, 0, wbPreviewCanvas.width, wbPreviewCanvas.height);
+    drawShapeOnCtx(wbPreviewCtx, wbTool, wbLastX, wbLastY, coords.x, coords.y, wbColor);
   }
 }
 
-function stopWbDraw() {
+function stopWbDraw(e) {
   if (wbIsDrawing) {
     wbIsDrawing = false;
+    
+    // Фиксируем фигуру на основном холсте
+    if (wbTool !== 'pen' && wbTool !== 'eraser') {
+      const coords = getWbCoords(e);
+      // Проверка, что мышь не ушла за пределы (защита от случайных кликов)
+      if (coords.x !== 0 || coords.y !== 0 || wbLastX !== 0 || wbLastY !== 0) {
+        drawShapeOnCtx(wbCtx, wbTool, wbLastX, wbLastY, coords.x, coords.y, wbColor);
+      }
+      wbPreviewCtx.clearRect(0, 0, wbPreviewCanvas.width, wbPreviewCanvas.height);
+    }
+    
     saveWbState();
   }
 }
 
-// Привязываем события к canvas для старта, и к window для продолжения
+// Привязываем события к canvas для старта, и к window для продолжения (чтобы не прерывалось за границами)
 wbCanvas.addEventListener('mousedown', startWbDraw);
 window.addEventListener('mousemove', drawWb);
 window.addEventListener('mouseup', stopWbDraw);
@@ -1694,6 +1729,7 @@ window.loadReports = async function() {
   try {
     const reports = await api('/admin/reports');
     
+    // Синхронизируем бейдж с реальными данными
     const badge = document.getElementById('report-badge');
     if (reports.length > 0) {
       badge.textContent = reports.length;
