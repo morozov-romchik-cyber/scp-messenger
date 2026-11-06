@@ -291,15 +291,26 @@
   .wb-color { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.2s; }
   .wb-color.active { border-color: #fff; transform: scale(1.2); box-shadow: 0 0 0 2px #1d9bf0; }
   
-  .wb-canvas-wrapper { flex: 1; overflow: auto; background: #ccc; position: relative; display: block; cursor: crosshair; }
-  #wb-canvas { background: #fff; display: block; margin: 0 auto; box-shadow: 0 0 20px rgba(0,0,0,0.2); touch-action: none; cursor: crosshair; }
+  /* ИСПРАВЛЕННЫЙ КОНТЕЙНЕР ХОЛСТА */
+  .wb-canvas-wrapper { flex: 1; overflow: auto; background: #ccc; position: relative; display: flex; justify-content: center; align-items: flex-start; cursor: crosshair; }
+  #wb-canvas-container { position: relative; display: inline-block; }
+  #wb-canvas { background: #fff; display: block; box-shadow: 0 0 20px rgba(0,0,0,0.2); touch-action: none; cursor: crosshair; }
   
+  /* ЖИВОЙ ВВОД ТЕКСТА И ПРЕДПРОСМОТР */
+  .wb-text-input {
+    position: absolute; background: transparent; border: 1px dashed #1d9bf0; color: #000;
+    font-family: Inter, sans-serif; font-size: 24px; outline: none; resize: none;
+    padding: 0; margin: 0; transform-origin: top left; z-index: 1000; overflow: hidden;
+    white-space: pre; line-height: 1.2; min-width: 10px; min-height: 28px;
+  }
+  .wb-ghost-text {
+    position: absolute; color: rgba(0,0,0,0.3); font-family: Inter, sans-serif;
+    font-size: 24px; pointer-events: none; transform-origin: top left;
+    white-space: pre; z-index: 999; display: none; line-height: 1.2;
+  }
+
   .wb-send-btn { background: #00ff9d !important; color: #000 !important; border: none !important; font-weight: bold !important; margin-left: 10px; }
-  
-  /* Панель координат */
   #wb-coords-panel { position: fixed; bottom: 80px; right: 20px; background: rgba(0,0,0,0.7); color: #00ff9d; padding: 6px 12px; border-radius: 6px; font-family: 'Fira Code', monospace; font-size: 13px; pointer-events: none; z-index: 100; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-  
-  /* Текст ползунок */
   .wb-slider-container { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0 10px; height: 36px; }
   .wb-slider-container input[type="range"] { width: 80px; accent-color: #1d9bf0; }
   .wb-slider-label { font-size: 12px; color: var(--muted); min-width: 30px; text-align: right; }
@@ -364,7 +375,7 @@
       
       <div class="wb-slider-container" title="Поворот текста">
         <span style="font-size: 12px; color: var(--muted);">Поворот:</span>
-        <input type="range" id="wb-text-rotation" min="0" max="360" value="0" oninput="document.getElementById('wb-text-rotation-val').textContent = this.value + '°'">
+        <input type="range" id="wb-text-rotation" min="0" max="360" value="0">
         <span id="wb-text-rotation-val" class="wb-slider-label">0°</span>
       </div>
 
@@ -383,7 +394,11 @@
       <button class="wb-btn" onclick="document.getElementById('whiteboard-modal').classList.remove('visible')" style="color:#ff4d4d;border-color:#ff4d4d;">✖ <span class="tool-text">Закрыть</span></button>
     </div>
     <div class="wb-canvas-wrapper" id="wb-canvas-wrapper">
-      <canvas id="wb-canvas"></canvas>
+      <div id="wb-canvas-container">
+        <canvas id="wb-canvas"></canvas>
+        <textarea id="wb-text-input" class="wb-text-input" style="display: none;"></textarea>
+        <div id="wb-ghost-text" class="wb-ghost-text">Текст</div>
+      </div>
     </div>
     <div id="wb-coords-panel">X: 0 | Y: 0</div>
   </div>
@@ -1037,18 +1052,27 @@ let wbLastX = 0;
 let wbLastY = 0;
 let wbSnapshot = null;
 let wbHistory = [];
+let wbTextRotation = 0;
+let isEditingText = false;
+
+let wbGhostTextEl = document.getElementById('wb-ghost-text');
+let wbTextInputEl = document.getElementById('wb-text-input');
 
 function initWhiteboard() {
-  // Устанавливаем фиксированные большие размеры для скролла
   wbCanvas.width = 2000;
   wbCanvas.height = 4000; 
   wbCtx.fillStyle = '#ffffff';
   wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
   wbHistory = [];
   saveWbState();
-  // Скроллим в начало
   document.getElementById('wb-canvas-wrapper').scrollTop = 0;
   document.getElementById('wb-canvas-wrapper').scrollLeft = 0;
+  
+  // Сброс текстового ввода
+  isEditingText = false;
+  wbTextInputEl.style.display = 'none';
+  wbTextInputEl.value = '';
+  wbGhostTextEl.style.display = 'none';
 }
 
 function saveWbState() {
@@ -1080,6 +1104,11 @@ function setWbTool(tool) {
   document.querySelectorAll('.wb-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.getElementById('wb-tool-' + tool);
   if (activeBtn) activeBtn.classList.add('active');
+  
+  if (tool !== 'text') {
+    wbGhostTextEl.style.display = 'none';
+    if (isEditingText) finalizeText();
+  }
 }
 
 function setWbColor(el) {
@@ -1087,6 +1116,7 @@ function setWbColor(el) {
   el.classList.add('active');
   wbColor = el.dataset.color;
   if (wbTool === 'eraser') setWbTool('pen');
+  if (wbTool === 'text' && !isEditingText) wbGhostTextEl.style.color = wbColor;
 }
 
 document.getElementById('whiteboard-btn').addEventListener('click', () => {
@@ -1094,6 +1124,18 @@ document.getElementById('whiteboard-btn').addEventListener('click', () => {
   if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
   document.getElementById('whiteboard-modal').classList.add('visible');
   setTimeout(initWhiteboard, 50);
+});
+
+// Слушатель ползунка поворота текста
+document.getElementById('wb-text-rotation').addEventListener('input', (e) => {
+  wbTextRotation = parseInt(e.target.value, 10);
+  document.getElementById('wb-text-rotation-val').textContent = wbTextRotation + '°';
+  if (wbTool === 'text' && !isEditingText) {
+    wbGhostTextEl.style.transform = `rotate(${wbTextRotation}deg)`;
+  }
+  if (isEditingText) {
+    wbTextInputEl.style.transform = `rotate(${wbTextRotation}deg)`;
+  }
 });
 
 function getWbCoords(e) {
@@ -1120,12 +1162,96 @@ function updateWbCoords(e) {
   const coords = getWbCoords(e);
   const panel = document.getElementById('wb-coords-panel');
   if (panel) panel.textContent = `X: ${Math.round(coords.x)} | Y: ${Math.round(coords.y)}`;
+
+  if (wbTool === 'text' && !isEditingText) {
+      wbGhostTextEl.style.display = 'block';
+      wbGhostTextEl.style.left = coords.x + 'px';
+      wbGhostTextEl.style.top = coords.y + 'px';
+      wbGhostTextEl.style.transform = `rotate(${wbTextRotation}deg)`;
+      wbGhostTextEl.style.color = wbColor;
+  }
 }
+
+// Функция запуска прямого ввода текста
+function startTextInput(x, y) {
+  isEditingText = true;
+  wbGhostTextEl.style.display = 'none';
+  wbTextInputEl.style.display = 'block';
+  wbTextInputEl.style.left = x + 'px';
+  wbTextInputEl.style.top = y + 'px';
+  wbTextInputEl.style.transform = `rotate(${wbTextRotation}deg)`;
+  wbTextInputEl.style.color = wbColor;
+  wbTextInputEl.value = '';
+  wbTextInputEl.style.height = 'auto';
+  wbTextInputEl.style.width = '100px'; // начальная ширина
+  wbTextInputEl.focus();
+}
+
+// Функция завершения ввода и отрисовки на Canvas
+function finalizeText() {
+  if (!isEditingText) return;
+  const text = wbTextInputEl.value.trim();
+  if (text) {
+    const x = parseInt(wbTextInputEl.style.left, 10);
+    const y = parseInt(wbTextInputEl.style.top, 10);
+    
+    wbCtx.save();
+    wbCtx.translate(x, y);
+    wbCtx.rotate(wbTextRotation * Math.PI / 180);
+    wbCtx.fillStyle = wbColor;
+    wbCtx.font = '24px Inter, sans-serif';
+    
+    const lines = text.split('\n');
+    const lineHeight = 28; 
+    lines.forEach((line, index) => {
+        wbCtx.fillText(line, 0, index * lineHeight);
+    });
+    
+    wbCtx.restore();
+    saveWbState();
+  }
+  isEditingText = false;
+  wbTextInputEl.style.display = 'none';
+  wbTextInputEl.value = '';
+}
+
+// Обработчики для поля ввода
+wbTextInputEl.addEventListener('input', () => {
+    wbTextInputEl.style.height = 'auto';
+    wbTextInputEl.style.height = wbTextInputEl.scrollHeight + 'px';
+    wbTextInputEl.style.width = 'auto';
+    wbTextInputEl.style.width = wbTextInputEl.scrollWidth + 'px';
+});
+
+wbTextInputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        finalizeText();
+    }
+    if (e.key === 'Escape') {
+        isEditingText = false;
+        wbTextInputEl.style.display = 'none';
+        wbTextInputEl.value = '';
+    }
+});
+
+wbTextInputEl.addEventListener('blur', () => {
+    finalizeText();
+});
 
 function startWbDraw(e) {
   if (e.type === 'touchstart') e.preventDefault();
-  wbIsDrawing = true;
+  
   const coords = getWbCoords(e);
+
+  if (wbTool === 'text') {
+      if (!isEditingText) {
+          startTextInput(coords.x, coords.y);
+      }
+      return;
+  }
+
+  wbIsDrawing = true;
   wbLastX = coords.x;
   wbLastY = coords.y;
   
@@ -1137,24 +1263,10 @@ function startWbDraw(e) {
     wbCtx.lineJoin = 'round';
     wbCtx.strokeStyle = wbTool === 'eraser' ? '#ffffff' : wbColor;
     wbCtx.lineWidth = wbTool === 'eraser' ? 20 : 4;
-  } else if (wbTool !== 'text') {
+  } else {
     wbSnapshot = wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height);
     wbCtx.strokeStyle = wbColor;
     wbCtx.lineWidth = 3;
-  } else {
-    const text = prompt('Введите текст:');
-    if (text) {
-      const rotation = parseInt(document.getElementById('wb-text-rotation').value, 10);
-      wbCtx.save();
-      wbCtx.translate(wbLastX, wbLastY);
-      wbCtx.rotate(rotation * Math.PI / 180);
-      wbCtx.fillStyle = wbColor;
-      wbCtx.font = '24px Inter, sans-serif';
-      wbCtx.fillText(text, 0, 0);
-      wbCtx.restore();
-      saveWbState();
-    }
-    wbIsDrawing = false;
   }
 }
 
@@ -1197,7 +1309,7 @@ function stopWbDraw() {
   }
 }
 
-// Привязываем события к canvas для старта, и к window для продолжения (чтобы не прерывалось за границами)
+// Привязываем события к canvas для старта, и к window для продолжения
 wbCanvas.addEventListener('mousedown', startWbDraw);
 window.addEventListener('mousemove', drawWb);
 window.addEventListener('mouseup', stopWbDraw);
@@ -1209,9 +1321,13 @@ window.addEventListener('touchend', stopWbDraw);
 // Отслеживание координат без зажатия мыши
 wbCanvas.addEventListener('mousemove', updateWbCoords);
 wbCanvas.addEventListener('touchmove', updateWbCoords, { passive: true });
+wbCanvas.addEventListener('mouseleave', () => {
+    if (wbTool === 'text' && !isEditingText) wbGhostTextEl.style.display = 'none';
+});
 
 async function sendWhiteboard() {
   if (!state.currentChat) return;
+  if (isEditingText) finalizeText();
   
   const modal = document.getElementById('whiteboard-modal');
   modal.classList.remove('visible');
@@ -1578,7 +1694,6 @@ window.loadReports = async function() {
   try {
     const reports = await api('/admin/reports');
     
-    // Синхронизируем бейдж с реальными данными
     const badge = document.getElementById('report-badge');
     if (reports.length > 0) {
       badge.textContent = reports.length;
