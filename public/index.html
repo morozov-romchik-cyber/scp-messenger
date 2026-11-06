@@ -64,52 +64,14 @@
 
   /* === ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ === */
   .privacy-row {
-    display: none;
-    align-items: flex-start;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 12px;
-    text-align: left;
-    line-height: 1.4;
+    display: none; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 12px; text-align: left; line-height: 1.4;
   }
   .privacy-row.visible { display: flex; }
-  .privacy-row input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    accent-color: var(--accent);
-    cursor: pointer;
-    flex-shrink: 0;
-    margin-top: 2px;
-    margin-bottom: 0;
-    padding: 0;
-  }
-  .privacy-row a {
-    color: #1d9bf0;
-    text-decoration: underline;
-    cursor: pointer;
-  }
-  #privacy-modal .modal-content {
-    max-width: 560px;
-    max-height: 85vh;
-    text-align: left;
-  }
-  #privacy-modal .privacy-text {
-    overflow-y: auto;
-    max-height: 55vh;
-    padding-right: 8px;
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--text);
-    margin-bottom: 16px;
-  }
-  #privacy-modal .privacy-text h4 {
-    color: var(--accent);
-    font-family: 'Fira Code', monospace;
-    margin: 14px 0 6px;
-    font-size: 13px;
-    letter-spacing: 0.5px;
-  }
+  .privacy-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; margin-top: 2px; margin-bottom: 0; padding: 0; }
+  .privacy-row a { color: #1d9bf0; text-decoration: underline; cursor: pointer; }
+  #privacy-modal .modal-content { max-width: 560px; max-height: 85vh; text-align: left; }
+  #privacy-modal .privacy-text { overflow-y: auto; max-height: 55vh; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 16px; }
+  #privacy-modal .privacy-text h4 { color: var(--accent); font-family: 'Fira Code', monospace; margin: 14px 0 6px; font-size: 13px; letter-spacing: 0.5px; }
   #privacy-modal .privacy-text h4:first-child { margin-top: 0; }
   #privacy-modal .privacy-text p { margin-bottom: 8px; }
   #privacy-modal .privacy-text ul { padding-left: 20px; margin-bottom: 8px; }
@@ -145,30 +107,21 @@
   
   .fab-container { position: relative; width: 100%; display: flex; justify-content: center; }
   .new-chat-fab { 
-    width: 40px; height: 40px; 
-    background: var(--accent); color: #000; border: none; 
-    border-radius: 50%; font-weight: bold; font-size: 24px; cursor: pointer; 
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s; 
-    display: flex; align-items: center; justify-content: center; z-index: 3;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    width: 40px; height: 40px; background: var(--accent); color: #000; border: none; border-radius: 50%; font-weight: bold; font-size: 24px; cursor: pointer; 
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s; display: flex; align-items: center; justify-content: center; z-index: 3; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
   }
   .new-chat-fab:hover { transform: scale(1.05); }
   .fab-container.open .new-chat-fab { transform: rotate(45deg); }
   
   .fab-menu { 
-    position: absolute; bottom: 50px; 
-    left: 50%; transform: translateX(-50%) translateY(20px); 
-    display: flex; flex-direction: column; gap: 8px; pointer-events: none; opacity: 0; 
+    position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%) translateY(20px); display: flex; flex-direction: column; gap: 8px; pointer-events: none; opacity: 0; 
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; align-items: center;
   }
   .fab-container.open .fab-menu { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
   
   .fab-sub-btn { 
-    width: 34px; height: 34px; 
-    border-radius: 50%; background: var(--card); 
-    border: 1px solid var(--border-hover); color: var(--accent); 
-    display: flex; align-items: center; justify-content: center; cursor: pointer; 
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: transform 0.2s, background 0.2s; 
+    width: 34px; height: 34px; border-radius: 50%; background: var(--card); border: 1px solid var(--border-hover); color: var(--accent); 
+    display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: transform 0.2s, background 0.2s; 
   }
   .fab-sub-btn:hover { transform: scale(1.1); background: var(--border); }
 
@@ -190,10 +143,8 @@
   .msg-avatar:hover { transform: scale(1.1); border-color: var(--accent); }
 
   .msg { 
-    padding: 12px 16px; background: rgba(28, 33, 40, 0.95); border: 1px solid var(--border); 
-    border-radius: 8px; font-size: 14px; word-wrap: break-word; position: relative; 
-    animation: slideUp 0.2s ease-out; backdrop-filter: blur(5px); width: fit-content; 
-    max-width: 100%; cursor: pointer; user-select: none; -webkit-touch-callout: none; 
+    padding: 12px 16px; background: rgba(28, 33, 40, 0.95); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; word-wrap: break-word; position: relative; 
+    animation: slideUp 0.2s ease-out; backdrop-filter: blur(5px); width: fit-content; max-width: 100%; cursor: pointer; user-select: none; -webkit-touch-callout: none; 
   }
   @keyframes slideUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   .msg-row.mine .msg { background: rgba(48, 54, 61, 0.95); border-color: var(--border-hover); border-bottom-right-radius: 2px; }
@@ -258,65 +209,16 @@
 
   /* ОКНО СМАЙЛИКОВ */
   .emoji-picker {
-    position: absolute;
-    top: 60px;
-    right: 24px;
-    background: var(--panel);
-    border: 1px solid var(--border-hover);
-    border-radius: 8px;
-    width: 450px; 
-    max-width: calc(100vw - 48px);
-    height: 350px; 
-    max-height: calc(100vh - 150px);
-    display: none;
-    flex-direction: column;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    z-index: 100;
-    overflow: hidden;
+    position: absolute; top: 60px; right: 24px; background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px;
+    width: 450px; max-width: calc(100vw - 48px); height: 350px; max-height: calc(100vh - 150px);
+    display: none; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100; overflow: hidden;
   }
   .emoji-picker.visible { display: flex; }
-  
-  .emoji-content {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
-    gap: 6px;
-    padding: 12px;
-    overflow-y: auto;
-    width: 100%;
-    height: 100%;
-  }
-  .emoji-item {
-    font-size: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 38px;
-    overflow: hidden;
-    white-space: nowrap;
-    cursor: pointer;
-    border-radius: 6px;
-    transition: background 0.2s;
-    user-select: none;
-    line-height: 1;
-  }
+  .emoji-content { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 6px; padding: 12px; overflow-y: auto; width: 100%; height: 100%; }
+  .emoji-item { font-size: 22px; display: flex; align-items: center; justify-content: center; width: 100%; height: 38px; overflow: hidden; white-space: nowrap; cursor: pointer; border-radius: 6px; transition: background 0.2s; user-select: none; line-height: 1; }
   .emoji-item:hover { background: var(--border); }
-
-  .emoji-resize-handle {
-    position: absolute;
-    bottom: 0; left: 0; width: 20px; height: 20px;
-    cursor: sw-resize;
-    z-index: 102;
-  }
-  .emoji-resize-handle::after {
-    content: '';
-    position: absolute;
-    bottom: 4px; left: 4px;
-    width: 8px; height: 8px;
-    border-bottom: 2px solid var(--muted);
-    border-left: 2px solid var(--muted);
-    border-bottom-left-radius: 2px;
-  }
+  .emoji-resize-handle { position: absolute; bottom: 0; left: 0; width: 20px; height: 20px; cursor: sw-resize; z-index: 102; }
+  .emoji-resize-handle::after { content: ''; position: absolute; bottom: 4px; left: 4px; width: 8px; height: 8px; border-bottom: 2px solid var(--muted); border-left: 2px solid var(--muted); border-bottom-left-radius: 2px; }
 
   .file-progress { position: absolute; bottom: 90px; right: 24px; padding: 10px 16px; font-size: 12px; color: var(--text); font-family: 'Fira Code', monospace; background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 10; align-items: center; gap: 12px; }
   .file-progress.visible { display: flex; }
@@ -369,34 +271,8 @@
   .profile-info-row span:first-child { color: var(--muted); }
   .profile-info-box { background: var(--bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 12px; }
 
-  .toast-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    z-index: 1000000;
-    pointer-events: none;
-  }
-  .toast-msg {
-    background: rgba(22, 27, 34, 0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-left: 4px solid #1d9bf0;
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.7), 0 0 15px rgba(29,155,240,0.2);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 340px;
-    padding: 14px;
-    pointer-events: auto;
-    animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-  }
+  .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1000000; pointer-events: none; }
+  .toast-msg { background: rgba(22, 27, 34, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-left: 4px solid #1d9bf0; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.7), 0 0 15px rgba(29,155,240,0.2); display: flex; align-items: center; gap: 12px; width: 340px; padding: 14px; pointer-events: auto; animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; transition: all 0.2s ease; position: relative; }
   .toast-msg:hover { background: rgba(30, 36, 44, 0.95); transform: translateY(-2px); }
   .toast-close { position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--muted); font-size: 16px; cursor: pointer; display: none; }
   .toast-msg:hover .toast-close { display: block; }
@@ -407,19 +283,30 @@
   .toast-sender { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 2px; }
   .toast-text { font-size: 13px; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+  /* БЕЛАЯ ДОСКА */
+  #whiteboard-modal .modal-content { width: 100vw; height: 100vh; max-width: none; border-radius: 0; padding: 0; border: none; background: #e5e5e5; display: flex; flex-direction: column; }
+  .wb-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; z-index: 10; }
+  .wb-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .wb-btn:hover { background: var(--border); }
+  .wb-btn.active { background: #1d9bf0; color: #fff; border-color: #1d9bf0; }
+  .wb-colors { display: flex; gap: 5px; margin-left: auto; align-items: center; }
+  .wb-color { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.2s; }
+  .wb-color.active { border-color: #fff; transform: scale(1.2); box-shadow: 0 0 0 2px #1d9bf0; }
+  .wb-canvas-wrapper { flex: 1; overflow-y: auto; overflow-x: hidden; background: #ccc; position: relative; display: flex; justify-content: center; }
+  #wb-canvas { background: #fff; cursor: crosshair; touch-action: none; display: block; box-shadow: 0 0 20px rgba(0,0,0,0.2); }
+  .wb-send-btn { background: #00ff9d !important; color: #000 !important; border: none !important; font-weight: bold !important; margin-left: 10px; }
+
   @media (max-width: 720px) {
     aside { display: none; width: 100%; position: absolute; inset: 0; z-index: 20; }
     aside.mobile-open { display: flex; }
     .back-btn { display: block !important; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 16px; flex-shrink: 0; }
     .msg-row { max-width: 90%; }
-    
     .chat-header { padding: 0 8px; }
     .chat-header-left { overflow: hidden; flex: 1; min-width: 0; }
     .chat-header h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
     #my-role-badge { display: none !important; } 
     #header-chat-role-badge { display: none !important; } 
     .header-btn { padding: 2px; font-size: 18px; }
-
     #messages { padding: 16px; }
     #composer { padding: 12px 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
     .file-progress { bottom: 80px; right: 12px; }
@@ -430,6 +317,12 @@
     .toast-msg { width: calc(100vw - 40px); }
     .emoji-picker { top: 60px; right: 12px; width: calc(100vw - 24px); height: 40vh; }
     #privacy-modal .modal-content { width: calc(100vw - 32px); max-width: none; }
+    
+    /* Мобильная адаптация белой доски */
+    .wb-toolbar { padding: 8px; gap: 6px; }
+    .wb-btn { padding: 6px 10px; font-size: 14px; flex: 1; justify-content: center; }
+    .wb-colors { margin-left: 0; width: 100%; justify-content: center; margin-top: 5px; }
+    .wb-btn span.tool-text { display: none; }
   }
   .back-btn { display: none; }
   .empty { text-align: center; color: var(--muted); font-family: 'Fira Code', monospace; font-size: 13px; padding: 60px 20px; letter-spacing: 1px; }
@@ -449,6 +342,44 @@
   <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
 
+<!-- БЕЛАЯ ДОСКА -->
+<div class="modal" id="whiteboard-modal">
+  <div class="modal-content">
+    <div class="wb-toolbar">
+      <button class="wb-btn" id="wb-tool-pen" onclick="setWbTool('pen')" title="Кисть">✏️ <span class="tool-text">Кисть</span></button>
+      <button class="wb-btn" id="wb-tool-eraser" onclick="setWbTool('eraser')" title="Ластик">🧽 <span class="tool-text">Ластик</span></button>
+      <button class="wb-btn" id="wb-tool-line" onclick="setWbTool('line')" title="Линия">📏 <span class="tool-text">Линия</span></button>
+      <button class="wb-btn" id="wb-tool-rect" onclick="setWbTool('rect')" title="Прямоугольник">⬜ <span class="tool-text">Фигура</span></button>
+      <button class="wb-btn" id="wb-tool-circle" onclick="setWbTool('circle')" title="Круг">⭕ <span class="tool-text">Круг</span></button>
+      <button class="wb-btn" id="wb-tool-text" onclick="setWbTool('text')" title="Текст">🔤 <span class="tool-text">Текст</span></button>
+      
+      <select id="wb-text-rotation" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px;" title="Поворот текста">
+        <option value="0">Текст 0°</option>
+        <option value="90">Текст 90°</option>
+        <option value="180">Текст 180°</option>
+        <option value="270">Текст 270°</option>
+      </select>
+
+      <button class="wb-btn" onclick="undoWb()" title="Отменить">↩️ <span class="tool-text">Отменить</span></button>
+      <button class="wb-btn" onclick="clearWb()" title="Очистить">🗑️ <span class="tool-text">Очистить</span></button>
+      
+      <div class="wb-colors" id="wb-colors">
+        <div class="wb-color active" style="background:#000000;" data-color="#000000" onclick="setWbColor(this)"></div>
+        <div class="wb-color" style="background:#ff3333;" data-color="#ff3333" onclick="setWbColor(this)"></div>
+        <div class="wb-color" style="background:#1d9bf0;" data-color="#1d9bf0" onclick="setWbColor(this)"></div>
+        <div class="wb-color" style="background:#00ff9d;" data-color="#00ff9d" onclick="setWbColor(this)"></div>
+        <div class="wb-color" style="background:#ffd700;" data-color="#ffd700" onclick="setWbColor(this)"></div>
+      </div>
+
+      <button class="wb-btn wb-send-btn" onclick="sendWhiteboard()">🚀 <span class="tool-text">Отправить</span></button>
+      <button class="wb-btn" onclick="document.getElementById('whiteboard-modal').classList.remove('visible')" style="color:#ff4d4d;border-color:#ff4d4d;">✖ <span class="tool-text">Закрыть</span></button>
+    </div>
+    <div class="wb-canvas-wrapper" id="wb-canvas-wrapper">
+      <canvas id="wb-canvas"></canvas>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="privacy-modal">
   <div class="modal-content">
     <h3>ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ</h3>
@@ -462,32 +393,24 @@
         <li><b>Содержимое сообщений и файлов</b> — хранится для обеспечения работы мессенджера;</li>
         <li><b>Технические метаданные</b>: время отправки сообщений, статусы «доставлено / прочитано».</li>
       </ul>
-
       <h4>2. Как мы используем данные</h4>
       <p>Данные используются исключительно для работы сервиса: доставки сообщений, отображения профиля, обеспечения безопасности и модерации нарушений. Мы <b>не передаём</b> ваши данные третьим лицам в маркетинговых целях.</p>
-
       <h4>3. Передача данных государственным органам</h4>
       <p>Мы гарантируем, что ваши личные данные, включая историю переписок, IP-адреса и иную конфиденциальную информацию, <b>не предоставляются правительственным организациям, спецслужбам или иным третьим лицам</b>. Любые запросы от государственных структур могут быть рассмотрены исключительно при наличии официального, юридически обязывающего судебного решения в рамках действующего законодательства.</p>
-
       <h4>4. Где хранятся данные</h4>
       <p>Сервер и файлы размещены на защищённых серверах. Передача данных между вашим устройством и сервером защищена по протоколу <b>HTTPS</b>.</p>
-
       <h4>5. Ваши права</h4>
       <ul>
         <li><b>Удалить аккаунт</b> и все связанные с ним сообщения можно в любой момент через меню «Настройки → Удалить аккаунт»;</li>
         <li>Вы можете <b>заблокировать</b> любого пользователя, чтобы он не мог вам писать;</li>
         <li>Вы можете изменить отображаемое имя и аватар в настройках.</li>
       </ul>
-
       <h4>6. Возраст пользователей</h4>
       <p>Сервис не предназначен для лиц младше 14 лет. Регистрируясь, вы подтверждаете, что достигли этого возраста.</p>
-
       <h4>7. Cookies и локальное хранилище</h4>
       <p>Мы используем <b>localStorage</b> браузера для хранения токена авторизации и настроек интерфейса (сезон, погода и т. п.). Мы не используем сторонние трекеры и рекламные cookies.</p>
-
       <h4>8. Изменения политики</h4>
       <p>Актуальная версия политики всегда доступна по этой ссылке. Продолжая пользоваться сервисом после изменений, вы принимаете обновлённую редакцию.</p>
-
       <p style="margin-top:14px; color: var(--muted); font-size:12px;">Последнее обновление: ноябрь 2026 г.</p>
     </div>
     <button class="modal-btn" onclick="document.getElementById('privacy-modal').classList.remove('visible')">Закрыть</button>
@@ -498,10 +421,7 @@
   <div class="modal-content" style="border: 1px solid #1d9bf0; box-shadow: 0 0 30px rgba(29,155,240,0.2); text-align: center; max-width: 400px;">
     <svg style="width: 64px; height: 64px; fill: #1d9bf0; margin: 0 auto 15px auto;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
     <h3 style="color: #1d9bf0; font-size: 20px; margin-bottom: 10px;">Официальный субъект SCP</h3>
-    <p style="font-size: 14px; color: var(--text); margin-bottom: 20px; line-height: 1.6;">
-      Данный аккаунт является официальным представителем Фонда SCP. <br><br>
-      <span style="color: #ff4d4d; font-weight: bold;">Внимание:</span> любые другие аккаунты, выдающие себя за SCP_Helper, являются нарушителями и будут заблокированы.
-    </p>
+    <p style="font-size: 14px; color: var(--text); margin-bottom: 20px; line-height: 1.6;">Данный аккаунт является официальным представителем Фонда SCP. <br><br><span style="color: #ff4d4d; font-weight: bold;">Внимание:</span> любые другие аккаунты, выдающие себя за SCP_Helper, являются нарушителями и будут заблокированы.</p>
     <button class="modal-btn" onclick="document.getElementById('scp-verify-modal').classList.remove('visible')" style="background: #1d9bf0; color: #fff; font-weight: bold; border: none;">ПОНЯТНО</button>
   </div>
 </div>
@@ -525,25 +445,18 @@
   </div>
 </div>
 
-<!-- МОДАЛКА ЖАЛОБЫ -->
 <div class="modal" id="report-modal">
   <div class="modal-content" style="border-color: #ff9933; width: 440px;">
     <h3 style="color: #ff9933;">🚩 ЖАЛОБА</h3>
     <p style="font-size: 12px; color: var(--muted); margin-bottom: 10px; text-align: center;">Выберите сообщения, на которые хотите пожаловаться:</p>
-    
-    <div id="report-msgs-container" style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px; background: var(--bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
-      <!-- Checkboxes go here -->
-    </div>
-
+    <div id="report-msgs-container" style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px; background: var(--bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border);"></div>
     <select id="report-reason" onchange="toggleCustomReason(this.value)" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none;">
       <option value="spam">Спам</option>
       <option value="insult">Оскорбления / Токсичность</option>
       <option value="nsfw">Материалы 18+ / NSFW</option>
       <option value="other">Другое</option>
     </select>
-
     <textarea id="report-custom-text" placeholder="Опишите причину жалобы..." style="display: none; width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none; resize: vertical; min-height: 60px;"></textarea>
-    
     <button class="modal-btn" onclick="submitReport()" style="background: #ff9933; color: #000; font-weight: bold; margin-bottom: 8px;">Отправить жалобу</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('report-modal').classList.remove('visible')">Отмена</button>
   </div>
@@ -564,100 +477,60 @@
       <div class="admin-tab" style="color: #ff3333; border-left-color: transparent;" onclick="document.getElementById('admin-dashboard-modal').classList.remove('visible')">✖ Закрыть</div>
     </div>
     <div class="admin-main">
-      
       <div id="tab-reports" class="admin-tab-content" style="display: none;">
-        <div class="admin-header">
-          <h2>Рассмотрение жалоб</h2>
-          <button class="admin-btn" onclick="loadReports()">🔄 Обновить</button>
-        </div>
+        <div class="admin-header"><h2>Рассмотрение жалоб</h2><button class="admin-btn" onclick="loadReports()">🔄 Обновить</button></div>
         <div id="reports-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
       </div>
-
       <div id="tab-chats" class="admin-tab-content" style="display: none;">
-        <div class="admin-header">
-          <h2>Все группы и каналы</h2>
-          <button class="admin-btn" onclick="loadAllChats()">🔄 Обновить</button>
-        </div>
-        <div class="admin-section">
-          <div id="all-chats-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
-        </div>
+        <div class="admin-header"><h2>Все группы и каналы</h2><button class="admin-btn" onclick="loadAllChats()">🔄 Обновить</button></div>
+        <div class="admin-section"><div id="all-chats-list" style="display: flex; flex-direction: column; gap: 8px;"></div></div>
       </div>
-
       <div id="tab-server" class="admin-tab-content">
         <div class="admin-header"><h2>Управление сервером</h2></div>
         <div class="admin-section" id="invite-section">
           <h4>Генерация инвайт-кодов (Одноразовые)</h4>
-          <div class="admin-input-group">
-            <select id="invite-role-select"></select>
-            <button class="admin-btn" onclick="generateInvite()">Создать код</button>
-          </div>
+          <div class="admin-input-group"><select id="invite-role-select"></select><button class="admin-btn" onclick="generateInvite()">Создать код</button></div>
           <div id="invite-result" style="font-family: 'Fira Code'; font-size: 14px; color: #00ff9d; margin-top: 10px;"></div>
           <div id="invite-hint" style="font-size: 12px; color: #ccaaaa; margin-top: 8px; font-family: 'Fira Code';"></div>
         </div>
         <div class="admin-section" style="border-color: #ff3333; background: rgba(255, 51, 51, 0.05);">
           <h4 style="color: #ff3333; border-bottom-color: #ff3333;">⚠️ Опасная зона</h4>
-          <p style="font-size: 12px; color: #ff9999; margin-bottom: 15px;">
-            Эта кнопка навсегда удалит <b>ВСЕ сообщения и файлы</b> из всех чатов. <br>
-            Аккаунты пользователей, их пароли и списки чатов <b>останутся нетронутыми</b>.
-          </p>
-          <button class="admin-btn admin-btn-danger" onclick="wipeAllMessages(event)" style="background: #ff3333; color: #fff; border: none; width: 100%; padding: 12px; font-size: 16px; font-weight: bold; cursor: pointer;">
-            🗑️ УДАЛИТЬ ВСЕ ПЕРЕПИСКИ И ФАЙЛЫ
-          </button>
+          <p style="font-size: 12px; color: #ff9999; margin-bottom: 15px;">Эта кнопка навсегда удалит <b>ВСЕ сообщения и файлы</b> из всех чатов. <br>Аккаунты пользователей, их пароли и списки чатов <b>останутся нетронутыми</b>.</p>
+          <button class="admin-btn admin-btn-danger" onclick="wipeAllMessages(event)" style="background: #ff3333; color: #fff; border: none; width: 100%; padding: 12px; font-size: 16px; font-weight: bold; cursor: pointer;">🗑️ УДАЛИТЬ ВСЕ ПЕРЕПИСКИ И ФАЙЛЫ</button>
         </div>
       </div>
-
       <div id="tab-moderation" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Модерация контента</h2></div>
         <div class="admin-section">
           <h4>Управление удаленными сообщениями</h4>
-          <div class="admin-toggle-row">
-            <span>Читать удаленные сообщения (Глобально)</span>
-            <input type="checkbox" id="read-deleted-toggle" onchange="toggleReadDeleted(this.checked)">
-          </div>
+          <div class="admin-toggle-row"><span>Читать удаленные сообщения (Глобально)</span><input type="checkbox" id="read-deleted-toggle" onchange="toggleReadDeleted(this.checked)"></div>
           <div id="read-deleted-status-label" style="font-family: 'Fira Code'; font-size: 12px; margin-top: 8px; font-weight: bold;"></div>
         </div>
       </div>
-
       <div id="tab-users" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Управление пользователями</h2></div>
-
         <div class="admin-section" id="passwords-section" style="display: none; border-color: #ff3333; background: rgba(255, 51, 51, 0.05);">
           <h4 style="color: #ff3333; border-bottom-color: #ff3333;">🔐 Просмотр паролей пользователей</h4>
-          <p style="font-size: 12px; color: #ff9999; margin-bottom: 15px;">
-            ⚠️ Конфиденциальная информация. Используйте только для восстановления доступа пользователей по их прямому запросу.
-          </p>
+          <p style="font-size: 12px; color: #ff9999; margin-bottom: 15px;">⚠️ Конфиденциальная информация.</p>
           <div style="display: flex; gap: 10px; margin-bottom: 10px;">
             <input type="text" id="pass-search" placeholder="🔍 Поиск по юзернейму..." oninput="filterPasswords()" style="flex: 1; background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none;">
-            <button id="load-passwords-btn" class="admin-btn admin-btn-danger" onclick="loadAllPasswords(event)" style="background: #ff3333; color: #fff; border: none; font-weight: bold; white-space: nowrap;">
-              👁️ Показать
-            </button>
+            <button id="load-passwords-btn" class="admin-btn admin-btn-danger" onclick="loadAllPasswords(event)" style="background: #ff3333; color: #fff; border: none; font-weight: bold; white-space: nowrap;">👁️ Показать</button>
           </div>
           <div id="passwords-list" style="display: none; max-height: 400px; overflow-y: auto;"></div>
         </div>
-
         <div class="admin-section" id="admin-grant-section" style="display: none;">
           <h4>⭐ Выдача / снятие админки (только SysAdmin)</h4>
-          <div class="admin-input-group">
-            <input type="text" placeholder="Username или ID" id="grant-admin-input">
-            <button class="admin-btn" onclick="grantAdmin()">Выдать админа</button>
-            <button class="admin-btn admin-btn-danger" onclick="revokeAdmin()">Снять админа</button>
-          </div>
+          <div class="admin-input-group"><input type="text" placeholder="Username или ID" id="grant-admin-input"><button class="admin-btn" onclick="grantAdmin()">Выдать админа</button><button class="admin-btn admin-btn-danger" onclick="revokeAdmin()">Снять админа</button></div>
         </div>
         <div class="admin-section">
           <h4>Блокировка аккаунта (Бан) — SysAdmin защищен</h4>
           <div class="admin-input-group" style="flex-wrap: wrap;">
             <input type="text" placeholder="Username или ID" id="user-ban-input" style="flex: 2; min-width: 140px;">
             <select id="user-ban-duration" style="flex: 1; min-width: 120px;" onchange="handleBanPresetChange(this.value)">
-              <option value="custom">Свое время (мин)</option>
-              <option value="60">1 час</option>
-              <option value="1440">24 часа</option>
-              <option value="4320">3 дня</option>
-              <option value="10080">7 дней</option>
-              <option value="-1">Навсегда</option>
+              <option value="custom">Свое время (мин)</option><option value="60">1 час</option><option value="1440">24 часа</option><option value="4320">3 дня</option><option value="10080">7 дней</option><option value="-1">Навсегда</option>
             </select>
             <input type="number" id="user-ban-custom-minutes" placeholder="Мин." min="1" style="width: 80px; flex: none;" value="10">
-            <button class="admin-btn admin-btn-danger" onclick="banUser()">Забанить</button>
-            <button class="admin-btn" onclick="unbanUser()">Разбанить</button>
+            <button class="admin-btn admin-btn-danger" onclick="banUser()">Забанить</button><button class="admin-btn" onclick="unbanUser()">Разбанить</button>
           </div>
         </div>
         <div class="admin-section">
@@ -665,59 +538,38 @@
           <div class="admin-input-group">
             <input type="text" placeholder="Username или ID" id="user-role-input">
             <select id="user-role-select">
-              <option value="user">Пользователь</option>
-              <option value="helper">Хелпер</option>
-              <option value="moderator">Модератор</option>
-              <option value="admin" data-sysonly>Админ</option>
-              <option value="sysadmin" data-sysonly>SysAdmin</option>
+              <option value="user">Пользователь</option><option value="helper">Хелпер</option><option value="moderator">Модератор</option><option value="admin" data-sysonly>Админ</option><option value="sysadmin" data-sysonly>SysAdmin</option>
             </select>
             <button class="admin-btn" onclick="assignRole()">Назначить</button>
           </div>
         </div>
         <div class="admin-section">
           <h4>Удаление пользователя</h4>
-          <div class="admin-input-group">
-            <input type="text" placeholder="Username или ID" id="user-action-input">
-            <button class="admin-btn admin-btn-danger" onclick="deleteUser()">Удалить навсегда</button>
-          </div>
+          <div class="admin-input-group"><input type="text" placeholder="Username или ID" id="user-action-input"><button class="admin-btn admin-btn-danger" onclick="deleteUser()">Удалить навсегда</button></div>
         </div>
       </div>
-
       <div id="tab-staff" class="admin-tab-content" style="display: none;">
-        <div class="admin-header">
-          <h2>Список персонала</h2>
-          <button class="admin-btn" onclick="loadStaffList()">🔄 Обновить</button>
-        </div>
+        <div class="admin-header"><h2>Список персонала</h2><button class="admin-btn" onclick="loadStaffList()">🔄 Обновить</button></div>
         <div class="admin-section">
           <h4>Все сотрудники (кроме SysAdmin), по убыванию звания</h4>
           <input type="text" id="staff-search" placeholder="🔍 Поиск по юзернейму..." oninput="filterStaff()" style="width: 100%; background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none; margin-bottom: 15px;">
           <div id="staff-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
         </div>
       </div>
-
       <div id="tab-support" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Поддержка & Логи</h2></div>
         <div class="admin-section">
           <h4>Поиск IP пользователя</h4>
-          <div class="admin-input-group">
-            <input type="text" placeholder="Введите Username (с @ или без)" id="hash-input">
-            <button class="admin-btn" onclick="searchUserIp()">Найти IP</button>
-          </div>
+          <div class="admin-input-group"><input type="text" placeholder="Введите Username (с @ или без)" id="hash-input"><button class="admin-btn" onclick="searchUserIp()">Найти IP</button></div>
           <div class="log-box" id="diagnostic-log" style="margin-top: 10px; display: none;">[Log] Waiting...</div>
         </div>
-        <div class="admin-section">
-          <h4>Мониторинг аномалий & Логи системы</h4>
-          <div class="log-box" id="anomaly-log">[System] Monitoring started...<br></div>
-        </div>
+        <div class="admin-section"><h4>Мониторинг аномалий & Логи системы</h4><div class="log-box" id="anomaly-log">[System] Monitoring started...<br></div></div>
       </div>
-
       <div id="tab-alerts" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Срочные оповещения</h2></div>
         <div class="admin-section">
           <h4>📢 Отправить оповещение всем пользователям</h4>
-          <p style="font-size: 12px; color: #ccaaaa; margin-bottom: 15px;">
-            Это сообщение мгновенно появится на экране у всех пользователей в сети. Используйте только в экстренных случаях.
-          </p>
+          <p style="font-size: 12px; color: #ccaaaa; margin-bottom: 15px;">Это сообщение мгновенно появится на экране у всех пользователей в сети. Используйте только в экстренных случаях.</p>
           <div class="admin-input-group" style="flex-direction: column; align-items: stretch;">
             <textarea id="alert-text-input" placeholder="Введите текст срочного оповещения..." rows="4" style="background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none; resize: vertical; margin-bottom: 10px;"></textarea>
             <button class="admin-btn admin-btn-danger" onclick="sendUrgentAlert()" style="background: #ff3333; color: #fff; font-size: 16px; padding: 12px;">🚨 ОТПРАВИТЬ ВСЕМ</button>
@@ -740,12 +592,10 @@
   <div class="modal-content" style="height: 85vh; display: flex; flex-direction: column;">
     <h3 id="create-modal-title">СОЗДАТЬ ГРУППУ</h3>
     <input type="text" id="group-name-input" placeholder="Название" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none; flex-shrink: 0;" />
-    
     <div id="channel-username-container" style="display: none; margin-bottom: 10px; flex-shrink: 0;">
       <input type="text" id="channel-username-input" placeholder="юзернейм (например: my_channel)" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; outline: none;" />
       <div style="font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'Fira Code';">Ссылка будет выглядеть как: scp.me/... (указывается 1 раз)</div>
     </div>
-    
     <div id="group-user-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
     <button class="modal-btn" onclick="createGroup()" style="background: var(--accent); color: #000; margin-bottom: 10px; flex-shrink: 0;">Создать</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('create-group-modal').classList.remove('visible')">Отмена</button>
@@ -808,7 +658,6 @@
 <div class="modal" id="settings-modal">
   <div class="modal-content">
     <h3>⚙️ НАСТРОЙКИ</h3>
-    
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px; font-weight: bold; color: var(--accent);">Ваш профиль:</span>
       <div style="font-size: 13px; display: flex; flex-direction: column; gap: 6px; width: 100%; font-family: 'Fira Code';">
@@ -819,7 +668,6 @@
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">IP:</span><span id="set-my-ip" style="color: #00ff9d;">...</span></div>
       </div>
     </div>
-
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px;">Отображаемое имя (Никнейм):</span>
       <div style="display: flex; gap: 10px; width: 100%;">
@@ -827,7 +675,6 @@
         <button class="modal-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;" id="update-display-name-btn">Сохранить</button>
       </div>
     </div>
-
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px;">Ваш Аватар:</span>
       <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
@@ -837,31 +684,10 @@
       </div>
     </div>
     <div style="border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
-      <div class="setting-row">
-        <span>Время года:</span>
-        <select id="season-select">
-          <option value="winter">Зима ❄️</option>
-          <option value="spring">Весна 🌱</option>
-          <option value="summer">Лето ☀️</option>
-          <option value="autumn">Осень 🍂</option>
-        </select>
-      </div>
-      <div class="setting-row">
-        <span>Погода:</span>
-        <select id="weather-select">
-          <option value="none">Ясно</option>
-          <option value="rain">Дождь 🌧️</option>
-          <option value="snow">Снег 🌨️</option>
-        </select>
-      </div>
-      <div class="setting-row">
-        <span>Призраки (SCP):</span>
-        <input type="checkbox" id="ghosts-toggle">
-      </div>
-      <div class="setting-row">
-        <span>Избранные чаты:</span>
-        <input type="checkbox" id="favorites-toggle">
-      </div>
+      <div class="setting-row"><span>Время года:</span><select id="season-select"><option value="winter">Зима ❄️</option><option value="spring">Весна 🌱</option><option value="summer">Лето ☀️</option><option value="autumn">Осень 🍂</option></select></div>
+      <div class="setting-row"><span>Погода:</span><select id="weather-select"><option value="none">Ясно</option><option value="rain">Дождь 🌧️</option><option value="snow">Снег 🌨️</option></select></div>
+      <div class="setting-row"><span>Призраки (SCP):</span><input type="checkbox" id="ghosts-toggle"></div>
+      <div class="setting-row"><span>Избранные чаты:</span><input type="checkbox" id="favorites-toggle"></div>
     </div>
     <button class="modal-btn" id="logout-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-top: 10px;">Выйти из аккаунта</button>
     <button class="modal-btn" id="delete-account-btn" style="background: #ff4d4d; color: #fff; margin-top: 10px;">Удалить аккаунт</button>
@@ -871,10 +697,7 @@
 
 <div id="att-viewer" class="att-viewer-modal">
   <div class="att-viewer-content" id="att-viewer-content">
-    <div class="att-viewer-header" id="att-viewer-header">
-      <span id="att-viewer-title">Файл</span>
-      <button class="att-viewer-close" onclick="closeAttViewer()">×</button>
-    </div>
+    <div class="att-viewer-header" id="att-viewer-header"><span id="att-viewer-title">Файл</span><button class="att-viewer-close" onclick="closeAttViewer()">×</button></div>
     <div class="att-viewer-meta" id="att-viewer-meta"></div>
     <div class="att-viewer-body" id="att-viewer-body"></div>
     <div class="att-viewer-nav" id="att-viewer-nav"></div>
@@ -929,10 +752,7 @@
     </div>
     <div class="favorites-shortcut" onclick="openSavedMessages()">
       <div class="chat-avatar" style="background: var(--accent); color: #000; font-size: 16px;">⭐</div>
-      <div class="chat-info">
-        <div class="name">Избранное</div>
-        <div class="preview">Сохраненные заметки</div>
-      </div>
+      <div class="chat-info"><div class="name">Избранное</div><div class="preview">Сохраненные заметки</div></div>
     </div>
     <div class="search"><input id="user-search" placeholder="🔍 Поиск чатов, каналов, групп..." /></div>
     <div id="chat-list"></div>
@@ -997,6 +817,7 @@
 
     <form id="composer">
       <textarea id="msg-input" placeholder="Введите сообщение..." rows="1"></textarea>
+      <button type="button" class="file" id="whiteboard-btn" title="Белая доска">🎨</button>
       <button type="button" class="file" id="emoji-btn" title="Emoji">😀</button>
       <button type="button" class="file" id="file-btn" title="Attach">📎</button>
       <button type="submit" id="send-btn" title="Send">▶</button>
@@ -1195,6 +1016,179 @@ function showNotification(sender, text, avatarUrl, chatId) {
             this.close();
         };
     }
+}
+
+// ================= БЕЛАЯ ДОСКА (WHITEBOARD) =================
+let wbCanvas = document.getElementById('wb-canvas');
+let wbCtx = wbCanvas.getContext('2d');
+let wbIsDrawing = false;
+let wbTool = 'pen';
+let wbColor = '#000000';
+let wbLastX = 0;
+let wbLastY = 0;
+let wbSnapshot = null;
+let wbHistory = [];
+
+function initWhiteboard() {
+  const wrapper = document.getElementById('wb-canvas-wrapper');
+  // Размеры холста: ширина под экран, высота 4000px для эффекта "бесконечности"
+  wbCanvas.width = wrapper.clientWidth;
+  wbCanvas.height = 4000; 
+  wbCtx.fillStyle = '#ffffff';
+  wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
+  wbHistory = [];
+  saveWbState();
+}
+
+function saveWbState() {
+  if (wbHistory.length > 20) wbHistory.shift();
+  wbHistory.push(wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height));
+}
+
+function undoWb() {
+  if (wbHistory.length > 1) {
+    wbHistory.pop(); // Удаляем текущее состояние
+    const prevState = wbHistory[wbHistory.length - 1];
+    wbCtx.putImageData(prevState, 0, 0);
+  } else if (wbHistory.length === 1) {
+    wbCtx.fillStyle = '#ffffff';
+    wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
+    saveWbState();
+  }
+}
+
+function clearWb() {
+  if (!confirm('Очистить всю доску?')) return;
+  wbCtx.fillStyle = '#ffffff';
+  wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
+  saveWbState();
+}
+
+function setWbTool(tool) {
+  wbTool = tool;
+  document.querySelectorAll('.wb-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById('wb-tool-' + tool);
+  if (activeBtn) activeBtn.classList.add('active');
+}
+
+function setWbColor(el) {
+  document.querySelectorAll('.wb-color').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  wbColor = el.dataset.color;
+  if (wbTool === 'eraser') setWbTool('pen'); // Автопереключение с ластика при выборе цвета
+}
+
+document.getElementById('whiteboard-btn').addEventListener('click', () => {
+  if (!state.currentChat) return alert('Сначала выберите чат');
+  if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
+  document.getElementById('whiteboard-modal').classList.add('visible');
+  setTimeout(initWhiteboard, 50); // Ждем отрисовки модалки для правильного размера
+});
+
+function getWbCoords(e) {
+  const rect = wbCanvas.getBoundingClientRect();
+  let clientX, clientY;
+  if (e.touches && e.touches.length > 0) {
+    clientX = e.touches[0].clientX;
+    clientY = e.touches[0].clientY;
+  } else {
+    clientX = e.clientX;
+    clientY = e.clientY;
+  }
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top
+  };
+}
+
+function startWbDraw(e) {
+  if (e.type === 'touchstart') e.preventDefault(); // Останавливаем скролл при рисовании
+  wbIsDrawing = true;
+  const coords = getWbCoords(e);
+  wbLastX = coords.x;
+  wbLastY = coords.y;
+  
+  wbCtx.beginPath();
+  wbCtx.moveTo(wbLastX, wbLastY);
+  
+  if (wbTool === 'pen' || wbTool === 'eraser') {
+    wbCtx.lineCap = 'round';
+    wbCtx.lineJoin = 'round';
+    wbCtx.strokeStyle = wbTool === 'eraser' ? '#ffffff' : wbColor;
+    wbCtx.lineWidth = wbTool === 'eraser' ? 20 : 4;
+  } else if (wbTool !== 'text') {
+    wbSnapshot = wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height);
+    wbCtx.strokeStyle = wbColor;
+    wbCtx.lineWidth = 3;
+  } else {
+    // Инструмент Текст
+    const text = prompt('Введите текст:');
+    if (text) {
+      const rotation = parseInt(document.getElementById('wb-text-rotation').value, 10);
+      wbCtx.save();
+      wbCtx.translate(wbLastX, wbLastY);
+      wbCtx.rotate(rotation * Math.PI / 180);
+      wbCtx.fillStyle = wbColor;
+      wbCtx.font = '24px Inter, sans-serif';
+      wbCtx.fillText(text, 0, 0);
+      wbCtx.restore();
+      saveWbState();
+    }
+    wbIsDrawing = false;
+  }
+}
+
+function drawWb(e) {
+  if (!wbIsDrawing) return;
+  if (e.type === 'touchmove') e.preventDefault();
+  const coords = getWbCoords(e);
+  
+  if (wbTool === 'pen' || wbTool === 'eraser') {
+    wbCtx.lineTo(coords.x, coords.y);
+    wbCtx.stroke();
+  } else if (wbTool === 'line' || wbTool === 'rect' || wbTool === 'circle') {
+    if (wbSnapshot) wbCtx.putImageData(wbSnapshot, 0, 0); // Очищаем предыдущий превью-рисунок
+    wbCtx.beginPath();
+    
+    if (wbTool === 'line') {
+      wbCtx.moveTo(wbLastX, wbLastY);
+      wbCtx.lineTo(coords.x, coords.y);
+    } else if (wbTool === 'rect') {
+      wbCtx.rect(wbLastX, wbLastY, coords.x - wbLastX, coords.y - wbLastY);
+    } else if (wbTool === 'circle') {
+      const radius = Math.sqrt(Math.pow(coords.x - wbLastX, 2) + Math.pow(coords.y - wbLastY, 2));
+      wbCtx.arc(wbLastX, wbLastY, radius, 0, 2 * Math.PI);
+    }
+    wbCtx.stroke();
+  }
+}
+
+function stopWbDraw() {
+  if (wbIsDrawing) {
+    wbIsDrawing = false;
+    saveWbState();
+  }
+}
+
+wbCanvas.addEventListener('mousedown', startWbDraw);
+wbCanvas.addEventListener('mousemove', drawWb);
+window.addEventListener('mouseup', stopWbDraw);
+wbCanvas.addEventListener('touchstart', startWbDraw, { passive: false });
+wbCanvas.addEventListener('touchmove', drawWb, { passive: false });
+window.addEventListener('touchend', stopWbDraw);
+
+async function sendWhiteboard() {
+  if (!state.currentChat) return;
+  
+  // Показываем сообщение о начале отправки
+  const modal = document.getElementById('whiteboard-modal');
+  modal.classList.remove('visible');
+  
+  wbCanvas.toBlob(async (blob) => {
+    if (!blob) return alert('Ошибка при создании изображения');
+    const file = new File([blob], `drawing_${Date.now()}.png`, { type: 'image/png' });
+    await uploadFilesWithProgress([file], '🎨 Рисунок с доски');
+  }, 'image/png');
 }
 
 // =========================================================
