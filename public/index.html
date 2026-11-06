@@ -412,7 +412,15 @@
     aside.mobile-open { display: flex; }
     .back-btn { display: block !important; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 16px; flex-shrink: 0; }
     .msg-row { max-width: 90%; }
-    .chat-header { padding: 0 12px; }
+    
+    /* ИСПРАВЛЕНИЕ НАЕЗЖАЮЩИХ ЭЛЕМЕНТОВ В ХЕДЕРЕ НА ТЕЛЕФОНЕ */
+    .chat-header { padding: 0 8px; }
+    .chat-header-left { overflow: hidden; flex: 1; min-width: 0; }
+    .chat-header h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
+    #my-role-badge { display: none !important; } 
+    #header-chat-role-badge { display: none !important; } 
+    .header-btn { padding: 2px; font-size: 18px; }
+
     #messages { padding: 16px; }
     #composer { padding: 12px 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
     .file-progress { bottom: 80px; right: 12px; }
@@ -548,6 +556,7 @@
       <div class="admin-tab active" data-tab="server">👑 Управление сервером</div>
       <div class="admin-tab" data-tab="reports" id="tab-btn-reports" style="display: none; color: #ff3333;">🚨 Жалобы <span id="report-badge" style="background: #ff3333; color: #fff; border-radius: 10px; padding: 2px 6px; font-size: 10px; margin-left: auto; display: none;">0</span></div>
       <div class="admin-tab" data-tab="moderation" id="tab-btn-moderation" style="display: none;">🛡️ Модерация контента</div>
+      <div class="admin-tab" data-tab="chats" id="tab-btn-chats" style="display: none;">💬 Группы и Каналы</div>
       <div class="admin-tab" data-tab="users">👥 Управление пользователями</div>
       <div class="admin-tab" data-tab="staff">📋 Список персонала</div>
       <div class="admin-tab" data-tab="support" id="tab-btn-support" style="display: none;">💬 Поддержка & Логи</div>
@@ -563,6 +572,16 @@
           <button class="admin-btn" onclick="loadReports()">🔄 Обновить</button>
         </div>
         <div id="reports-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+      </div>
+
+      <div id="tab-chats" class="admin-tab-content" style="display: none;">
+        <div class="admin-header">
+          <h2>Все группы и каналы</h2>
+          <button class="admin-btn" onclick="loadAllChats()">🔄 Обновить</button>
+        </div>
+        <div class="admin-section">
+          <div id="all-chats-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
       </div>
 
       <div id="tab-server" class="admin-tab-content">
@@ -747,6 +766,7 @@
 <div class="modal" id="msg-actions-modal">
   <div class="modal-content">
     <h3>ДЕЙСТВИЯ</h3>
+    <button class="modal-btn" id="msg-copy-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">📋 Копировать текст</button>
     <button class="modal-btn" id="msg-reply-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Ответить</button>
     <button class="modal-btn" id="msg-forward-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Переслать</button>
     <button class="modal-btn" id="msg-report-btn" style="background: transparent; color: #ff9933; border: 1px solid #ff9933; margin-bottom: 10px;">🚩 Пожаловаться</button>
@@ -989,6 +1009,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script>
 let favoriteChats = JSON.parse(localStorage.getItem('scp_fav_chats') || '[]');
+let chatDrafts = JSON.parse(localStorage.getItem('scp_drafts') || '{}');
 const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false };
 
 const authScreen = document.getElementById('auth');
@@ -1288,6 +1309,7 @@ function enterChat() {
 
   if (['sysadmin', 'admin', 'moderator'].includes(state.me.role)) {
     document.getElementById('tab-btn-reports').style.display = 'flex';
+    document.getElementById('tab-btn-chats').style.display = 'flex';
   }
 
   if (['sysadmin', 'admin'].includes(state.me.role)) {
@@ -1412,7 +1434,7 @@ document.getElementById('avatar-input').addEventListener('change', () => {
     const text = await r.text();
     try { return JSON.parse(text); } 
     catch (e) { 
-        if (r.status === 413) throw new Error('Файл слишком большой (максимум 20 МБ). Попробуйте другое фото.');
+        if (r.status === 413) throw new Error('Ошибка 413: Сервер Nginx блокирует загрузку. Пожалуйста, попросите администратора сервера увеличить лимит (client_max_body_size 20M).');
         if (text.startsWith('<html>')) throw new Error(`Ошибка сервера (${r.status}). Возможно, файл слишком большой (Nginx).`);
         throw new Error('Ошибка сервера. Попробуйте позже.'); 
     }
@@ -1426,7 +1448,13 @@ document.getElementById('avatar-input').addEventListener('change', () => {
     loadChats();
     alert('Аватар успешно обновлен!');
   })
-  .catch(e => alert(e.message));
+  .catch(e => {
+      if (e.message.includes('413') || e.message.includes('слишком большой')) {
+          alert('Ошибка 413: Сервер Nginx блокирует загрузку. Пожалуйста, попросите администратора сервера увеличить лимит (client_max_body_size 20M).');
+      } else {
+          alert(e.message);
+      }
+  });
 });
 
 document.getElementById('admin-header-btn').addEventListener('click', () => {
@@ -1442,6 +1470,7 @@ document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
     tab.classList.add('active'); document.getElementById('tab-' + tab.dataset.tab).style.display = 'block';
     if (tab.dataset.tab === 'staff') loadStaffList();
     if (tab.dataset.tab === 'reports') loadReports();
+    if (tab.dataset.tab === 'chats') loadAllChats();
   });
 });
 
@@ -1621,6 +1650,26 @@ window.banFromReport = async function(userId, reportId, defaultReason) {
   } catch (e) { alert(e.message); }
 };
 
+// ================= ГРУППЫ И КАНАЛЫ В АДМИНКЕ =================
+window.loadAllChats = async function() {
+    const box = document.getElementById('all-chats-list');
+    box.innerHTML = 'Загрузка...';
+    try {
+        const chats = await api('/admin/all-chats');
+        if (!chats.length) { box.innerHTML = '<div class="empty">Нет групп или каналов</div>'; return; }
+        box.innerHTML = chats.map(c => `
+            <div style="background: #0d0404; border: 1px solid #4a1515; border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-weight: bold; color: #fff;">${esc(c.name)} ${c.isChannel ? '📢 Канал' : '👥 Группа'}</div>
+                    <div style="font-size: 11px; color: #884444; font-family: 'Fira Code';">ID: ${c.id} • Создатель: @${esc(c.creatorName || 'Unknown')} • Участников: ${c.memberCount}</div>
+                </div>
+                <button class="admin-btn" onclick="alert('Просмотр деталей не реализован')">Детали</button>
+            </div>
+        `).join('');
+    } catch (e) {
+        box.innerHTML = `Ошибка: ${e.message}`;
+    }
+};
 
 // ================= ПОИСК И ОТРИСОВКА ПЕРСОНАЛА =================
 window._cachedStaff = [];
@@ -1962,6 +2011,15 @@ function renderChatList() {
     
     const isBanned = c.ban_expires && c.ban_expires !== 0 && (c.ban_expires === -1 || c.ban_expires > Date.now());
     
+    // ДОБАВЛЕНИЕ ЧЕРНОВИКА В ПРЕВЬЮ
+    const draftText = chatDrafts[c.id];
+    let previewHtml = '';
+    if (draftText) {
+        previewHtml = `<span style="color: #ff9933; font-weight: bold; margin-right: 4px;">[Черновик]</span> <span style="color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block; vertical-align: bottom;">${esc(draftText)}</span>`;
+    } else {
+        previewHtml = isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован' : (c.isSelf ? 'Личные заметки' : (c.isChannel ? 'Канал' : (c.isGroup ? 'Группа' : 'Открыть чат'))));
+    }
+
     return `<div class="chat-item${active}" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0}, ${c.isGroup ? 'true' : 'false'}, '${escAttr(c.creatorId || '')}', ${c.isChannel ? 'true' : 'false'}, '${escAttr(c.username || '')}', ${c.isHelper ? 'true' : 'false'}, ${c.blockedByMe ? 'true' : 'false'}, ${c.blockedByThem ? 'true' : 'false'})">
       ${avatar}
       <div class="chat-info" style="flex: 1; min-width: 0;">
@@ -1970,7 +2028,10 @@ function renderChatList() {
           ${checkmarkHtml}
           ${roleBadgeHtml}
         </div>
-        <div class="preview">${isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован' : (c.isSelf ? 'Личные заметки' : (c.isChannel ? 'Канал' : (c.isGroup ? 'Группа' : 'Открыть чат'))))}${unread ? ` <span class="badge">${unread}</span>` : ''}</div>
+        <div class="preview" style="display: flex; align-items: center;">
+          ${previewHtml}
+          ${unread ? ` <span class="badge" style="margin-left: auto;">${unread}</span>` : ''}
+        </div>
       </div>
       ${starBtn}
     </div>`;
@@ -2071,6 +2132,12 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
       headerAvatar.style.display = 'none'; 
   }
   
+  // Восстановление черновика при открытии чата
+  const inputEl = document.getElementById('msg-input');
+  inputEl.value = chatDrafts[chatId] || '';
+  inputEl.style.height = 'auto';
+  if (inputEl.value) inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
+
   const msgsEl = document.getElementById('messages'); msgsEl.innerHTML = 'Загрузка...';
   if (state.socket) state.socket.emit('joinChat', chatId);
   try {
@@ -2275,6 +2342,35 @@ function openMsgActions(msg) {
   document.getElementById('msg-report-btn').style.display = isOwn ? 'none' : 'block'; 
   document.getElementById('msg-actions-modal').classList.add('visible');
 }
+
+// КОПИРОВАНИЕ СООБЩЕНИЙ
+document.getElementById('msg-copy-btn').addEventListener('click', () => {
+  const msg = state.activeMsg; 
+  if (!msg || !msg.text) return alert('Нет текста для копирования');
+  let textToCopy = msg.text;
+  
+  // Если сообщение является ответом, копируем только основной текст
+  if (textToCopy.startsWith('> ')) {
+      const lines = textToCopy.split('\n');
+      textToCopy = lines.slice(1).join('\n').trim(); 
+  }
+  
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        document.getElementById('msg-actions-modal').classList.remove('visible');
+        // Можно добавить небольшой тост или уведомление, но пока просто закрываем
+    }).catch(() => alert('Не удалось скопировать.'));
+  } else {
+    const ta = document.createElement('textarea'); 
+    ta.value = textToCopy; 
+    document.body.appendChild(ta); 
+    ta.select(); 
+    document.execCommand('copy'); 
+    ta.remove(); 
+    document.getElementById('msg-actions-modal').classList.remove('visible');
+  }
+});
+
 document.getElementById('msg-reply-btn').addEventListener('click', () => {
   const msg = state.activeMsg; if (!msg) return;
   state.replyTo = msg; document.getElementById('reply-bar').classList.add('visible');
@@ -2432,7 +2528,15 @@ document.getElementById('paste-file-send-btn').addEventListener('click', () => {
 document.getElementById('composer').addEventListener('submit', async (e) => {
   e.preventDefault(); const input = document.getElementById('msg-input'); const text = input.value.trim();
   if (!text || !state.currentChat) return;
-  input.value = ''; let body = text;
+  input.value = ''; 
+  input.style.height = 'auto';
+  
+  // Очистка черновика при отправке
+  delete chatDrafts[state.currentChat.id];
+  localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
+  renderChatList();
+
+  let body = text;
   
   if (state.replyTo) {
     const replyText = (state.replyTo.text || '(файл)').slice(0, 80);
@@ -2741,7 +2845,14 @@ document.getElementById('user-search').addEventListener('input', (e) => {
       let html = '';
       
       if (res.chats && res.chats.length > 0) {
-          html += res.chats.map(c => `<div class="chat-item" onclick="openLinkChat('${c.isChannel ? 'scp.me/' : 'scp.group/'}${c.username}')"><div class="chat-avatar" style="background:var(--border);">${c.isChannel ? '📢' : '👥'}</div><div class="chat-info"><div class="name">${esc(c.name)}</div><div class="preview">${c.isChannel ? 'scp.me/' : 'scp.group/'}${c.username}</div></div></div>`).join('');
+          html += res.chats.map(c => `
+            <div class="chat-item" onclick="const chat = state.chats.find(x => x.id === '${c.id}'); if(chat) openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem); else alert('Чат не найден в вашем списке');">
+              <div class="chat-avatar" style="background:var(--border);">${c.isChannel ? '📢' : '👥'}</div>
+              <div class="chat-info">
+                <div class="name">${esc(c.name)}</div>
+                <div class="preview">${c.username ? (c.isChannel ? 'scp.me/' : 'scp.group/') + c.username : (c.isChannel ? 'Канал' : 'Группа')}</div>
+              </div>
+            </div>`).join('');
       }
       
       if (res.users && res.users.length > 0) {
@@ -2760,7 +2871,22 @@ window.startChat = async function(userId) {
 
 document.getElementById('back-btn').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('mobile-open'); });
 const msgInput = document.getElementById('msg-input');
-msgInput.addEventListener('input', () => { msgInput.style.height = 'auto'; msgInput.style.height = Math.min(msgInput.scrollHeight, 140) + 'px'; });
+
+// СОХРАНЕНИЕ ЧЕРНОВИКОВ ПРИ ВВОДЕ
+msgInput.addEventListener('input', () => { 
+    msgInput.style.height = 'auto'; 
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 140) + 'px'; 
+    if (state.currentChat) {
+        const text = msgInput.value;
+        if (text.trim()) {
+            chatDrafts[state.currentChat.id] = text;
+        } else {
+            delete chatDrafts[state.currentChat.id];
+        }
+        localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
+        renderChatList();
+    }
+});
 msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('composer').dispatchEvent(new Event('submit')); } });
 
 document.getElementById('msg-report-btn').addEventListener('click', openReportModal);
