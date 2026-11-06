@@ -413,7 +413,6 @@
     .back-btn { display: block !important; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 16px; flex-shrink: 0; }
     .msg-row { max-width: 90%; }
     
-    /* ИСПРАВЛЕНИЕ НАЕЗЖАЮЩИХ ЭЛЕМЕНТОВ В ХЕДЕРЕ НА ТЕЛЕФОНЕ */
     .chat-header { padding: 0 8px; }
     .chat-header-left { overflow: hidden; flex: 1; min-width: 0; }
     .chat-header h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
@@ -2011,7 +2010,6 @@ function renderChatList() {
     
     const isBanned = c.ban_expires && c.ban_expires !== 0 && (c.ban_expires === -1 || c.ban_expires > Date.now());
     
-    // ДОБАВЛЕНИЕ ЧЕРНОВИКА В ПРЕВЬЮ
     const draftText = chatDrafts[c.id];
     let previewHtml = '';
     if (draftText) {
@@ -2036,6 +2034,33 @@ function renderChatList() {
       ${starBtn}
     </div>`;
   }).join('');
+}
+
+function updateChatPreview(chatId) {
+  const chat = state.chats.find(c => c.id === chatId);
+  if (!chat) return;
+  
+  const chatItem = document.querySelector(`.chat-item[onclick*="'${chatId}'"]`);
+  if (!chatItem) return;
+  
+  const previewEl = chatItem.querySelector('.preview');
+  if (!previewEl) return;
+  
+  const isBanned = chat.ban_expires && chat.ban_expires !== 0 && (chat.ban_expires === -1 || chat.ban_expires > Date.now());
+  const draftText = chatDrafts[chatId];
+  const unread = state.unreadCounts[chatId] || 0;
+  
+  let previewHtml = '';
+  if (draftText) {
+      previewHtml = `<span style="color: #ff9933; font-weight: bold; margin-right: 4px;">[Черновик]</span> <span style="color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block; vertical-align: bottom;">${esc(draftText)}</span>`;
+  } else {
+      previewHtml = isBanned ? '⛔ Заблокирован' : (chat.isBlocked ? '🚫 Заблокирован' : (chat.isSelf ? 'Личные заметки' : (chat.isChannel ? 'Канал' : (chat.isGroup ? 'Группа' : 'Открыть чат'))));
+  }
+  
+  previewEl.innerHTML = `
+      ${previewHtml}
+      ${unread ? ` <span class="badge" style="margin-left: auto;">${unread}</span>` : ''}
+  `;
 }
 
 async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires = 0, isGroup = false, creatorId = '', isChannel = false, username = '', isHelper = false, blockedByMe = false, blockedByThem = false) {
@@ -2132,7 +2157,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
       headerAvatar.style.display = 'none'; 
   }
   
-  // Восстановление черновика при открытии чата
   const inputEl = document.getElementById('msg-input');
   inputEl.value = chatDrafts[chatId] || '';
   inputEl.style.height = 'auto';
@@ -2147,7 +2171,13 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
     msgs.forEach(m => appendMessage(m, false)); msgsEl.scrollTop = msgsEl.scrollHeight;
     api('/chats/' + chatId + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
   } catch (e) { msgsEl.innerHTML = '<div class="empty">Ошибка: ' + esc(e.message) + '</div>'; }
-  renderChatList(); document.getElementById('sidebar').classList.remove('mobile-open');
+  
+  document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+  const activeItem = document.querySelector(`.chat-item[onclick*="'${chatId}'"]`);
+  if (activeItem) activeItem.classList.add('active');
+  updateChatPreview(chatId);
+  
+  document.getElementById('sidebar').classList.remove('mobile-open');
 }
 window.openChat = openChat;
 
@@ -2349,7 +2379,6 @@ document.getElementById('msg-copy-btn').addEventListener('click', () => {
   if (!msg || !msg.text) return alert('Нет текста для копирования');
   let textToCopy = msg.text;
   
-  // Если сообщение является ответом, копируем только основной текст
   if (textToCopy.startsWith('> ')) {
       const lines = textToCopy.split('\n');
       textToCopy = lines.slice(1).join('\n').trim(); 
@@ -2358,7 +2387,6 @@ document.getElementById('msg-copy-btn').addEventListener('click', () => {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(textToCopy).then(() => {
         document.getElementById('msg-actions-modal').classList.remove('visible');
-        // Можно добавить небольшой тост или уведомление, но пока просто закрываем
     }).catch(() => alert('Не удалось скопировать.'));
   } else {
     const ta = document.createElement('textarea'); 
@@ -2531,10 +2559,9 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   input.value = ''; 
   input.style.height = 'auto';
   
-  // Очистка черновика при отправке
   delete chatDrafts[state.currentChat.id];
   localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
-  renderChatList();
+  updateChatPreview(state.currentChat.id);
 
   let body = text;
   
@@ -2572,7 +2599,6 @@ document.getElementById('chat-options-btn').addEventListener('click', () => {
   document.getElementById('chat-settings-modal').classList.add('visible');
 });
 
-// ИСПРАВЛЕНИЕ: Обработчик кнопки "Профиль собеседника" в окне управления чатом
 document.getElementById('view-profile-btn').addEventListener('click', () => {
   if (state.currentChat && state.currentChat.otherUserId) {
     openProfile(state.currentChat.otherUserId);
@@ -2766,7 +2792,8 @@ function connectSocket() {
       }
     } else { 
       state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1; 
-      renderChatList(); updatePageTitle(); 
+      updateChatPreview(msg.chatId);
+      updatePageTitle(); 
       showNotification(msg.sender.displayName || msg.sender.username, msg.text || '📎 Вложение', msg.sender.avatarUrl, msg.chatId);
     }
   });
@@ -2872,7 +2899,6 @@ window.startChat = async function(userId) {
 document.getElementById('back-btn').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('mobile-open'); });
 const msgInput = document.getElementById('msg-input');
 
-// СОХРАНЕНИЕ ЧЕРНОВИКОВ ПРИ ВВОДЕ
 msgInput.addEventListener('input', () => { 
     msgInput.style.height = 'auto'; 
     msgInput.style.height = Math.min(msgInput.scrollHeight, 140) + 'px'; 
@@ -2884,7 +2910,7 @@ msgInput.addEventListener('input', () => {
             delete chatDrafts[state.currentChat.id];
         }
         localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
-        renderChatList();
+        updateChatPreview(state.currentChat.id);
     }
 });
 msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('composer').dispatchEvent(new Event('submit')); } });
