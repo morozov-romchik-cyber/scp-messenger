@@ -281,47 +281,38 @@
   .toast-sender { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 2px; }
   .toast-text { font-size: 13px; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* БЕЛАЯ ДОСКА (ЧЕРНАЯ) */
+  /* БЕЛАЯ ДОСКА (ЧЕРНАЯ) В СТИЛЕ PAINT */
   #whiteboard-modal .modal-content { width: 100vw; height: 100vh; max-width: none; border-radius: 0; padding: 0; border: none; background: #0d1117; display: flex; flex-direction: column; }
-  .wb-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; z-index: 10; }
-  .wb-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
-  .wb-btn:hover { background: var(--border); }
-  .wb-btn.active { background: #1d9bf0; color: #fff; border-color: #1d9bf0; }
-  .wb-colors { display: flex; gap: 5px; margin-left: auto; align-items: center; }
-  .wb-color { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.2s; }
-  .wb-color.active { border-color: #fff; transform: scale(1.2); box-shadow: 0 0 0 2px #1d9bf0; }
+  
+  /* Стилизация тулбара под Paint (Ribbon) */
+  .wb-toolbar { display: flex; align-items: stretch; padding: 5px 10px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; z-index: 10; gap: 2px; }
+  .wb-group { display: flex; flex-direction: column; padding: 2px 10px; border-right: 1px solid var(--border); }
+  .wb-group:last-child { border-right: none; }
+  .wb-group-title { font-size: 10px; color: var(--muted); text-align: center; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .wb-group-content { display: flex; gap: 4px; align-items: center; flex: 1; }
+  
+  .wb-btn { background: transparent; border: 1px solid transparent; color: var(--text); padding: 6px 8px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.1s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 50px; }
+  .wb-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--border); }
+  .wb-btn.active { background: rgba(29, 155, 240, 0.2); border-color: #1d9bf0; color: #1d9bf0; }
+  .wb-btn svg { width: 20px; height: 20px; fill: currentColor; }
+  
+  .wb-colors { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; max-width: 200px; }
+  .wb-color { width: 20px; height: 20px; border-radius: 4px; border: 2px solid transparent; cursor: pointer; transition: transform 0.1s; }
+  .wb-color.active { border-color: #fff; transform: scale(1.1); box-shadow: 0 0 0 1px #000; }
+
+  .wb-select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; outline: none; cursor: pointer; font-size: 13px; height: 32px; }
   
   .wb-canvas-wrapper { flex: 1; overflow: auto; background: #1a1a1a; position: relative; display: block; cursor: crosshair; }
   #wb-canvas-container { position: relative; display: inline-block; margin: 0 auto; }
   #wb-canvas, #wb-preview-canvas { background: #121212; display: block; box-shadow: 0 0 20px rgba(0,0,0,0.8); touch-action: none; cursor: crosshair; }
   #wb-preview-canvas { position: absolute; top: 0; left: 0; pointer-events: none; background: transparent; }
   
-  /* ТЕКСТОВОЕ ПОЛЕ КАК В PAINT */
-  .wb-text-input {
-    position: absolute; background: transparent; border: 1px dashed rgba(255, 255, 255, 0.7); color: #ffffff;
-    font-family: Inter, sans-serif; font-size: 24px; outline: none; resize: none;
-    padding: 0; margin: 0; transform-origin: top left; z-index: 1000; overflow: hidden;
-    white-space: pre; line-height: 1.2; min-width: 20px; min-height: 28px;
-    box-shadow: 0 0 8px rgba(0,0,0,0.5); /* Для видимости на белом фоне */
-  }
-  .wb-ghost-text {
-    position: absolute; color: rgba(255, 255, 255, 0.4); font-family: Inter, sans-serif;
-    font-size: 24px; pointer-events: none; transform-origin: top left;
-    white-space: pre; z-index: 999; display: none; line-height: 1.2;
-  }
+  .wb-send-btn { background: #00ff9d !important; color: #000 !important; font-weight: bold !important; border-color: #00ff9d !important; min-width: 90px; }
+  .wb-send-btn:hover { opacity: 0.8; }
+  .wb-close-btn { color: #ff4d4d !important; border-color: transparent !important; }
+  .wb-close-btn:hover { background: rgba(255, 77, 77, 0.1) !important; border-color: #ff4d4d !important; }
 
-  .wb-send-btn { background: #00ff9d !important; color: #000 !important; border: none !important; font-weight: bold !important; margin-left: 10px; }
-  #wb-coords-panel { position: fixed; bottom: 80px; right: 20px; background: rgba(0,0,0,0.7); color: #00ff9d; padding: 6px 12px; border-radius: 6px; font-family: 'Fira Code', monospace; font-size: 13px; pointer-events: none; z-index: 100; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-  .wb-slider-container { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0 10px; height: 36px; }
-  .wb-slider-container input[type="range"] { width: 80px; accent-color: #1d9bf0; }
-  .wb-slider-label { font-size: 12px; color: var(--muted); min-width: 30px; text-align: right; }
-  
-  /* Настройки шрифта в тулбаре */
-  .wb-font-controls { display: flex; align-items: center; gap: 5px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0 8px; height: 36px; }
-  .wb-font-controls select { background: transparent; border: none; color: var(--text); font-size: 13px; outline: none; cursor: pointer; }
-  .wb-font-btn { background: transparent; border: none; color: var(--muted); font-weight: bold; font-size: 16px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
-  .wb-font-btn:hover { background: var(--border); color: #fff; }
-  .wb-font-btn.active { background: #1d9bf0; color: #fff; }
+  #wb-coords-panel { position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); color: #00ff9d; padding: 4px 10px; border-radius: 4px; font-family: 'Fira Code', monospace; font-size: 12px; pointer-events: none; z-index: 100; border: 1px solid #333; }
 
   @media (max-width: 720px) {
     aside { display: none; width: 100%; position: absolute; inset: 0; z-index: 20; }
@@ -345,12 +336,12 @@
     .emoji-picker { top: 60px; right: 12px; width: calc(100vw - 24px); height: 40vh; }
     #privacy-modal .modal-content { width: calc(100vw - 32px); max-width: none; }
     
-    .wb-toolbar { padding: 8px; gap: 6px; }
-    .wb-btn { padding: 6px 10px; font-size: 14px; flex: 1; justify-content: center; }
-    .wb-colors { margin-left: 0; width: 100%; justify-content: center; margin-top: 5px; }
-    .wb-btn span.tool-text { display: none; }
-    .wb-slider-container { width: 100%; justify-content: center; }
-    .wb-font-controls { width: 100%; justify-content: center; }
+    /* Мобильный тулбар доски */
+    .wb-toolbar { flex-direction: column; align-items: stretch; gap: 5px; padding: 5px; }
+    .wb-group { border-right: none; border-bottom: 1px solid var(--border); padding: 5px 0; }
+    .wb-group-content { justify-content: center; flex-wrap: wrap; }
+    .wb-group-title { display: none; }
+    .wb-colors { max-width: none; justify-content: center; }
   }
   .back-btn { display: none; }
   .empty { text-align: center; color: var(--muted); font-family: 'Fira Code', monospace; font-size: 13px; padding: 60px 20px; letter-spacing: 1px; }
@@ -370,58 +361,112 @@
   <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
 
-<!-- БЕЛАЯ ДОСКА -->
+<!-- БЕЛАЯ ДОСКА (Paint Style) -->
 <div class="modal" id="whiteboard-modal">
   <div class="modal-content">
     <div class="wb-toolbar">
-      <button class="wb-btn" id="wb-tool-pen" onclick="setWbTool('pen')" title="Кисть">✏️ <span class="tool-text">Кисть</span></button>
-      <button class="wb-btn" id="wb-tool-eraser" onclick="setWbTool('eraser')" title="Ластик">🧽 <span class="tool-text">Ластик</span></button>
-      <button class="wb-btn" id="wb-tool-line" onclick="setWbTool('line')" title="Линия">📏 <span class="tool-text">Линия</span></button>
-      <button class="wb-btn" id="wb-tool-rect" onclick="setWbTool('rect')" title="Прямоугольник">⬜ <span class="tool-text">Квадрат</span></button>
-      <button class="wb-btn" id="wb-tool-circle" onclick="setWbTool('circle')" title="Круг">⭕ <span class="tool-text">Круг</span></button>
-      <button class="wb-btn" id="wb-tool-ellipse" onclick="setWbTool('ellipse')" title="Овал">🔵 <span class="tool-text">Овал</span></button>
-      <button class="wb-btn" id="wb-tool-triangle" onclick="setWbTool('triangle')" title="Треугольник">🔺 <span class="tool-text">Треуг.</span></button>
-      <button class="wb-btn" id="wb-tool-text" onclick="setWbTool('text')" title="Текст">🔤 <span class="tool-text">Текст</span></button>
       
-      <!-- НАСТРОЙКИ ШРИФТА -->
-      <div class="wb-font-controls">
-        <select id="wb-font-size" onchange="wbFontSize = this.value; if(isEditingText) wbTextInputEl.style.fontSize = wbFontSize + 'px'">
-          <option value="16">16px</option>
-          <option value="24" selected>24px</option>
-          <option value="32">32px</option>
-          <option value="48">48px</option>
-          <option value="64">64px</option>
-        </select>
-        <button class="wb-font-btn" id="wb-btn-bold" onclick="toggleWbFontStyle('bold')" title="Жирный">B</button>
-        <button class="wb-font-btn" id="wb-btn-italic" onclick="toggleWbFontStyle('italic')" title="Курсив" style="font-style: italic; font-family: serif;">I</button>
+      <!-- Инструменты -->
+      <div class="wb-group">
+        <div class="wb-group-content">
+          <button class="wb-btn active" id="wb-tool-pen" onclick="setWbTool('pen')" title="Кисть">
+            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            Кисть
+          </button>
+          <button class="wb-btn" id="wb-tool-eraser" onclick="setWbTool('eraser')" title="Ластик">
+            <svg viewBox="0 0 24 24"><path d="M16.24 3.56l4.2 4.2c.78.78.78 2.05 0 2.83L12 19H6.5l-2.93-2.93c-.78-.78-.78-2.05 0-2.83L14.83 2.5c.78-.78 2.05-.78 2.83 0l-1.42 1.06zM4.83 14.83l2.83 2.83H12l4.24-4.24-4.24-4.24-7.17 7.17z"/></svg>
+            Ластик
+          </button>
+        </div>
+        <div class="wb-group-title">Инструменты</div>
       </div>
 
-      <div class="wb-slider-container" title="Поворот текста">
-        <span style="font-size: 12px; color: var(--muted);">Поворот:</span>
-        <input type="range" id="wb-text-rotation" min="0" max="360" value="0">
-        <span id="wb-text-rotation-val" class="wb-slider-label">0°</span>
+      <!-- Фигуры -->
+      <div class="wb-group">
+        <div class="wb-group-content">
+          <button class="wb-btn" id="wb-tool-line" onclick="setWbTool('line')" title="Линия">
+            <svg viewBox="0 0 24 24"><path d="M3 17h18v2H3z"/></svg>
+            Линия
+          </button>
+          <button class="wb-btn" id="wb-tool-rect" onclick="setWbTool('rect')" title="Квадрат">
+            <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5z"/></svg>
+            Квадрат
+          </button>
+          <button class="wb-btn" id="wb-tool-circle" onclick="setWbTool('circle')" title="Круг">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            Круг
+          </button>
+          <button class="wb-btn" id="wb-tool-ellipse" onclick="setWbTool('ellipse')" title="Овал">
+            <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            Овал
+          </button>
+          <button class="wb-btn" id="wb-tool-triangle" onclick="setWbTool('triangle')" title="Треугольник">
+            <svg viewBox="0 0 24 24"><path d="M12 3l9 18H3L12 3zm0 4.5l-5.5 11h11L12 7.5z"/></svg>
+            Треуг.
+          </button>
+        </div>
+        <div class="wb-group-title">Фигуры</div>
       </div>
 
-      <button class="wb-btn" onclick="undoWb()" title="Отменить">↩️ <span class="tool-text">Отменить</span></button>
-      <button class="wb-btn" onclick="clearWb()" title="Очистить">🗑️ <span class="tool-text">Очистить</span></button>
-      
-      <div class="wb-colors" id="wb-colors">
-        <div class="wb-color active" style="background:#ffffff;" data-color="#ffffff" onclick="setWbColor(this)"></div>
-        <div class="wb-color" style="background:#ff3333;" data-color="#ff3333" onclick="setWbColor(this)"></div>
-        <div class="wb-color" style="background:#1d9bf0;" data-color="#1d9bf0" onclick="setWbColor(this)"></div>
-        <div class="wb-color" style="background:#00ff9d;" data-color="#00ff9d" onclick="setWbColor(this)"></div>
-        <div class="wb-color" style="background:#ffd700;" data-color="#ffd700" onclick="setWbColor(this)"></div>
+      <!-- Толщина линии -->
+      <div class="wb-group">
+        <div class="wb-group-content">
+          <select id="wb-size" class="wb-select" onchange="wbLineWidth = parseInt(this.value)">
+            <option value="2">2px</option>
+            <option value="4" selected>4px</option>
+            <option value="8">8px</option>
+            <option value="12">12px</option>
+            <option value="20">20px</option>
+          </select>
+        </div>
+        <div class="wb-group-title">Толщина</div>
       </div>
 
-      <button class="wb-btn wb-send-btn" onclick="sendWhiteboard()">🚀 <span class="tool-text">Отправить</span></button>
-      <button class="wb-btn" onclick="document.getElementById('whiteboard-modal').classList.remove('visible')" style="color:#ff4d4d;border-color:#ff4d4d;">✖ <span class="tool-text">Закрыть</span></button>
+      <!-- Цвета -->
+      <div class="wb-group">
+        <div class="wb-group-content">
+          <div class="wb-colors" id="wb-colors">
+            <div class="wb-color active" style="background:#ffffff;" data-color="#ffffff" onclick="setWbColor(this)"></div>
+            <div class="wb-color" style="background:#000000; border-color:#333;" data-color="#000000" onclick="setWbColor(this)"></div>
+            <div class="wb-color" style="background:#ff3333;" data-color="#ff3333" onclick="setWbColor(this)"></div>
+            <div class="wb-color" style="background:#1d9bf0;" data-color="#1d9bf0" onclick="setWbColor(this)"></div>
+            <div class="wb-color" style="background:#00ff9d;" data-color="#00ff9d" onclick="setWbColor(this)"></div>
+            <div class="wb-color" style="background:#ffd700;" data-color="#ffd700" onclick="setWbColor(this)"></div>
+            <div class="wb-color" style="background:#ff00ff;" data-color="#ff00ff" onclick="setWbColor(this)"></div>
+            <div class="wb-color" style="background:#00ffff;" data-color="#00ffff" onclick="setWbColor(this)"></div>
+          </div>
+        </div>
+        <div class="wb-group-title">Цвет 1</div>
+      </div>
+
+      <!-- Действия -->
+      <div class="wb-group" style="margin-left: auto; border-right: none;">
+        <div class="wb-group-content">
+          <button class="wb-btn" onclick="undoWb()" title="Отменить">
+            <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+            Отменить
+          </button>
+          <button class="wb-btn" onclick="clearWb()" title="Очистить">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Очистить
+          </button>
+          <button class="wb-btn wb-send-btn" onclick="sendWhiteboard()">
+            <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            Отправить
+          </button>
+          <button class="wb-btn wb-close-btn" onclick="document.getElementById('whiteboard-modal').classList.remove('visible')">
+            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            Закрыть
+          </button>
+        </div>
+      </div>
+
     </div>
+    
     <div class="wb-canvas-wrapper" id="wb-canvas-wrapper">
       <div id="wb-canvas-container">
         <canvas id="wb-canvas"></canvas>
         <canvas id="wb-preview-canvas"></canvas>
-        <textarea id="wb-text-input" class="wb-text-input" style="display: none;" spellcheck="false"></textarea>
-        <div id="wb-ghost-text" class="wb-ghost-text">Текст</div>
       </div>
     </div>
     <div id="wb-coords-panel">X: 0 | Y: 0</div>
@@ -1075,19 +1120,10 @@ let wbPreviewCtx = wbPreviewCanvas.getContext('2d');
 let wbIsDrawing = false;
 let wbTool = 'pen';
 let wbColor = '#ffffff'; // Белый цвет по умолчанию
+let wbLineWidth = 4; // Толщина по умолчанию
 let wbLastX = 0;
 let wbLastY = 0;
 let wbHistory = [];
-let wbTextRotation = 0;
-let isEditingText = false;
-
-// Настройки шрифта
-let wbFontSize = 24;
-let wbFontBold = false;
-let wbFontItalic = false;
-
-let wbGhostTextEl = document.getElementById('wb-ghost-text');
-let wbTextInputEl = document.getElementById('wb-text-input');
 
 function initWhiteboard() {
   const w = 2000;
@@ -1106,41 +1142,6 @@ function initWhiteboard() {
   saveWbState();
   document.getElementById('wb-canvas-wrapper').scrollTop = 0;
   document.getElementById('wb-canvas-wrapper').scrollLeft = 0;
-  
-  // Сброс текстового ввода
-  isEditingText = false;
-  wbTextInputEl.style.display = 'none';
-  wbTextInputEl.value = '';
-  wbGhostTextEl.style.display = 'none';
-  
-  // Сброс настроек шрифта
-  document.getElementById('wb-font-size').value = '24';
-  wbFontSize = 24;
-  wbFontBold = false;
-  wbFontItalic = false;
-  document.getElementById('wb-btn-bold').classList.remove('active');
-  document.getElementById('wb-btn-italic').classList.remove('active');
-}
-
-function toggleWbFontStyle(style) {
-  if (style === 'bold') {
-    wbFontBold = !wbFontBold;
-    document.getElementById('wb-btn-bold').classList.toggle('active', wbFontBold);
-  } else if (style === 'italic') {
-    wbFontItalic = !wbFontItalic;
-    document.getElementById('wb-btn-italic').classList.toggle('active', wbFontItalic);
-  }
-  
-  if (isEditingText) {
-    updateTextInputStyles();
-  }
-}
-
-function updateTextInputStyles() {
-  wbTextInputEl.style.fontSize = wbFontSize + 'px';
-  wbTextInputEl.style.fontWeight = wbFontBold ? 'bold' : 'normal';
-  wbTextInputEl.style.fontStyle = wbFontItalic ? 'italic' : 'normal';
-  wbTextInputEl.style.lineHeight = (wbFontSize * 1.2) + 'px';
 }
 
 function saveWbState() {
@@ -1174,11 +1175,6 @@ function setWbTool(tool) {
   document.querySelectorAll('.wb-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.getElementById('wb-tool-' + tool);
   if (activeBtn) activeBtn.classList.add('active');
-  
-  if (tool !== 'text') {
-    wbGhostTextEl.style.display = 'none';
-    if (isEditingText) finalizeText();
-  }
 }
 
 function setWbColor(el) {
@@ -1186,8 +1182,6 @@ function setWbColor(el) {
   el.classList.add('active');
   wbColor = el.dataset.color;
   if (wbTool === 'eraser') setWbTool('pen');
-  if (wbTool === 'text' && !isEditingText) wbGhostTextEl.style.color = wbColor;
-  if (isEditingText) wbTextInputEl.style.color = wbColor;
 }
 
 document.getElementById('whiteboard-btn').addEventListener('click', () => {
@@ -1197,36 +1191,12 @@ document.getElementById('whiteboard-btn').addEventListener('click', () => {
   setTimeout(initWhiteboard, 50);
 });
 
-document.getElementById('wb-text-rotation').addEventListener('input', (e) => {
-  wbTextRotation = parseInt(e.target.value, 10);
-  document.getElementById('wb-text-rotation-val').textContent = wbTextRotation + '°';
-  if (wbTool === 'text' && !isEditingText) {
-    wbGhostTextEl.style.transform = `rotate(${wbTextRotation}deg)`;
-  }
-  if (isEditingText) {
-    wbTextInputEl.style.transform = `rotate(${wbTextRotation}deg)`;
-  }
-});
-
-// ТОЧНЫЙ РАСЧЕТ КООРДИНАТ С УЧЕТОМ СКРОЛЛА
 function getWbCoords(e) {
+  // getBoundingClientRect учитывает скролл и позиционирование
   const rect = wbCanvas.getBoundingClientRect();
-  let clientX, clientY;
-  
-  if (e.touches && e.touches.length > 0) {
-    clientX = e.touches[0].clientX;
-    clientY = e.touches[0].clientY;
-  } else if (e.changedTouches && e.changedTouches.length > 0) {
-    clientX = e.changedTouches[0].clientX;
-    clientY = e.changedTouches[0].clientY;
-  } else {
-    clientX = e.clientX;
-    clientY = e.clientY;
-  }
-  
   return {
-    x: clientX - rect.left,
-    y: clientY - rect.top
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
   };
 }
 
@@ -1235,92 +1205,12 @@ function updateWbCoords(e) {
   const coords = getWbCoords(e);
   const panel = document.getElementById('wb-coords-panel');
   if (panel) panel.textContent = `X: ${Math.round(coords.x)} | Y: ${Math.round(coords.y)}`;
-
-  if (wbTool === 'text' && !isEditingText) {
-      wbGhostTextEl.style.display = 'block';
-      wbGhostTextEl.style.left = coords.x + 'px';
-      wbGhostTextEl.style.top = coords.y + 'px';
-      wbGhostTextEl.style.transform = `rotate(${wbTextRotation}deg)`;
-      wbGhostTextEl.style.color = wbColor;
-      wbGhostTextEl.style.fontSize = wbFontSize + 'px';
-      wbGhostTextEl.style.fontWeight = wbFontBold ? 'bold' : 'normal';
-      wbGhostTextEl.style.fontStyle = wbFontItalic ? 'italic' : 'normal';
-  }
 }
 
-function startTextInput(x, y) {
-  isEditingText = true;
-  wbGhostTextEl.style.display = 'none';
-  wbTextInputEl.style.display = 'block';
-  wbTextInputEl.style.left = x + 'px';
-  wbTextInputEl.style.top = y + 'px';
-  wbTextInputEl.style.transform = `rotate(${wbTextRotation}deg)`;
-  wbTextInputEl.style.color = wbColor;
-  wbTextInputEl.value = '';
-  wbTextInputEl.style.width = '20px';
-  wbTextInputEl.style.height = 'auto';
-  updateTextInputStyles();
-  wbTextInputEl.focus();
-}
-
-function finalizeText() {
-  if (!isEditingText) return;
-  const text = wbTextInputEl.value.trim();
-  if (text) {
-    const x = parseInt(wbTextInputEl.style.left, 10);
-    const y = parseInt(wbTextInputEl.style.top, 10);
-    
-    wbCtx.save();
-    wbCtx.translate(x, y);
-    wbCtx.rotate(wbTextRotation * Math.PI / 180);
-    wbCtx.fillStyle = wbColor;
-    
-    let fontStyle = '';
-    if (wbFontItalic) fontStyle += 'italic ';
-    if (wbFontBold) fontStyle += 'bold ';
-    wbCtx.font = `${fontStyle}${wbFontSize}px Inter, sans-serif`;
-    
-    const lines = text.split('\n');
-    const lineHeight = wbFontSize * 1.2; 
-    lines.forEach((line, index) => {
-        wbCtx.fillText(line, 0, index * lineHeight);
-    });
-    
-    wbCtx.restore();
-    saveWbState();
-  }
-  isEditingText = false;
-  wbTextInputEl.style.display = 'none';
-  wbTextInputEl.value = '';
-}
-
-wbTextInputEl.addEventListener('input', () => {
-    wbTextInputEl.style.height = 'auto';
-    wbTextInputEl.style.height = wbTextInputEl.scrollHeight + 'px';
-    wbTextInputEl.style.width = 'auto';
-    wbTextInputEl.style.width = wbTextInputEl.scrollWidth + 'px';
-});
-
-wbTextInputEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        finalizeText();
-    }
-    if (e.key === 'Escape') {
-        isEditingText = false;
-        wbTextInputEl.style.display = 'none';
-        wbTextInputEl.value = '';
-    }
-});
-
-wbTextInputEl.addEventListener('blur', () => {
-    finalizeText();
-});
-
-function drawShapeOnCtx(ctx, tool, startX, startY, curX, curY, color) {
+function drawShapeOnCtx(ctx, tool, startX, startY, curX, curY, color, lineWidth) {
     ctx.beginPath();
     ctx.strokeStyle = color;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = lineWidth;
     
     if (tool === 'line') {
       ctx.moveTo(startX, startY);
@@ -1347,14 +1237,6 @@ function startWbDraw(e) {
   if (e.type === 'touchstart') e.preventDefault();
   
   const coords = getWbCoords(e);
-
-  if (wbTool === 'text') {
-      if (!isEditingText) {
-          startTextInput(coords.x, coords.y);
-      }
-      return;
-  }
-
   wbIsDrawing = true;
   wbLastX = coords.x;
   wbLastY = coords.y;
@@ -1366,7 +1248,7 @@ function startWbDraw(e) {
     wbCtx.lineCap = 'round';
     wbCtx.lineJoin = 'round';
     wbCtx.strokeStyle = wbTool === 'eraser' ? '#121212' : wbColor;
-    wbCtx.lineWidth = wbTool === 'eraser' ? 20 : 4;
+    wbCtx.lineWidth = wbTool === 'eraser' ? 30 : wbLineWidth; // Ластик всегда толстый
   }
 }
 
@@ -1382,7 +1264,7 @@ function drawWb(e) {
     wbCtx.stroke();
   } else if (wbTool === 'line' || wbTool === 'rect' || wbTool === 'circle' || wbTool === 'ellipse' || wbTool === 'triangle') {
     wbPreviewCtx.clearRect(0, 0, wbPreviewCanvas.width, wbPreviewCanvas.height);
-    drawShapeOnCtx(wbPreviewCtx, wbTool, wbLastX, wbLastY, coords.x, coords.y, wbColor);
+    drawShapeOnCtx(wbPreviewCtx, wbTool, wbLastX, wbLastY, coords.x, coords.y, wbColor, wbLineWidth);
   }
 }
 
@@ -1393,7 +1275,7 @@ function stopWbDraw(e) {
     if (wbTool !== 'pen' && wbTool !== 'eraser') {
       const coords = getWbCoords(e);
       if (coords.x !== 0 || coords.y !== 0 || wbLastX !== 0 || wbLastY !== 0) {
-        drawShapeOnCtx(wbCtx, wbTool, wbLastX, wbLastY, coords.x, coords.y, wbColor);
+        drawShapeOnCtx(wbCtx, wbTool, wbLastX, wbLastY, coords.x, coords.y, wbColor, wbLineWidth);
       }
       wbPreviewCtx.clearRect(0, 0, wbPreviewCanvas.width, wbPreviewCanvas.height);
     }
@@ -1402,23 +1284,19 @@ function stopWbDraw(e) {
   }
 }
 
-wbCanvas.addEventListener('mousedown', startWbDraw);
-window.addEventListener('mousemove', drawWb);
-window.addEventListener('mouseup', stopWbDraw);
-
-wbCanvas.addEventListener('touchstart', startWbDraw, { passive: false });
-window.addEventListener('touchmove', drawWb, { passive: false });
-window.addEventListener('touchend', stopWbDraw);
-
-wbCanvas.addEventListener('mousemove', updateWbCoords);
-wbCanvas.addEventListener('touchmove', updateWbCoords, { passive: true });
-wbCanvas.addEventListener('mouseleave', () => {
-    if (wbTool === 'text' && !isEditingText) wbGhostTextEl.style.display = 'none';
+// Используем PointerEvents для идеальной работы на всех устройствах
+wbCanvas.addEventListener('pointerdown', (e) => {
+    wbCanvas.setPointerCapture(e.pointerId);
+    startWbDraw(e);
 });
+window.addEventListener('pointermove', drawWb);
+window.addEventListener('pointerup', stopWbDraw);
+window.addEventListener('pointercancel', stopWbDraw);
+
+wbCanvas.addEventListener('pointermove', updateWbCoords);
 
 async function sendWhiteboard() {
   if (!state.currentChat) return;
-  if (isEditingText) finalizeText();
   
   const modal = document.getElementById('whiteboard-modal');
   modal.classList.remove('visible');
