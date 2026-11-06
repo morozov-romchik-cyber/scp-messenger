@@ -281,7 +281,7 @@
   .toast-sender { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 2px; }
   .toast-text { font-size: 13px; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* БЕЛАЯ ДОСКА (ТЕПЕРЬ ЧЕРНАЯ) */
+  /* БЕЛАЯ ДОСКА (ЧЕРНАЯ) */
   #whiteboard-modal .modal-content { width: 100vw; height: 100vh; max-width: none; border-radius: 0; padding: 0; border: none; background: #0d1117; display: flex; flex-direction: column; }
   .wb-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; z-index: 10; }
   .wb-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
@@ -296,16 +296,18 @@
   #wb-canvas, #wb-preview-canvas { background: #121212; display: block; box-shadow: 0 0 20px rgba(0,0,0,0.8); touch-action: none; cursor: crosshair; }
   #wb-preview-canvas { position: absolute; top: 0; left: 0; pointer-events: none; background: transparent; }
   
+  /* ТЕКСТОВОЕ ПОЛЕ КАК В PAINT */
   .wb-text-input {
-    position: absolute; background: transparent; border: 1px dashed rgba(255, 255, 255, 0.4); color: #ffffff;
+    position: absolute; background: transparent; border: 1px dashed rgba(255, 255, 255, 0.7); color: #ffffff;
     font-family: Inter, sans-serif; font-size: 24px; outline: none; resize: none;
     padding: 0; margin: 0; transform-origin: top left; z-index: 1000; overflow: hidden;
-    white-space: pre; line-height: 28px; min-width: 10px; min-height: 28px;
+    white-space: pre; line-height: 1.2; min-width: 20px; min-height: 28px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.5); /* Для видимости на белом фоне */
   }
   .wb-ghost-text {
     position: absolute; color: rgba(255, 255, 255, 0.4); font-family: Inter, sans-serif;
     font-size: 24px; pointer-events: none; transform-origin: top left;
-    white-space: pre; z-index: 999; display: none; line-height: 28px;
+    white-space: pre; z-index: 999; display: none; line-height: 1.2;
   }
 
   .wb-send-btn { background: #00ff9d !important; color: #000 !important; border: none !important; font-weight: bold !important; margin-left: 10px; }
@@ -313,6 +315,13 @@
   .wb-slider-container { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0 10px; height: 36px; }
   .wb-slider-container input[type="range"] { width: 80px; accent-color: #1d9bf0; }
   .wb-slider-label { font-size: 12px; color: var(--muted); min-width: 30px; text-align: right; }
+  
+  /* Настройки шрифта в тулбаре */
+  .wb-font-controls { display: flex; align-items: center; gap: 5px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0 8px; height: 36px; }
+  .wb-font-controls select { background: transparent; border: none; color: var(--text); font-size: 13px; outline: none; cursor: pointer; }
+  .wb-font-btn { background: transparent; border: none; color: var(--muted); font-weight: bold; font-size: 16px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+  .wb-font-btn:hover { background: var(--border); color: #fff; }
+  .wb-font-btn.active { background: #1d9bf0; color: #fff; }
 
   @media (max-width: 720px) {
     aside { display: none; width: 100%; position: absolute; inset: 0; z-index: 20; }
@@ -341,6 +350,7 @@
     .wb-colors { margin-left: 0; width: 100%; justify-content: center; margin-top: 5px; }
     .wb-btn span.tool-text { display: none; }
     .wb-slider-container { width: 100%; justify-content: center; }
+    .wb-font-controls { width: 100%; justify-content: center; }
   }
   .back-btn { display: none; }
   .empty { text-align: center; color: var(--muted); font-family: 'Fira Code', monospace; font-size: 13px; padding: 60px 20px; letter-spacing: 1px; }
@@ -373,6 +383,19 @@
       <button class="wb-btn" id="wb-tool-triangle" onclick="setWbTool('triangle')" title="Треугольник">🔺 <span class="tool-text">Треуг.</span></button>
       <button class="wb-btn" id="wb-tool-text" onclick="setWbTool('text')" title="Текст">🔤 <span class="tool-text">Текст</span></button>
       
+      <!-- НАСТРОЙКИ ШРИФТА -->
+      <div class="wb-font-controls">
+        <select id="wb-font-size" onchange="wbFontSize = this.value; if(isEditingText) wbTextInputEl.style.fontSize = wbFontSize + 'px'">
+          <option value="16">16px</option>
+          <option value="24" selected>24px</option>
+          <option value="32">32px</option>
+          <option value="48">48px</option>
+          <option value="64">64px</option>
+        </select>
+        <button class="wb-font-btn" id="wb-btn-bold" onclick="toggleWbFontStyle('bold')" title="Жирный">B</button>
+        <button class="wb-font-btn" id="wb-btn-italic" onclick="toggleWbFontStyle('italic')" title="Курсив" style="font-style: italic; font-family: serif;">I</button>
+      </div>
+
       <div class="wb-slider-container" title="Поворот текста">
         <span style="font-size: 12px; color: var(--muted);">Поворот:</span>
         <input type="range" id="wb-text-rotation" min="0" max="360" value="0">
@@ -397,7 +420,7 @@
       <div id="wb-canvas-container">
         <canvas id="wb-canvas"></canvas>
         <canvas id="wb-preview-canvas"></canvas>
-        <textarea id="wb-text-input" class="wb-text-input" style="display: none;"></textarea>
+        <textarea id="wb-text-input" class="wb-text-input" style="display: none;" spellcheck="false"></textarea>
         <div id="wb-ghost-text" class="wb-ghost-text">Текст</div>
       </div>
     </div>
@@ -1058,21 +1081,23 @@ let wbHistory = [];
 let wbTextRotation = 0;
 let isEditingText = false;
 
+// Настройки шрифта
+let wbFontSize = 24;
+let wbFontBold = false;
+let wbFontItalic = false;
+
 let wbGhostTextEl = document.getElementById('wb-ghost-text');
 let wbTextInputEl = document.getElementById('wb-text-input');
 
 function initWhiteboard() {
-  // Размер холста
   const w = 2000;
   const h = 4000;
   
-  // Настройка основного холста
   wbCanvas.width = w;
   wbCanvas.height = h;
   wbCtx.fillStyle = '#121212'; // Черный фон
   wbCtx.fillRect(0, 0, w, h);
   
-  // Настройка холста предпросмотра
   wbPreviewCanvas.width = w;
   wbPreviewCanvas.height = h;
   wbPreviewCtx.clearRect(0, 0, w, h);
@@ -1087,10 +1112,39 @@ function initWhiteboard() {
   wbTextInputEl.style.display = 'none';
   wbTextInputEl.value = '';
   wbGhostTextEl.style.display = 'none';
+  
+  // Сброс настроек шрифта
+  document.getElementById('wb-font-size').value = '24';
+  wbFontSize = 24;
+  wbFontBold = false;
+  wbFontItalic = false;
+  document.getElementById('wb-btn-bold').classList.remove('active');
+  document.getElementById('wb-btn-italic').classList.remove('active');
+}
+
+function toggleWbFontStyle(style) {
+  if (style === 'bold') {
+    wbFontBold = !wbFontBold;
+    document.getElementById('wb-btn-bold').classList.toggle('active', wbFontBold);
+  } else if (style === 'italic') {
+    wbFontItalic = !wbFontItalic;
+    document.getElementById('wb-btn-italic').classList.toggle('active', wbFontItalic);
+  }
+  
+  if (isEditingText) {
+    updateTextInputStyles();
+  }
+}
+
+function updateTextInputStyles() {
+  wbTextInputEl.style.fontSize = wbFontSize + 'px';
+  wbTextInputEl.style.fontWeight = wbFontBold ? 'bold' : 'normal';
+  wbTextInputEl.style.fontStyle = wbFontItalic ? 'italic' : 'normal';
+  wbTextInputEl.style.lineHeight = (wbFontSize * 1.2) + 'px';
 }
 
 function saveWbState() {
-  if (wbHistory.length > 15) wbHistory.shift(); // Ограничиваем историю для памяти
+  if (wbHistory.length > 15) wbHistory.shift();
   wbHistory.push(wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height));
 }
 
@@ -1131,8 +1185,9 @@ function setWbColor(el) {
   document.querySelectorAll('.wb-color').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   wbColor = el.dataset.color;
-  if (wbTool === 'eraser') setWbTool('pen'); // При выборе цвета переключаемся с ластика
+  if (wbTool === 'eraser') setWbTool('pen');
   if (wbTool === 'text' && !isEditingText) wbGhostTextEl.style.color = wbColor;
+  if (isEditingText) wbTextInputEl.style.color = wbColor;
 }
 
 document.getElementById('whiteboard-btn').addEventListener('click', () => {
@@ -1155,7 +1210,6 @@ document.getElementById('wb-text-rotation').addEventListener('input', (e) => {
 
 // ТОЧНЫЙ РАСЧЕТ КООРДИНАТ С УЧЕТОМ СКРОЛЛА
 function getWbCoords(e) {
-  // getBoundingClientRect всегда возвращает актуальное положение холста с учетом скролла
   const rect = wbCanvas.getBoundingClientRect();
   let clientX, clientY;
   
@@ -1188,6 +1242,9 @@ function updateWbCoords(e) {
       wbGhostTextEl.style.top = coords.y + 'px';
       wbGhostTextEl.style.transform = `rotate(${wbTextRotation}deg)`;
       wbGhostTextEl.style.color = wbColor;
+      wbGhostTextEl.style.fontSize = wbFontSize + 'px';
+      wbGhostTextEl.style.fontWeight = wbFontBold ? 'bold' : 'normal';
+      wbGhostTextEl.style.fontStyle = wbFontItalic ? 'italic' : 'normal';
   }
 }
 
@@ -1200,8 +1257,9 @@ function startTextInput(x, y) {
   wbTextInputEl.style.transform = `rotate(${wbTextRotation}deg)`;
   wbTextInputEl.style.color = wbColor;
   wbTextInputEl.value = '';
-  wbTextInputEl.style.height = 'auto';
   wbTextInputEl.style.width = '20px';
+  wbTextInputEl.style.height = 'auto';
+  updateTextInputStyles();
   wbTextInputEl.focus();
 }
 
@@ -1216,10 +1274,14 @@ function finalizeText() {
     wbCtx.translate(x, y);
     wbCtx.rotate(wbTextRotation * Math.PI / 180);
     wbCtx.fillStyle = wbColor;
-    wbCtx.font = '24px Inter, sans-serif';
+    
+    let fontStyle = '';
+    if (wbFontItalic) fontStyle += 'italic ';
+    if (wbFontBold) fontStyle += 'bold ';
+    wbCtx.font = `${fontStyle}${wbFontSize}px Inter, sans-serif`;
     
     const lines = text.split('\n');
-    const lineHeight = 28; 
+    const lineHeight = wbFontSize * 1.2; 
     lines.forEach((line, index) => {
         wbCtx.fillText(line, 0, index * lineHeight);
     });
@@ -1255,7 +1317,6 @@ wbTextInputEl.addEventListener('blur', () => {
     finalizeText();
 });
 
-// Отрисовка фигур (используется и для предпросмотра, и для финального)
 function drawShapeOnCtx(ctx, tool, startX, startY, curX, curY, color) {
     ctx.beginPath();
     ctx.strokeStyle = color;
@@ -1304,7 +1365,7 @@ function startWbDraw(e) {
   if (wbTool === 'pen' || wbTool === 'eraser') {
     wbCtx.lineCap = 'round';
     wbCtx.lineJoin = 'round';
-    wbCtx.strokeStyle = wbTool === 'eraser' ? '#121212' : wbColor; // Ластик цвета фона
+    wbCtx.strokeStyle = wbTool === 'eraser' ? '#121212' : wbColor;
     wbCtx.lineWidth = wbTool === 'eraser' ? 20 : 4;
   }
 }
@@ -1320,7 +1381,6 @@ function drawWb(e) {
     wbCtx.lineTo(coords.x, coords.y);
     wbCtx.stroke();
   } else if (wbTool === 'line' || wbTool === 'rect' || wbTool === 'circle' || wbTool === 'ellipse' || wbTool === 'triangle') {
-    // ИСПОЛЬЗУЕМ ОТДЕЛЬНЫЙ ХОЛСТ ДЛЯ ПРЕДПРОСМОТРА (Это решает проблему тормозов)
     wbPreviewCtx.clearRect(0, 0, wbPreviewCanvas.width, wbPreviewCanvas.height);
     drawShapeOnCtx(wbPreviewCtx, wbTool, wbLastX, wbLastY, coords.x, coords.y, wbColor);
   }
@@ -1330,10 +1390,8 @@ function stopWbDraw(e) {
   if (wbIsDrawing) {
     wbIsDrawing = false;
     
-    // Фиксируем фигуру на основном холсте
     if (wbTool !== 'pen' && wbTool !== 'eraser') {
       const coords = getWbCoords(e);
-      // Проверка, что мышь не ушла за пределы (защита от случайных кликов)
       if (coords.x !== 0 || coords.y !== 0 || wbLastX !== 0 || wbLastY !== 0) {
         drawShapeOnCtx(wbCtx, wbTool, wbLastX, wbLastY, coords.x, coords.y, wbColor);
       }
@@ -1344,7 +1402,6 @@ function stopWbDraw(e) {
   }
 }
 
-// Привязываем события к canvas для старта, и к window для продолжения (чтобы не прерывалось за границами)
 wbCanvas.addEventListener('mousedown', startWbDraw);
 window.addEventListener('mousemove', drawWb);
 window.addEventListener('mouseup', stopWbDraw);
@@ -1353,7 +1410,6 @@ wbCanvas.addEventListener('touchstart', startWbDraw, { passive: false });
 window.addEventListener('touchmove', drawWb, { passive: false });
 window.addEventListener('touchend', stopWbDraw);
 
-// Отслеживание координат без зажатия мыши
 wbCanvas.addEventListener('mousemove', updateWbCoords);
 wbCanvas.addEventListener('touchmove', updateWbCoords, { passive: true });
 wbCanvas.addEventListener('mouseleave', () => {
