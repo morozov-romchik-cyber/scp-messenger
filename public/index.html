@@ -281,10 +281,9 @@
   .toast-sender { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 2px; }
   .toast-text { font-size: 13px; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* БЕЛАЯ ДОСКА (ЧЕРНАЯ) В СТИЛЕ PAINT */
+  /* БЕЛАЯ ДОСКА (PAINT STYLE) */
   #whiteboard-modal .modal-content { width: 100vw; height: 100vh; max-width: none; border-radius: 0; padding: 0; border: none; background: #0d1117; display: flex; flex-direction: column; }
   
-  /* Стилизация тулбара под Paint (Ribbon) */
   .wb-toolbar { display: flex; align-items: stretch; padding: 5px 10px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; z-index: 10; gap: 2px; }
   .wb-group { display: flex; flex-direction: column; padding: 2px 10px; border-right: 1px solid var(--border); }
   .wb-group:last-child { border-right: none; }
@@ -312,6 +311,16 @@
   .wb-close-btn { color: #ff4d4d !important; border-color: transparent !important; }
   .wb-close-btn:hover { background: rgba(255, 77, 77, 0.1) !important; border-color: #ff4d4d !important; }
 
+  /* ВЕКТОРНЫЙ ТЕКСТОВЫЙ РЕДАКТОР */
+  .wb-text-layer { position: absolute; inset: 0; pointer-events: none; z-index: 10; overflow: visible; }
+  .wb-text-box { position: absolute; pointer-events: auto; border: 1px dashed rgba(255,255,255,0.4); padding: 4px; transform-origin: center; cursor: move; user-select: none; }
+  .wb-text-box.active { border-color: #1d9bf0; box-shadow: 0 0 0 1px rgba(29,155,240,0.3); }
+  .wb-text-content { outline: none; min-width: 20px; min-height: 20px; white-space: pre-wrap; word-wrap: break-word; cursor: text; color: #fff; font-family: Inter, sans-serif; line-height: 1.2; }
+  .wb-text-content:empty:before { content: attr(data-placeholder); color: rgba(255,255,255,0.3); pointer-events: none; }
+  
+  .wb-rotate-handle { position: absolute; top: -24px; left: 50%; width: 12px; height: 12px; background: #1d9bf0; border: 2px solid #fff; border-radius: 50%; transform: translateX(-50%); cursor: grab; pointer-events: auto; }
+  .wb-rotate-handle:active { cursor: grabbing; }
+  
   #wb-coords-panel { position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); color: #00ff9d; padding: 4px 10px; border-radius: 4px; font-family: 'Fira Code', monospace; font-size: 12px; pointer-events: none; z-index: 100; border: 1px solid #333; }
 
   @media (max-width: 720px) {
@@ -336,7 +345,6 @@
     .emoji-picker { top: 60px; right: 12px; width: calc(100vw - 24px); height: 40vh; }
     #privacy-modal .modal-content { width: calc(100vw - 32px); max-width: none; }
     
-    /* Мобильный тулбар доски */
     .wb-toolbar { flex-direction: column; align-items: stretch; gap: 5px; padding: 5px; }
     .wb-group { border-right: none; border-bottom: 1px solid var(--border); padding: 5px 0; }
     .wb-group-content { justify-content: center; flex-wrap: wrap; }
@@ -376,6 +384,10 @@
           <button class="wb-btn" id="wb-tool-eraser" onclick="setWbTool('eraser')" title="Ластик">
             <svg viewBox="0 0 24 24"><path d="M16.24 3.56l4.2 4.2c.78.78.78 2.05 0 2.83L12 19H6.5l-2.93-2.93c-.78-.78-.78-2.05 0-2.83L14.83 2.5c.78-.78 2.05-.78 2.83 0l-1.42 1.06zM4.83 14.83l2.83 2.83H12l4.24-4.24-4.24-4.24-7.17 7.17z"/></svg>
             Ластик
+          </button>
+          <button class="wb-btn" id="wb-tool-text" onclick="setWbTool('text')" title="Текст">
+            <svg viewBox="0 0 24 24"><path d="M9 4v3h5v12h3V7h5V4H9zm-2 16h2v-2H7v2zm0-4h2v-2H7v2zm0-4h2v-2H7v2zm0-4h2V6H7v2z"/></svg>
+            Текст
           </button>
         </div>
         <div class="wb-group-title">Инструменты</div>
@@ -422,6 +434,22 @@
         <div class="wb-group-title">Толщина</div>
       </div>
 
+      <!-- Настройки шрифта (появляются при выборе текста) -->
+      <div class="wb-group" id="wb-text-settings" style="display: none;">
+        <div class="wb-group-content">
+          <select id="wb-font-size" class="wb-select" onchange="wbFontSize = parseInt(this.value); if(wbTextObj) updateActiveTextStyle()">
+            <option value="16">16px</option>
+            <option value="24" selected>24px</option>
+            <option value="32">32px</option>
+            <option value="48">48px</option>
+            <option value="64">64px</option>
+          </select>
+          <button class="wb-btn" id="wb-btn-bold" onclick="toggleWbFontStyle('bold')" style="min-width: 30px; font-weight: bold; font-size: 16px;">B</button>
+          <button class="wb-btn" id="wb-btn-italic" onclick="toggleWbFontStyle('italic')" style="min-width: 30px; font-style: italic; font-size: 16px; font-family: serif;">I</button>
+        </div>
+        <div class="wb-group-title">Шрифт</div>
+      </div>
+
       <!-- Цвета -->
       <div class="wb-group">
         <div class="wb-group-content">
@@ -432,11 +460,9 @@
             <div class="wb-color" style="background:#1d9bf0;" data-color="#1d9bf0" onclick="setWbColor(this)"></div>
             <div class="wb-color" style="background:#00ff9d;" data-color="#00ff9d" onclick="setWbColor(this)"></div>
             <div class="wb-color" style="background:#ffd700;" data-color="#ffd700" onclick="setWbColor(this)"></div>
-            <div class="wb-color" style="background:#ff00ff;" data-color="#ff00ff" onclick="setWbColor(this)"></div>
-            <div class="wb-color" style="background:#00ffff;" data-color="#00ffff" onclick="setWbColor(this)"></div>
           </div>
         </div>
-        <div class="wb-group-title">Цвет 1</div>
+        <div class="wb-group-title">Цвет</div>
       </div>
 
       <!-- Действия -->
@@ -467,6 +493,8 @@
       <div id="wb-canvas-container">
         <canvas id="wb-canvas"></canvas>
         <canvas id="wb-preview-canvas"></canvas>
+        <!-- Слой для векторного текста -->
+        <div class="wb-text-layer" id="wb-text-layer"></div>
       </div>
     </div>
     <div id="wb-coords-panel">X: 0 | Y: 0</div>
@@ -1116,14 +1144,26 @@ let wbCanvas = document.getElementById('wb-canvas');
 let wbCtx = wbCanvas.getContext('2d');
 let wbPreviewCanvas = document.getElementById('wb-preview-canvas');
 let wbPreviewCtx = wbPreviewCanvas.getContext('2d');
+let wbTextLayer = document.getElementById('wb-text-layer');
 
 let wbIsDrawing = false;
 let wbTool = 'pen';
-let wbColor = '#ffffff'; // Белый цвет по умолчанию
-let wbLineWidth = 4; // Толщина по умолчанию
+let wbColor = '#ffffff';
+let wbLineWidth = 4;
 let wbLastX = 0;
 let wbLastY = 0;
 let wbHistory = [];
+
+// Переменные для текстового инструмента
+let wbFontSize = 24;
+let wbFontBold = false;
+let wbFontItalic = false;
+let wbTextObj = null; // Текущий активный объект { x, y, rotation, text, element }
+let isDraggingText = false;
+let isRotatingText = false;
+let textStartX = 0, textStartY = 0;
+let textInitialRot = 0;
+let textInitialX = 0, textInitialY = 0;
 
 function initWhiteboard() {
   const w = 2000;
@@ -1131,7 +1171,7 @@ function initWhiteboard() {
   
   wbCanvas.width = w;
   wbCanvas.height = h;
-  wbCtx.fillStyle = '#121212'; // Черный фон
+  wbCtx.fillStyle = '#121212';
   wbCtx.fillRect(0, 0, w, h);
   
   wbPreviewCanvas.width = w;
@@ -1142,6 +1182,17 @@ function initWhiteboard() {
   saveWbState();
   document.getElementById('wb-canvas-wrapper').scrollTop = 0;
   document.getElementById('wb-canvas-wrapper').scrollLeft = 0;
+  
+  // Сброс текста
+  if (wbTextObj) finalizeText();
+  wbTextLayer.innerHTML = '';
+  
+  document.getElementById('wb-font-size').value = '24';
+  wbFontSize = 24;
+  wbFontBold = false;
+  wbFontItalic = false;
+  document.getElementById('wb-btn-bold').classList.remove('active');
+  document.getElementById('wb-btn-italic').classList.remove('active');
 }
 
 function saveWbState() {
@@ -1150,6 +1201,7 @@ function saveWbState() {
 }
 
 function undoWb() {
+  if (wbTextObj) finalizeText(); // Применяем текст перед отменой
   if (wbHistory.length > 1) {
     wbHistory.pop();
     const prevState = wbHistory[wbHistory.length - 1];
@@ -1164,6 +1216,7 @@ function undoWb() {
 
 function clearWb() {
   if (!confirm('Очистить всю доску?')) return;
+  if (wbTextObj) finalizeText();
   wbCtx.fillStyle = '#121212';
   wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
   wbPreviewCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
@@ -1175,6 +1228,16 @@ function setWbTool(tool) {
   document.querySelectorAll('.wb-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.getElementById('wb-tool-' + tool);
   if (activeBtn) activeBtn.classList.add('active');
+  
+  const textSettings = document.getElementById('wb-text-settings');
+  if (tool === 'text') {
+    textSettings.style.display = 'flex';
+    wbCanvas.style.cursor = 'text';
+  } else {
+    textSettings.style.display = 'none';
+    wbCanvas.style.cursor = 'crosshair';
+    if (wbTextObj) finalizeText(); // Финализируем, если переключили инструмент
+  }
 }
 
 function setWbColor(el) {
@@ -1182,6 +1245,30 @@ function setWbColor(el) {
   el.classList.add('active');
   wbColor = el.dataset.color;
   if (wbTool === 'eraser') setWbTool('pen');
+  
+  if (wbTextObj) {
+    const content = wbTextObj.element.querySelector('.wb-text-content');
+    content.style.color = wbColor;
+  }
+}
+
+function toggleWbFontStyle(style) {
+  if (style === 'bold') {
+    wbFontBold = !wbFontBold;
+    document.getElementById('wb-btn-bold').classList.toggle('active', wbFontBold);
+  } else if (style === 'italic') {
+    wbFontItalic = !wbFontItalic;
+    document.getElementById('wb-btn-italic').classList.toggle('active', wbFontItalic);
+  }
+  if (wbTextObj) updateActiveTextStyle();
+}
+
+function updateActiveTextStyle() {
+  if (!wbTextObj) return;
+  const content = wbTextObj.element.querySelector('.wb-text-content');
+  content.style.fontSize = wbFontSize + 'px';
+  content.style.fontWeight = wbFontBold ? 'bold' : 'normal';
+  content.style.fontStyle = wbFontItalic ? 'italic' : 'normal';
 }
 
 document.getElementById('whiteboard-btn').addEventListener('click', () => {
@@ -1192,7 +1279,6 @@ document.getElementById('whiteboard-btn').addEventListener('click', () => {
 });
 
 function getWbCoords(e) {
-  // getBoundingClientRect учитывает скролл и позиционирование
   const rect = wbCanvas.getBoundingClientRect();
   return {
     x: e.clientX - rect.left,
@@ -1207,6 +1293,185 @@ function updateWbCoords(e) {
   if (panel) panel.textContent = `X: ${Math.round(coords.x)} | Y: ${Math.round(coords.y)}`;
 }
 
+// ================= ТЕКСТОВЫЙ ИНСТРУМЕНТ (ВЕКТОРНЫЙ) =================
+function createTextBox(x, y) {
+  if (wbTextObj) finalizeText();
+
+  const box = document.createElement('div');
+  box.className = 'wb-text-box active';
+  box.style.left = x + 'px';
+  box.style.top = y + 'px';
+
+  const handle = document.createElement('div');
+  handle.className = 'wb-rotate-handle';
+  handle.title = 'Потяните, чтобы повернуть';
+
+  const content = document.createElement('div');
+  content.className = 'wb-text-content';
+  content.contentEditable = 'true';
+  content.setAttribute('data-placeholder', 'Введите текст...');
+  
+  // Применяем текущие настройки
+  content.style.fontSize = wbFontSize + 'px';
+  content.style.fontWeight = wbFontBold ? 'bold' : 'normal';
+  content.style.fontStyle = wbFontItalic ? 'italic' : 'normal';
+  content.style.color = wbColor;
+
+  box.appendChild(handle);
+  box.appendChild(content);
+  wbTextLayer.appendChild(box);
+
+  wbTextObj = { x, y, rotation: 0, element: box, contentEl: content };
+
+  // Фокус на ввод текста
+  setTimeout(() => content.focus(), 10);
+
+  // Обработчики событий
+  content.addEventListener('input', () => {
+    // Автоматически расширяем, если нужно
+  });
+
+  content.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      finalizeText();
+    }
+  });
+
+  // Перетаскивание текстового блока
+  box.addEventListener('pointerdown', (e) => {
+    if (e.target === handle || e.target === content) return; // Игнорируем клики по тексту и ручке
+    e.stopPropagation();
+    
+    if (wbTextObj) {
+      wbTextObj.element.classList.add('active');
+      isDraggingText = true;
+      textStartX = e.clientX;
+      textStartY = e.clientY;
+      textInitialX = wbTextObj.x;
+      textInitialY = wbTextObj.y;
+      box.setPointerCapture(e.pointerId);
+    }
+  });
+
+  // Вращение
+  handle.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    isRotatingText = true;
+    const rect = box.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    textStartX = e.clientX - centerX;
+    textStartY = e.clientY - centerY;
+    textInitialRot = wbTextObj.rotation;
+    handle.setPointerCapture(e.pointerId);
+  });
+}
+
+// Глобальные обработчики для перетаскивания и вращения
+window.addEventListener('pointermove', (e) => {
+  if (isDraggingText && wbTextObj) {
+    const dx = e.clientX - textStartX;
+    const dy = e.clientY - textStartY;
+    wbTextObj.x = textInitialX + dx;
+    wbTextObj.y = textInitialY + dy;
+    wbTextObj.element.style.left = wbTextObj.x + 'px';
+    wbTextObj.element.style.top = wbTextObj.y + 'px';
+  }
+  
+  if (isRotatingText && wbTextObj) {
+    const box = wbTextObj.element;
+    const rect = box.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    const curX = e.clientX - centerX;
+    const curY = e.clientY - centerY;
+    
+    const angleRad = Math.atan2(curY, curX);
+    let angleDeg = (angleRad * 180 / Math.PI) + 90; // +90, так как ручка сверху
+    
+    wbTextObj.rotation = angleDeg;
+    box.style.transform = `rotate(${angleDeg}deg)`;
+  }
+});
+
+window.addEventListener('pointerup', () => {
+  isDraggingText = false;
+  isRotatingText = false;
+});
+
+// Финализация текста (перенос на canvas)
+function finalizeText() {
+  if (!wbTextObj) return;
+  const text = wbTextObj.contentEl.innerText.trim();
+  const box = wbTextObj.element;
+  
+  if (text) {
+    const content = wbTextObj.contentEl;
+    const textLines = text.split('\n');
+    
+    // Получаем реальные стили из HTML элемента
+    const style = window.getComputedStyle(content);
+    const fontSize = parseInt(style.fontSize);
+    const lineHeight = fontSize * 1.2;
+    
+    // Сохраняем состояние контекста
+    wbCtx.save();
+    
+    // Перемещаем начало координат в центр текстового блока (с учетом смещения рамки)
+    const rect = box.getBoundingClientRect();
+    const canvasRect = wbCanvas.getBoundingClientRect();
+    
+    // Вычисляем центр блока относительно канваса
+    const centerX = wbTextObj.x + (rect.width / 2);
+    const centerY = wbTextObj.y + (rect.height / 2);
+    
+    wbCtx.translate(centerX, centerY);
+    wbCtx.rotate(wbTextObj.rotation * Math.PI / 180);
+    
+    // Настраиваем шрифт
+    const isItalic = style.fontStyle === 'italic' ? 'italic ' : '';
+    const isBold = parseInt(style.fontWeight) >= 700 ? 'bold ' : '';
+    wbCtx.font = `${isItalic}${isBold}${fontSize}px Inter, sans-serif`;
+    wbCtx.fillStyle = style.color;
+    wbCtx.textAlign = 'center';
+    wbCtx.textBaseline = 'middle';
+    
+    // Отрисовываем строки
+    const startY = -(textLines.length - 1) * lineHeight / 2;
+    textLines.forEach((line, index) => {
+      wbCtx.fillText(line, 0, startY + index * lineHeight);
+    });
+    
+    wbCtx.restore();
+    saveWbState();
+  }
+  
+  // Удаляем HTML элемент
+  box.remove();
+  wbTextObj = null;
+}
+
+// Клик по холсту при выбранном инструменте "Текст"
+wbCanvas.addEventListener('pointerdown', (e) => {
+  if (wbTool === 'text') {
+    if (wbTextObj) {
+      // Если кликнули вне текущего текста, финализируем его
+      const rect = wbTextObj.element.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+        finalizeText();
+      }
+      return;
+    }
+    
+    // Создаем новый текстовый блок
+    const coords = getWbCoords(e);
+    createTextBox(coords.x, coords.y);
+    e.preventDefault();
+  }
+});
+
+// ================= РИСОВАНИЕ ФИГУР И ЛИНИЙ =================
 function drawShapeOnCtx(ctx, tool, startX, startY, curX, curY, color, lineWidth) {
     ctx.beginPath();
     ctx.strokeStyle = color;
@@ -1234,6 +1499,7 @@ function drawShapeOnCtx(ctx, tool, startX, startY, curX, curY, color, lineWidth)
 }
 
 function startWbDraw(e) {
+  if (wbTool === 'text') return; // Обрабатывается отдельно
   if (e.type === 'touchstart') e.preventDefault();
   
   const coords = getWbCoords(e);
@@ -1248,7 +1514,7 @@ function startWbDraw(e) {
     wbCtx.lineCap = 'round';
     wbCtx.lineJoin = 'round';
     wbCtx.strokeStyle = wbTool === 'eraser' ? '#121212' : wbColor;
-    wbCtx.lineWidth = wbTool === 'eraser' ? 30 : wbLineWidth; // Ластик всегда толстый
+    wbCtx.lineWidth = wbTool === 'eraser' ? 30 : wbLineWidth;
   }
 }
 
@@ -1284,10 +1550,11 @@ function stopWbDraw(e) {
   }
 }
 
-// Используем PointerEvents для идеальной работы на всех устройствах
 wbCanvas.addEventListener('pointerdown', (e) => {
+  if (wbTool !== 'text') {
     wbCanvas.setPointerCapture(e.pointerId);
     startWbDraw(e);
+  }
 });
 window.addEventListener('pointermove', drawWb);
 window.addEventListener('pointerup', stopWbDraw);
@@ -1297,6 +1564,7 @@ wbCanvas.addEventListener('pointermove', updateWbCoords);
 
 async function sendWhiteboard() {
   if (!state.currentChat) return;
+  if (wbTextObj) finalizeText(); // Финализируем текст перед отправкой
   
   const modal = document.getElementById('whiteboard-modal');
   modal.classList.remove('visible');
