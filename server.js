@@ -92,7 +92,7 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 server.requestTimeout = 0; server.headersTimeout = 0; server.timeout = 0;
 
-app.use(express.json({ limit: '20mb' })); // Увеличен лимит JSON
+app.use(express.json({ limit: '50mb' })); // Увеличен лимит для JSON
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.use('/uploads', express.static(UPLOAD_DIR));
@@ -136,7 +136,7 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({
-  storage, limits: { fileSize: 20 * 1024 * 1024 }, // Увеличен лимит до 20 МБ для фото с телефонов
+  storage, limits: { fileSize: 50 * 1024 * 1024 }, // 50 МБ для аватарок
   fileFilter: (req, file, cb) => {
     const originalName = decodeFilename(file.originalname);
     const ext = path.extname(originalName).toLowerCase();
@@ -147,7 +147,7 @@ const upload = multer({
 const uploadSingle = (field) => (req, res, next) => {
   upload.single(field)(req, res, (err) => {
     if (err) {
-        if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Файл слишком большой. Максимум 20 МБ.' });
+        if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Файл слишком большой. Максимум 50 МБ.' });
         return res.status(400).json({ error: err.message || 'Ошибка загрузки' });
     }
     next();
@@ -255,7 +255,6 @@ app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
   const banDuration = req.body.duration;
   report.status = action;
 
-  // Отправка уведомления в SCP_Helper
   let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === report.reporter_id) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
   if (!helperChat) {
     helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
@@ -293,7 +292,6 @@ app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
 });
 
 // ================= ADMIN =================
-// ДОБАВЛЕННЫЙ ЭНДПОИНТ: Просмотр всех групп и каналов
 app.get('/api/admin/all-chats', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
