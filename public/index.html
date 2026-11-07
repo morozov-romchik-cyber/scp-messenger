@@ -148,7 +148,6 @@
   .msg-row.mine .msg { background: rgba(48, 54, 61, 0.95); border-color: var(--border-hover); border-bottom-right-radius: 2px; }
   .msg-row:not(.mine) .msg { border-bottom-left-radius: 2px; }
 
-  /* Форматирование списков */
   .msg ul { padding-left: 20px; margin: 4px 0; list-style-type: disc; }
   .msg li { margin-bottom: 2px; }
 
@@ -197,15 +196,17 @@
   .att-viewer-nav button:not(:disabled):hover { border-color: var(--border-hover); }
 
   /* УЛУЧШЕННЫЙ ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (ZOOM & PAN) */
-  #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 999999; cursor: grab; overflow: hidden; }
-  #lightbox:active { cursor: grabbing; }
+  #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 999999; overflow: hidden; touch-action: none; }
   #lightbox.visible { display: block; }
   #lightbox-img { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: none; max-height: none; user-select: none; pointer-events: none; transition: transform 0.1s ease-out; }
+  
   .lightbox-controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); border: 1px solid #333; padding: 8px 16px; border-radius: 20px; display: flex; align-items: center; gap: 15px; z-index: 10; color: #fff; font-family: 'Fira Code', monospace; pointer-events: auto; }
   .lightbox-controls button { background: transparent; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 5px; }
   .lightbox-controls button:disabled { opacity: 0.3; cursor: not-allowed; }
   .lightbox-close { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7); border: 1px solid #333; color: #fff; font-size: 24px; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; pointer-events: auto; }
   .lightbox-close:hover { background: #ff4d4d; border-color: #ff4d4d; }
+  .lightbox-download { position: absolute; top: 20px; right: 80px; background: rgba(0,0,0,0.7); border: 1px solid #333; color: #fff; font-size: 24px; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; pointer-events: auto; text-decoration: none; }
+  .lightbox-download:hover { background: #00ff9d; border-color: #00ff9d; color: #000; }
 
   #reply-bar { display: none; padding: 8px 24px; background: var(--panel); border-top: 1px solid var(--border); align-items: center; justify-content: space-between; }
   #reply-bar.visible { display: flex; }
@@ -313,7 +314,8 @@
 
   .wb-select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; outline: none; cursor: pointer; font-size: 13px; height: 32px; }
   
-  .wb-canvas-wrapper { flex: 1; overflow: auto; background: #1a1a1a; position: relative; display: block; cursor: crosshair; }
+  /* ФИКС ДЛЯ ТЕЛЕФОНОВ (touch-action) */
+  .wb-canvas-wrapper { flex: 1; overflow: auto; background: #1a1a1a; position: relative; display: block; cursor: crosshair; touch-action: pan-x pan-y; }
   #wb-canvas-container { position: relative; display: inline-block; margin: 0 auto; }
   #wb-canvas, #wb-preview-canvas { background: #121212; display: block; box-shadow: 0 0 20px rgba(0,0,0,0.8); touch-action: none; cursor: crosshair; }
   #wb-preview-canvas { position: absolute; top: 0; left: 0; pointer-events: none; background: transparent; }
@@ -381,6 +383,7 @@
 
 <!-- УЛУЧШЕННЫЙ ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (ZOOM & PAN) -->
 <div id="lightbox">
+  <a class="lightbox-download" id="lightbox-download-btn" href="" download target="_blank" title="Скачать">📥</a>
   <div class="lightbox-close" onclick="closeLightbox()">×</div>
   <div class="lightbox-controls" id="lightbox-nav" style="display: none;">
     <button onclick="navLightbox(-1)" id="lightbox-prev">❮</button>
@@ -455,7 +458,7 @@
         <div class="wb-group-title">Толщина</div>
       </div>
 
-      <!-- Настройки шрифта (появляются при выборе текста) -->
+      <!-- Настройки шрифта -->
       <div class="wb-group" id="wb-text-settings" style="display: none;">
         <div class="wb-group-content">
           <select id="wb-font-size" class="wb-select" onchange="wbFontSize = parseInt(this.value); if(wbTextObj) updateActiveTextStyle()">
@@ -722,6 +725,17 @@
   </div>
 </div>
 
+<!-- НОВОЕ МОДАЛЬНОЕ ОКНО: ДЕТАЛИ ЧАТА -->
+<div class="modal" id="chat-details-modal">
+  <div class="modal-content" style="width: 500px; max-height: 85vh;">
+    <h3 id="cd-title" style="color: #ff3333;">ДЕТАЛИ ЧАТА</h3>
+    <div id="chat-details-content" style="flex: 1; overflow-y: auto; padding-right: 5px;">
+      Загрузка...
+    </div>
+    <button class="modal-btn" style="background: transparent; color: var(--muted); margin-top: 15px;" onclick="document.getElementById('chat-details-modal').classList.remove('visible')">Закрыть</button>
+  </div>
+</div>
+
 <div class="modal" id="group-members-modal">
   <div class="modal-content" style="height: 80vh; display: flex; flex-direction: column;">
     <h3>УЧАСТНИКИ ГРУППЫ</h3>
@@ -758,6 +772,8 @@
   <div class="modal-content">
     <h3>ДЕЙСТВИЯ</h3>
     <button class="modal-btn" id="msg-copy-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">📋 Копировать текст</button>
+    <!-- НОВАЯ КНОПКА СКАЧИВАНИЯ -->
+    <button class="modal-btn" id="msg-download-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">📥 Скачать вложения</button>
     <button class="modal-btn" id="msg-reply-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Ответить</button>
     <button class="modal-btn" id="msg-forward-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Переслать</button>
     <button class="modal-btn" id="msg-report-btn" style="background: transparent; color: #ff9933; border: 1px solid #ff9933; margin-bottom: 10px;">🚩 Пожаловаться</button>
@@ -1342,7 +1358,6 @@ function createTextBox(x, y) {
 
   wbTextObj = { x, y, rotation: 0, element: box, contentEl: content };
 
-  // ИСПРАВЛЕНИЕ: preventScroll не дает странице прыгнуть вниз
   setTimeout(() => content.focus({ preventScroll: true }), 10);
 
   content.addEventListener('input', () => {});
@@ -1422,7 +1437,6 @@ function finalizeText() {
     
     wbCtx.save();
     
-    // ИСПРАВЛЕНИЕ: Используем offsetWidth и offsetHeight, чтобы получить реальные размеры до поворота
     const centerX = wbTextObj.x + (box.offsetWidth / 2);
     const centerY = wbTextObj.y + (box.offsetHeight / 2);
     
@@ -1582,6 +1596,7 @@ let lbCurrentIndex = 0;
 
 const lightbox = document.getElementById('lightbox');
 const lightboxImg = document.getElementById('lightbox-img');
+const lightboxDownloadBtn = document.getElementById('lightbox-download-btn');
 
 function updateLightboxTransform() {
     lightboxImg.style.transform = `translate(-50%, -50%) translate(${lbTranslateX}px, ${lbTranslateY}px) scale(${lbScale})`;
@@ -1629,8 +1644,13 @@ window.navLightbox = function(dir) {
 
 function updateLightboxImage() {
     lightboxImg.src = lbImages[lbCurrentIndex];
+    lightboxDownloadBtn.href = lbImages[lbCurrentIndex];
     updateLightboxTransform();
 }
+
+// === МОБИЛЬНЫЙ ЗУМ И ПЕРЕТАСКИВАНИЕ ===
+let touchStartDist = 0;
+let initialScale = 1;
 
 lightbox.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -1642,7 +1662,7 @@ lightbox.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 lightbox.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.lightbox-controls') || e.target.closest('.lightbox-close')) return;
+    if (e.target.closest('.lightbox-controls') || e.target.closest('.lightbox-close') || e.target.closest('.lightbox-download')) return;
     lbIsDragging = true;
     lbStartX = e.clientX - lbTranslateX;
     lbStartY = e.clientY - lbTranslateY;
@@ -1658,18 +1678,26 @@ lightbox.addEventListener('pointermove', (e) => {
 
 lightbox.addEventListener('pointerup', (e) => {
     lbIsDragging = false;
-    lightbox.releasePointerCapture(e.pointerId);
-    
-    // ИСПРАВЛЕНИЕ: Убрано принудительное центрирование и закрытие
-    // Свайп работает только если картинка не увеличена и сдвинута далеко (> 150px)
-    if (lbScale === 1 && Math.abs(lbTranslateX) > 150 && lbImages.length > 1) {
-        if (lbTranslateX > 0) navLightbox(-1);
-        else navLightbox(1);
-    }
+    try { lightbox.releasePointerCapture(e.pointerId); } catch(err) {}
 });
 
-// УДАЛЕНО: lightbox.addEventListener('click', ...) чтобы не закрывалось при клике
-// Вместо этого используется только крестик (.lightbox-close)
+// Мультитач (2 пальца)
+lightbox.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+        touchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        initialScale = lbScale;
+    }
+}, { passive: false });
+
+lightbox.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2) {
+        e.preventDefault(); 
+        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        lbScale = initialScale * (dist / touchStartDist);
+        lbScale = Math.max(0.5, Math.min(lbScale, 5));
+        updateLightboxTransform();
+    }
+}, { passive: false });
 
 // =========================================================
 document.getElementById('tab-login').addEventListener('click', () => {
@@ -2146,11 +2174,57 @@ window.loadAllChats = async function() {
                     <div style="font-weight: bold; color: #fff;">${esc(c.name)} ${c.isChannel ? '📢 Канал' : '👥 Группа'}</div>
                     <div style="font-size: 11px; color: #884444; font-family: 'Fira Code';">ID: ${c.id} • Создатель: @${esc(c.creatorName || 'Unknown')} • Участников: ${c.memberCount}</div>
                 </div>
-                <button class="admin-btn" onclick="alert('Просмотр деталей не реализован')">Детали</button>
+                <button class="admin-btn" onclick="openChatDetails('${c.id}')">Детали</button>
             </div>
         `).join('');
     } catch (e) {
         box.innerHTML = `Ошибка: ${e.message}`;
+    }
+};
+
+// НОВАЯ ФУНКЦИЯ: ДЕТАЛИ ЧАТА
+window.openChatDetails = async function(chatId) {
+    const modal = document.getElementById('chat-details-modal');
+    const content = document.getElementById('chat-details-content');
+    content.innerHTML = 'Загрузка...';
+    modal.classList.add('visible');
+    
+    try {
+        const details = await api(`/admin/chat-details/${chatId}`);
+        
+        let membersHtml = details.members.map(m => `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #331111;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="chat-avatar" style="width:24px;height:24px;font-size:12px;">${esc((m.displayName||m.username||'?')[0].toUpperCase())}</div>
+                    <div>
+                        <div style="font-weight:bold; font-size:13px; color:#fff;">${esc(m.displayName || m.username)}</div>
+                        <div style="font-size:10px; color:#884444;">@${esc(m.username)} • ${ROLE_LABEL[m.role] || m.role}</div>
+                    </div>
+                </div>
+                ${m.id === details.creator_id ? `<span style="font-size:10px; background:#ff3333; color:#000; padding:2px 6px; border-radius:4px; font-weight:bold;">СОЗДАТЕЛЬ</span>` : ''}
+            </div>
+        `).join('');
+
+        content.innerHTML = `
+            <div class="admin-section">
+                <h4>Информация</h4>
+                <div style="font-family:'Fira Code'; font-size:12px; color:#ff9999; line-height:1.8;">
+                    <div>Название: <span style="color:#fff;">${esc(details.name)}</span></div>
+                    <div>ID: <span style="color:#fff;">${details.id}</span></div>
+                    <div>Тип: <span style="color:#fff;">${details.isChannel ? '📢 Канал' : '👥 Группа'}</span></div>
+                    ${details.username ? `<div>Ссылка: <span style="color:#fff;">${details.isChannel ? 'scp.me/' : 'scp.group/'}${details.username}</span></div>` : ''}
+                    <div>Создатель: <span style="color:#fff;">@${esc(details.creator_name || 'Unknown')}</span></div>
+                </div>
+            </div>
+            <div class="admin-section">
+                <h4>Участники (${details.members.length})</h4>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    ${membersHtml}
+                </div>
+            </div>
+        `;
+    } catch(e) {
+        content.innerHTML = `<div style="color:#ff4d4d;">Ошибка: ${esc(e.message)}</div>`;
     }
 };
 
@@ -2865,6 +2939,27 @@ function openMsgActions(msg) {
   const canDeleteAll = isOwn || ['sysadmin', 'admin', 'moderator'].includes(state.me.role);
   document.getElementById('msg-del-all-btn').style.display = canDeleteAll ? 'block' : 'none';
   document.getElementById('msg-report-btn').style.display = isOwn ? 'none' : 'block'; 
+  
+  // Обработка кнопки СКАЧАТЬ ВЛОЖЕНИЯ
+  const downloadBtn = document.getElementById('msg-download-btn');
+  if (msg.attachments && msg.attachments.length > 0) {
+      downloadBtn.style.display = 'block';
+      downloadBtn.onclick = () => {
+          msg.attachments.forEach(att => {
+              const url = att.url + (att.url.includes('?') ? '&' : '?') + 'token=' + state.token;
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = att.name || 'file';
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+          });
+          document.getElementById('msg-actions-modal').classList.remove('visible');
+      };
+  } else {
+      downloadBtn.style.display = 'none';
+  }
+
   document.getElementById('msg-actions-modal').classList.add('visible');
 }
 
@@ -3073,6 +3168,14 @@ document.getElementById('paste-file-send-btn').addEventListener('click', () => {
       e.preventDefault(); overlay.style.display = 'none'; dragDepth = 0;
       if (!state.currentChat) return alert('Сначала выберите чат');
       if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
+      
+      // Удаляем черновик при Drop
+      if (state.currentChat && state.currentChat.id) {
+          delete chatDrafts[state.currentChat.id];
+          localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
+          updateChatPreview(state.currentChat.id);
+      }
+
       const files = Array.from(e.dataTransfer.files);
       const caption = document.getElementById('msg-input').value.trim();
       document.getElementById('msg-input').value = '';
@@ -3120,8 +3223,18 @@ document.getElementById('file-input').addEventListener('change', () => {
   const fileInput = document.getElementById('file-input'); const files = Array.from(fileInput.files || []);
   if (!files.length || !state.currentChat) return;
   if (state.currentChat.isBlocked) { fileInput.value = ''; return alert('Пользователь заблокирован'); }
-  const caption = document.getElementById('msg-input').value.trim(); document.getElementById('msg-input').value = '';
-  fileInput.value = ''; uploadFilesWithProgress(files, caption);
+  
+  // Удаляем черновик при отправке файла
+  if (state.currentChat && state.currentChat.id) {
+      delete chatDrafts[state.currentChat.id];
+      localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
+      updateChatPreview(state.currentChat.id);
+  }
+
+  const caption = document.getElementById('msg-input').value.trim(); 
+  document.getElementById('msg-input').value = '';
+  fileInput.value = ''; 
+  uploadFilesWithProgress(files, caption);
 });
 
 document.getElementById('clear-chat-btn').addEventListener('click', () => { if (state.currentChat) document.getElementById('clear-modal').classList.add('visible'); });
