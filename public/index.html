@@ -2931,6 +2931,14 @@ async function uploadFilesWithProgress(files, caption = '') {
   if (isUploading) return alert('Подождите, предыдущая загрузка ещё идёт');
   if (!files || !files.length) return;
 
+  // --- ИСПРАВЛЕНИЕ: Очищаем черновик при отправке файла ---
+  if (state.currentChat.id) {
+      delete chatDrafts[state.currentChat.id];
+      localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
+      updateChatPreview(state.currentChat.id);
+  }
+  // -----------------------------------------------------------
+
   isUploading = true;
   const progressEl = document.getElementById('file-progress');
   const progressText = document.getElementById('file-progress-text');
