@@ -298,7 +298,7 @@
   /* БЕЛАЯ ДОСКА (PAINT STYLE) */
   #whiteboard-modal .modal-content { width: 100vw; height: 100vh; max-width: none; border-radius: 0; padding: 0; border: none; background: #0d1117; display: flex; flex-direction: column; }
   
-  .wb-toolbar { display: flex; align-items: stretch; padding: 5px 10px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; z-index: 10; gap: 2px; }
+  .wb-toolbar { display: flex; align-items: stretch; padding: 5px 10px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; z-index: 10; gap: 2px; flex-shrink: 0; }
   .wb-group { display: flex; flex-direction: column; padding: 2px 10px; border-right: 1px solid var(--border); }
   .wb-group:last-child { border-right: none; }
   .wb-group-title { font-size: 10px; color: var(--muted); text-align: center; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -315,8 +315,9 @@
 
   .wb-select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; outline: none; cursor: pointer; font-size: 13px; height: 32px; }
   
-  .wb-canvas-wrapper { flex: 1; overflow: auto; background: #1a1a1a; position: relative; display: block; cursor: crosshair; touch-action: pan-x pan-y; }
-  #wb-canvas-container { position: relative; display: inline-block; margin: 0 auto; }
+  /* ФИКС ДЛЯ ТЕЛЕФОНОВ (полоса прокрутки) */
+  .wb-canvas-wrapper { flex: 1; overflow: auto; background: #1a1a1a; position: relative; display: block; cursor: crosshair; -webkit-overflow-scrolling: touch; }
+  #wb-canvas-container { position: relative; display: inline-block; margin: 0 auto; padding-bottom: 120px; padding-right: 120px; } /* Добавлено место для скролла */
   #wb-canvas, #wb-preview-canvas { background: #121212; display: block; box-shadow: 0 0 20px rgba(0,0,0,0.8); touch-action: none; cursor: crosshair; }
   #wb-preview-canvas { position: absolute; top: 0; left: 0; pointer-events: none; background: transparent; }
   
@@ -335,6 +336,10 @@
   .wb-close-btn:hover { background: rgba(255, 77, 77, 0.1) !important; border-color: #ff4d4d !important; }
 
   #wb-coords-panel { position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); color: #00ff9d; padding: 4px 10px; border-radius: 4px; font-family: 'Fira Code', monospace; font-size: 12px; pointer-events: none; z-index: 100; border: 1px solid #333; }
+
+  /* Делаем скроллбар для доски видимым и удобным на телефоне */
+  .wb-canvas-wrapper::-webkit-scrollbar { width: 16px; height: 16px; }
+  .wb-canvas-wrapper::-webkit-scrollbar-thumb { background: #8b949e; border-radius: 8px; border: 4px solid #1a1a1a; }
 
   @media (max-width: 720px) {
     aside { display: none; width: 100%; position: absolute; inset: 0; z-index: 20; }
@@ -378,7 +383,7 @@
 <div class="toast-container" id="toast-container"></div>
 
 <svg id="landscape" viewBox="0 0 1440 320" preserveAspectRatio="none">
-  <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" cy="275" width="20" height="30" fill="var(--tree-color)" /></g>
+  <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
 
 <!-- УЛУЧШЕННЫЙ ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (ZOOM & PAN) -->
@@ -1965,37 +1970,71 @@ document.getElementById('delete-account-btn').addEventListener('click', async ()
   if (!confirm('Удалить аккаунт?')) return;
   try { await api('/users/me', { method: 'DELETE' }); localStorage.removeItem('scp_token'); window.location.reload(); } catch (e) { alert(e.message); }
 });
+
+// --- ИСПРАВЛЕНИЕ 4: СЖАТИЕ АВАТАРКИ ПЕРЕД ОТПРАВКОЙ (чтобы обойти Nginx) ---
 document.getElementById('avatar-upload-btn').addEventListener('click', () => document.getElementById('avatar-input').click());
-document.getElementById('avatar-input').addEventListener('change', () => {
-  const file = document.getElementById('avatar-input').files[0]; if (!file) return;
-  const fd = new FormData(); fd.append('avatar', file);
-  
-  fetch('/api/users/avatar', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token }, body: fd })
-  .then(async r => {
-    const text = await r.text();
-    try { return JSON.parse(text); } 
-    catch (e) { 
-        if (r.status === 413) throw new Error('Ошибка 413: Сервер Nginx блокирует загрузку. Пожалуйста, попросите администратора сервера увеличить лимит (client_max_body_size 20M).');
-        if (text.startsWith('<html>')) throw new Error(`Ошибка сервера (${r.status}). Возможно, файл слишком большой (Nginx).`);
-        throw new Error('Ошибка сервера. Попробуйте позже.'); 
-    }
-  })
-  .then(data => {
-    if(data.error) return alert(data.error);
-    state.me = data; 
-    const preview = document.getElementById('settings-avatar-preview');
-    preview.src = data.avatarUrl; 
-    preview.style.display = 'block'; 
-    loadChats();
-    alert('Аватар успешно обновлен!');
-  })
-  .catch(e => {
-      if (e.message.includes('413') || e.message.includes('слишком большой')) {
-          alert('Ошибка 413: Сервер Nginx блокирует загрузку. Пожалуйста, попросите администратора сервера увеличить лимит (client_max_body_size 20M).');
+document.getElementById('avatar-input').addEventListener('change', (e) => {
+  const file = e.target.files[0]; 
+  if (!file) return;
+
+  // Создаем объект изображения
+  const img = new Image();
+  const reader = new FileReader();
+
+  reader.onload = (event) => {
+    img.src = event.target.result;
+    img.onload = () => {
+      // Настройки сжатия
+      const max_size = 800; // Максимальная ширина или высота (в пикселях)
+      let width = img.width;
+      let height = img.height;
+
+      // Вычисляем пропорции
+      if (width > height) {
+        if (width > max_size) {
+          height *= max_size / width;
+          width = max_size;
+        }
       } else {
-          alert(e.message);
+        if (height > max_size) {
+          width *= max_size / height;
+          height = max_size;
+        }
       }
-  });
+
+      // Рисуем на невидимом холсте
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Конвертируем в сжатый JPEG (качество 80%)
+      canvas.toBlob((blob) => {
+        const fd = new FormData();
+        // Важно дать файлу расширение .jpg
+        fd.append('avatar', blob, 'avatar.jpg');
+
+        fetch('/api/users/avatar', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token }, body: fd })
+        .then(async r => {
+          const text = await r.text();
+          try { return JSON.parse(text); } 
+          catch (e) { throw new Error('Ошибка сервера'); }
+        })
+        .then(data => {
+          if(data.error) return alert(data.error);
+          state.me = data; 
+          const preview = document.getElementById('settings-avatar-preview');
+          preview.src = data.avatarUrl; 
+          preview.style.display = 'block'; 
+          loadChats();
+          alert('Аватар успешно обновлен!');
+        })
+        .catch(e => alert('Ошибка загрузки: ' + e.message));
+      }, 'image/jpeg', 0.8);
+    };
+  };
+  reader.readAsDataURL(file);
 });
 
 document.getElementById('admin-header-btn').addEventListener('click', () => {
