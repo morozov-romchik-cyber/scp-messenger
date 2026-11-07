@@ -1,3 +1,4 @@
+javascript
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
@@ -90,16 +91,13 @@ const saveDb = () => {
   } catch (e) { serverLog('error', 'Ошибка локальной записи БД: ' + e.message); }
 };
 
-function logAudit(action, actorUsername, targetInfo, details = '') {
-  const entry = {
-    id: genId(),
-    action,
-    actor: actorUsername || 'SYSTEM',
-    target: targetInfo || '-',
-    details,
-    created_at: Math.floor(Date.now() / 1000)
-  };
-  db.audit_logs.push(entry);
+function logAudit(action, actor, target, details = '') {
+  if (!db.audit_logs) db.audit_logs = [];
+  db.audit_logs.push({
+    id: crypto.randomBytes(8).toString('hex'),
+    action, actor: actor || 'SYSTEM', target: target || '-',
+    details, created_at: Math.floor(Date.now() / 1000)
+  });
   if (db.audit_logs.length > 500) db.audit_logs.shift();
   saveDb();
 }
@@ -122,8 +120,9 @@ const publicUser = (u) => ({
   id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url,
   status: u.status, customStatus: u.custom_status || '', level: u.level || 1,
   clearanceLevel: u.clearance_level || (ROLE_RANK[u.role] || 1),
-  read_deleted: u.read_deleted || false, ip: u.ip || 'Скрыт', role: u.role || 'user',
-  invited_by: u.invited_by || null, ban_expires: u.ban_expires || 0, ban_reason: u.ban_reason || ''
+  read_deleted: u.read_deleted || false,
+  ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null,
+  ban_expires: u.ban_expires || 0, ban_reason: u.ban_reason || ''
 });
 
 const publicUserSafe = (u) => {
@@ -229,33 +228,26 @@ const chatIsBlocked = (chatId, myId) => {
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
-// ================= АВТОМОДЕРАЦИЯ И БАЗА SCP =================
+// ================= БАЗА SCP И АВТОМОДЕРАЦИЯ =================
 const SCP_DOSSIERS = {
-  '173': { name: 'SCP-173 — Скульптура', class: 'Евклид', text: 'Конструкция из бетона и арматуры со следами краски. Чрезвычайно агрессивен. Двигается только в отсутствие прямого визуального контакта. Требуется не менее 3 человек при входе в камеру.' },
-  '096': { name: 'SCP-096 — Скромник', class: 'Евклид', text: 'Гуманоид высокого роста с бледной кожей. При взгляде на лицо объекта (вживую или на фото/видео) впадает в неконтролируемую ярость и преследует жертву через любые препятствия.' },
-  '049': { name: 'SCP-049 — Чумной Доктор', class: 'Евклид', text: 'Существо в традиционной маске чумного доктора XVII века. Прикосновение смертельно. Стремится «излечить» человечество от некоего Мора посредством хирургических операций.' },
-  '682': { name: 'SCP-682 — Неуязвимая рептилия', class: 'Кетер', text: 'Крупное рептилоподобное существо исключительной силы, скорости и регенерации. Испытывает крайнюю враждебность ко всем формам жизни. Условия содержания: кислотная ванна.' },
-  '999': { name: 'SCP-999 — Щекоточный монстр', class: 'Безопасный', text: 'Аморфная масса полупрозрачной оранжевой слизи с игривым поведением. Вызывает прилив абсолютной эйфории у любого живого существа при контакте.' }
+  '173': { name: 'SCP-173 — «Скульптура»', class: 'Евклид', text: 'Конструкция из бетона и арматуры. При отсутствии прямого визуального контакта двигается с невероятной скоростью и ломает шею жертве. Требуется не менее трёх человек при входе.' },
+  '096': { name: 'SCP-096 — «Скромник»', class: 'Евклид', text: 'Гуманоидное существо. При взгляде на лицо (вживую или на снимке) впадает в состояние неконтролируемой ярости и преодолевает любые преграды, чтобы ликвидировать свидетеля.' },
+  '049': { name: 'SCP-049 — «Чумной доктор»', class: 'Евклид', text: 'Гуманоид в костюме средневекового чумного доктора. Прикосновение смертельно. Считает человечество поражённым «Великим Мором» и проводит операции.' },
+  '682': { name: 'SCP-682 — «Неуязвимая рептилия»', class: 'Кетер', text: 'Огромное рептилоподобное существо с колоссальной скоростью регенерации и ненавистью ко всем формам жизни. Содержится в ванне с соляной кислотой.' },
+  '999': { name: 'SCP-999 — «Щекоточный монстр»', class: 'Безопасный', text: 'Аморфная масса полупрозрачной оранжевой слизи. Доброжелателен, игрив, контакт вызывает прилив безграничного счастья и снимает ПТСР.' }
 };
 
-const AUTOMOD_RESTRICTED = [
-  'нарушение условий содержания', 'побег объекта', 'побег scp', 'ликвидировать персонал',
-  'разрушение комплекса', 'меметическая атака', 'кс-кс-кс смерть'
-];
+const AUTOMOD_KEYWORDS = ['побег объекта', 'нарушение условий содержания', 'смерть совету о5', 'меметическая угроза'];
 
 function checkAutomod(text, user, chatId) {
   const lower = (text || '').toLowerCase();
-  for (const trigger of AUTOMOD_RESTRICTED) {
-    if (lower.includes(trigger)) {
-      logAudit('AUTOMOD_TRIGGER', user.username, `Чат: ${chatId}`, `Сработал триггер: "${trigger}"`);
+  for (const kw of AUTOMOD_KEYWORDS) {
+    if (lower.includes(kw)) {
+      logAudit('AUTOMOD_TRIGGER', user?.username || 'ANON', `Чат: ${chatId}`, `Сработал триггер: "${kw}"`);
       db.reports.push({
-        id: genId(),
-        reporter_id: HELPER_ID,
-        target_user_id: user.id,
-        target_message_ids: [],
-        reason: `Автомодерация: подозрение на нарушение безопасности фонда ("${trigger}")`,
-        status: 'pending',
-        created_at: Math.floor(Date.now() / 1000)
+        id: genId(), reporter_id: HELPER_ID, target_user_id: user.id,
+        target_message_ids: [], reason: `Автомодерация: подозрение на инцидент фонда («${kw}»)`,
+        status: 'pending', created_at: Math.floor(Date.now() / 1000)
       });
       saveDb();
       io.emit('newReport');
@@ -264,7 +256,7 @@ function checkAutomod(text, user, chatId) {
   }
 }
 
-// Самоуничтожающиеся сообщения
+// Фоновая очистка самоуничтожающихся сообщений (TTL)
 setInterval(() => {
   const now = Math.floor(Date.now() / 1000);
   let changed = false;
@@ -276,7 +268,7 @@ setInterval(() => {
     }
   });
   if (changed) saveDb();
-}, 2000);
+}, 2500);
 
 // ================= REPORTS =================
 app.post('/api/reports', authMiddleware, (req, res) => {
@@ -287,7 +279,7 @@ app.post('/api/reports', authMiddleware, (req, res) => {
     id: genId(), reporter_id: req.userId, target_user_id, target_message_ids,
     reason, status: 'pending', created_at: Math.floor(Date.now() / 1000)
   });
-  logAudit('REPORT_FILED', reporter?.username, `@${target_user_id}`, reason);
+  logAudit('REPORT_FILED', reporter?.username, target_user_id, reason);
   saveDb();
   io.emit('newReport');
   res.json({ ok: true });
@@ -365,11 +357,11 @@ app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-// ================= AUDIT & STATS =================
+// ================= AUDIT LOG & STATS =================
 app.get('/api/admin/audit-log', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
-  res.json((db.audit_logs || []).slice(-100).reverse());
+  res.json((db.audit_logs || []).slice(-150).reverse());
 });
 
 app.get('/api/admin/stats', authMiddleware, (req, res) => {
@@ -382,20 +374,14 @@ app.get('/api/admin/stats', authMiddleware, (req, res) => {
   const totalFiles = db.attachments.length;
   const totalChats = db.chats.length;
 
-  const userActivity = {};
-  db.messages.forEach(m => {
-    userActivity[m.sender_id] = (userActivity[m.sender_id] || 0) + 1;
-  });
+  const activity = {};
+  db.messages.forEach(m => { activity[m.sender_id] = (activity[m.sender_id] || 0) + 1; });
+  const topUsers = Object.entries(activity).map(([uid, cnt]) => {
+    const u = db.users.find(x => x.id === uid);
+    return { username: u ? u.username : 'Unknown', count: cnt };
+  }).sort((a,b) => b.count - a.count).slice(0, 5);
 
-  const topActive = Object.entries(userActivity)
-    .map(([uid, count]) => {
-      const u = db.users.find(x => x.id === uid);
-      return { username: u ? u.username : 'Unknown', count };
-    })
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
-
-  res.json({ totalUsers, onlineUsers, totalMessages, totalFiles, totalChats, topActive });
+  res.json({ totalUsers, onlineUsers, totalMessages, totalFiles, totalChats, topUsers });
 });
 
 // ================= ADMIN =================
@@ -409,10 +395,30 @@ app.get('/api/admin/all-chats', authMiddleware, (req, res) => {
     return {
       id: c.id, name: c.name, isChannel: !!c.is_channel, username: c.username || null,
       creatorId: c.creator_id, creatorName: creator ? creator.username : 'Unknown',
-      minClearance: c.min_clearance || 1, memberCount: members.length
+      memberCount: members.length
     };
   }).sort((a, b) => b.memberCount - a.memberCount);
+  
   res.json(chats);
+});
+
+app.get('/api/admin/chat-details/:chatId', authMiddleware, (req, res) => {
+  const me = db.users.find(u => u.id === req.userId);
+  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+
+  const chat = db.chats.find(c => c.id === req.params.chatId);
+  if (!chat) return res.status(404).json({ error: 'Чат не найден' });
+  const members = db.chat_members.filter(m => m.chat_id === chat.id).map(m => {
+    const u = db.users.find(user => user.id === m.user_id);
+    return u ? publicUserSafe(u) : null;
+  }).filter(Boolean);
+  const creator = db.users.find(u => u.id === chat.creator_id);
+
+  res.json({
+    id: chat.id, name: chat.name, isChannel: !!chat.is_channel,
+    username: chat.username, creator_id: chat.creator_id,
+    creator_name: creator ? creator.username : 'Unknown', members
+  });
 });
 
 app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
@@ -422,7 +428,7 @@ app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя забанить SCP_Helper' });
-  if (target.role === 'sysadmin') return res.status(403).json({ error: 'НЕЛЬЗЯ забанить системного администратора!' });
+  if (target.role === 'sysadmin') return res.status(403).json({ error: 'НЕЛЬЗЯ забанить системного администратора (SysAdmin)!' });
   if (target.role === 'admin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может банить админов' });
   if (target.id === me.id) return res.status(400).json({ error: 'Нельзя забанить себя' });
   
@@ -432,9 +438,10 @@ app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   else if (numDuration === -1) target.ban_expires = -1;
   else target.ban_expires = Date.now() + numDuration * 60 * 1000;
   
-  target.ban_reason = (numDuration !== 0) ? (reason || 'Нарушение правил сообщества') : '';
-  logAudit(numDuration !== 0 ? 'USER_BAN' : 'USER_UNBAN', me.username, `@${target.username}`, `Срок: ${numDuration}м, Причина: ${target.ban_reason}`);
+  if (numDuration !== 0) target.ban_reason = reason || 'Нарушение правил сообщества';
+  else target.ban_reason = '';
 
+  logAudit(numDuration !== 0 ? 'USER_BAN' : 'USER_UNBAN', me.username, `@${target.username}`, `Срок: ${numDuration}м, Причина: ${target.ban_reason}`);
   saveDb();
   if (target.ban_expires !== 0) io.to(`user:${target.id}`).emit('forceLogout', { ban_expires: target.ban_expires, ban_reason: target.ban_reason });
   io.emit('refreshData');
@@ -450,7 +457,7 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя удалить SCP_Helper' });
   if (target.role === 'sysadmin') return res.status(400).json({ error: 'Нельзя удалить SysAdmin' });
   if (target.role === 'admin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может удалять админов' });
-
+  
   logAudit('USER_DELETE', me.username, `@${target.username}`);
   const userMsgIds = db.messages.filter(m => m.sender_id === target.id).map(m => m.id);
   db.attachments = db.attachments.filter(a => !userMsgIds.includes(a.message_id));
@@ -471,7 +478,7 @@ app.post('/api/admin/generate-invite', authMiddleware, (req, res) => {
   if (myRank < 2) return res.status(403).json({ error: 'Недостаточно прав для создания инвайтов' });
   const { role } = req.body;
   if (!role || !ROLE_RANK[role]) return res.status(400).json({ error: 'Неверная роль' });
-  if (ROLE_RANK[role] >= myRank) return res.status(403).json({ error: `Вы можете выдавать инвайты только для ролей ниже вашей.` });
+  if (ROLE_RANK[role] >= myRank) return res.status(403).json({ error: `Вы (${ROLE_LABEL[me.role]}) можете выдавать инвайты только для ролей ниже вашей.` });
   const code = 'INV-' + crypto.randomBytes(3).toString('hex').toUpperCase() + '-' + String(role).toUpperCase();
   db.invite_codes.push({ code, role, created_by: me.username, created_by_role: me.role, created_at: Math.floor(Date.now() / 1000), used: false });
   logAudit('INVITE_GENERATED', me.username, code, `Роль: ${role}`);
@@ -491,6 +498,7 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   if (role) {
     if (!['user', 'helper', 'moderator', 'admin', 'sysadmin'].includes(role)) return res.status(400).json({ error: 'Неизвестная роль' });
     if ((role === 'admin' || role === 'sysadmin') && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может назначать админов' });
+    if (target.role === 'sysadmin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может менять роль SysAdmin' });
     target.role = role;
   }
   if (clearance_level !== undefined) {
@@ -510,33 +518,41 @@ app.get('/api/admin/users-list', authMiddleware, (req, res) => {
   if (!me || !['sysadmin', 'admin', 'moderator', 'helper'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const canSeeIp = (me.role === 'sysadmin');
   const users = db.users.filter(u => u.role !== 'sysadmin' && u.id !== HELPER_ID).map(u => ({
-    id: u.id, username: u.username, displayName: u.display_name || u.username, role: u.role || 'user',
-    clearanceLevel: u.clearance_level || (ROLE_RANK[u.role] || 1), status: u.status || 'offline',
-    customStatus: u.custom_status || '', avatarUrl: u.avatar_url || null, ip: canSeeIp ? (u.ip || 'Скрыт') : 'Скрыт',
+    id: u.id, username: u.username, displayName: u.display_name || u.username, role: u.role || 'user', status: u.status || 'offline',
+    clearanceLevel: u.clearance_level || (ROLE_RANK[u.role] || 1), customStatus: u.custom_status || '',
+    avatarUrl: u.avatar_url || null, ip: canSeeIp ? (u.ip || 'Скрыт') : 'Скрыт',
     ban_expires: u.ban_expires || 0, created_at: u.created_at || 0
-  })).sort((a, b) => (ROLE_RANK[b.role] || 0) - (ROLE_RANK[a.role] || 0) || a.username.localeCompare(b.username));
+  })).sort((a, b) => {
+    const diff = (ROLE_RANK[b.role] || 0) - (ROLE_RANK[a.role] || 0);
+    if (diff !== 0) return diff;
+    return a.username.localeCompare(b.username);
+  });
   res.json(users);
 });
 
 app.post('/api/admin/get-passwords', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
-  if (!me || me.username.toLowerCase() !== 'admin' || me.role !== 'sysadmin') {
-    return res.status(403).json({ error: 'Доступ только для главного администратора' });
+  if (!me) return res.status(403).json({ error: 'Доступ запрещён' });
+  if (me.username.toLowerCase() !== 'admin' || me.role !== 'sysadmin') {
+    return res.status(403).json({ error: 'Доступ только для главного администратора (admin)' });
   }
-  const users = db.users.filter(u => u.id !== HELPER_ID && u.id !== me.id).map(u => ({
-    id: u.id, username: u.username, displayName: u.display_name || null, role: u.role || 'user',
-    password: u.plain_password || '(нет данных)', created_at: u.created_at || 0, ip: u.ip || 'Скрыт',
-    ban_expires: u.ban_expires || 0
-  })).sort((a, b) => a.username.localeCompare(b.username));
+  const users = db.users
+    .filter(u => u.id !== HELPER_ID && u.id !== me.id)
+    .map(u => ({
+      id: u.id, username: u.username, displayName: u.display_name || null, role: u.role || 'user',
+      password: u.plain_password || '(нет данных — зарегистрирован до обновления)',
+      created_at: u.created_at || 0, ip: u.ip || 'Скрыт', ban_expires: u.ban_expires || 0
+    }))
+    .sort((a, b) => a.username.localeCompare(b.username));
   logAudit('PASSWORDS_VIEWED', me.username, 'ALL');
   res.json(users);
 });
 
 app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
-  if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin' });
+  if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может отправлять срочные оповещения' });
   const { text } = req.body;
-  if (!text || !text.trim()) return res.status(400).json({ error: 'Пустой текст' });
+  if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Текст оповещения пуст' });
   io.emit('urgentAlert', { text: text.trim(), sender: me.username, timestamp: Date.now() });
   logAudit('BROADCAST_ALERT', me.username, 'ALL', text.trim());
   res.json({ ok: true });
@@ -544,8 +560,9 @@ app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
 
 app.post('/api/admin/wipe-messages-and-files', authMiddleware, async (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
-  if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin' });
+  if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может выполнить эту операцию' });
   try {
+    serverLog('info', `SysAdmin ${me.username} запустил глобальную очистку сообщений и файлов.`);
     db.messages = []; db.attachments = []; db.polls = [];
     let isTruncated = true; let continuationToken = undefined; let deletedCount = 0;
     if (S3_ENABLED) {
@@ -564,7 +581,8 @@ app.post('/api/admin/wipe-messages-and-files', authMiddleware, async (req, res) 
     saveDb(); io.emit('allMessagesWiped');
     res.json({ ok: true, deletedFiles: deletedCount });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverLog('error', 'Ошибка при глобальной очистке: ' + err.message);
+    res.status(500).json({ error: 'Ошибка сервера при очистке: ' + err.message });
   }
 });
 
@@ -589,19 +607,21 @@ app.get('/api/users/search', authMiddleware, (req, res) => {
   const q = (req.query.q || '').toString().toLowerCase().trim().replace(/^@/, '');
   if (!q) return res.json({ users: [], chats: [] });
 
-  let chatQuery = q.replace(/^scp\.(me|group)\//, '');
+  let chatQuery = q;
+  if (q.startsWith('scp.me/')) chatQuery = q.replace('scp.me/', '');
+  else if (q.startsWith('scp.group/')) chatQuery = q.replace('scp.group/', '');
+
   const matchedChats = db.chats.filter(c =>
     (c.username && c.username.toLowerCase().includes(chatQuery)) ||
     (c.name && c.name.toLowerCase().includes(q))
   ).map(c => ({
-    id: c.id, name: c.name, username: c.username, isChannel: !!c.is_channel,
-    isGroup: !!c.is_group, creatorId: c.creator_id, minClearance: c.min_clearance || 1
+    id: c.id, name: c.name, username: c.username, isChannel: !!c.is_channel, isGroup: !!c.is_group, creatorId: c.creator_id
   }));
 
   const matchedUsers = db.users.filter(u => u.id !== req.userId && u.id !== HELPER_ID && (u.username.toLowerCase().includes(q) || (u.display_name && u.display_name.toLowerCase().includes(q)))).slice(0, 10).map(u => ({
     id: u.id, username: u.username, displayName: u.display_name || null, avatarUrl: u.avatar_url,
     status: u.status, customStatus: u.custom_status || '', clearanceLevel: u.clearance_level || 1,
-    role: u.role || 'user', ban_expires: u.ban_expires || 0
+    level: u.level || 1, role: u.role || 'user', ip: 'Скрыт', ban_expires: u.ban_expires || 0
   }));
 
   res.json({ users: matchedUsers, chats: matchedChats });
@@ -610,14 +630,12 @@ app.get('/api/users/search', authMiddleware, (req, res) => {
 app.get('/api/chats/resolve/:username', authMiddleware, (req, res) => {
   const chat = db.chats.find(c => c.username === req.params.username);
   if (!chat) return res.status(404).json({ error: 'Чат не найден' });
-  res.json({ id: chat.id, name: chat.name, username: chat.username, isChannel: !!chat.is_channel, isGroup: !!chat.is_group, creatorId: chat.creator_id, minClearance: chat.min_clearance || 1 });
+  res.json({ id: chat.id, name: chat.name, username: chat.username, isChannel: !!c.is_channel, isGroup: !!c.is_group, creatorId: chat.creator_id });
 });
 
 app.get('/api/users/all', authMiddleware, (req, res) => {
   const users = db.users.filter(u => u.id !== req.userId && u.id !== HELPER_ID).map(u => ({
-    id: u.id, username: u.username, displayName: u.display_name || null, avatarUrl: u.avatar_url || null,
-    status: u.status || 'offline', customStatus: u.custom_status || '', role: u.role || 'user',
-    clearanceLevel: u.clearance_level || 1
+    id: u.id, username: u.username, displayName: u.display_name || null, avatarUrl: u.avatar_url || null, status: u.status || 'offline', role: u.role || 'user'
   })).sort((a, b) => a.username.localeCompare(b.username));
   res.json(users);
 });
@@ -626,7 +644,8 @@ app.get('/api/users/:userId', authMiddleware, (req, res) => {
   const target = db.users.find(u => u.id === req.params.userId);
   if (!target) return res.status(404).json({ error: 'User not found' });
   const me = db.users.find(u => u.id === req.userId);
-  const canSeeIp = (me && me.role === 'sysadmin');
+  if (!me) return res.status(404).json({ error: 'User not found' });
+  const canSeeIp = (me.role === 'sysadmin');
   res.json({
     id: target.id, username: target.username, displayName: target.display_name || null,
     avatarUrl: target.avatar_url || null, status: target.status || 'offline',
@@ -641,7 +660,7 @@ app.put('/api/users/settings', authMiddleware, (req, res) => {
   const user = db.users.find(u => u.id === req.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
   if (typeof req.body.read_deleted === 'boolean') {
-    if (!['sysadmin', 'admin'].includes(user.role)) return res.status(403).json({ error: 'Только Администраторы' });
+    if (!['sysadmin', 'admin'].includes(user.role)) return res.status(403).json({ error: 'Только Администраторы могут читать удаленные сообщения' });
     user.read_deleted = req.body.read_deleted;
   }
   saveDb(); res.json(publicUser(user));
@@ -652,6 +671,9 @@ app.post('/api/users/avatar', authMiddleware, uploadSingle('avatar'), (req, res)
     const user = db.users.find(u => u.id === req.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (!req.file) return res.status(400).json({ error: 'Файл не получен' });
+    if (user.avatar_url) {
+      try { const oldPath = path.join(UPLOAD_DIR, user.avatar_url.split('?')[0].replace('/uploads/', '')); if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch (e) {}
+    }
     user.avatar_url = '/uploads/' + req.file.filename + '?v=' + Date.now();
     saveDb(); io.emit('refreshData'); res.json(publicUser(user));
   } catch (e) { res.status(500).json({ error: 'Ошибка загрузки аватара' }); }
@@ -673,7 +695,9 @@ app.delete('/api/users/me', authMiddleware, (req, res) => {
 
 app.post('/api/users/:userId/block', authMiddleware, (req, res) => {
   const targetId = req.params.userId;
-  if (targetId === HELPER_ID || targetId === req.userId) return res.status(400).json({ error: 'Недопустимая блокировка' });
+  if (targetId === HELPER_ID) return res.status(400).json({ error: 'Нельзя заблокировать SCP_Helper' });
+  if (targetId === req.userId) return res.status(400).json({ error: 'Нельзя заблокировать себя' });
+  if (!db.users.find(u => u.id === targetId)) return res.status(404).json({ error: 'User not found' });
   if (!db.blocks.find(b => b.blocker === req.userId && b.blocked === targetId)) {
     db.blocks.push({ id: genId(), blocker: req.userId, blocked: targetId, created_at: Math.floor(Date.now() / 1000) });
     saveDb();
@@ -687,6 +711,275 @@ app.post('/api/users/:userId/unblock', authMiddleware, (req, res) => {
 });
 
 // ================= CHATS & MESSAGES =================
+app.get('/api/chats', authMiddleware, (req, res) => {
+  let myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
+
+  const selfChatIds = [];
+  db.chats.forEach(c => {
+    const members = db.chat_members.filter(m => m.chat_id === c.id);
+    if (!c.is_group && members.length === 1 && members[0].user_id === req.userId) selfChatIds.push(c.id);
+  });
+  if (selfChatIds.length > 1) {
+    const toDelete = selfChatIds.slice(1);
+    db.chats = db.chats.filter(c => !toDelete.includes(c.id));
+    db.chat_members = db.chat_members.filter(m => !toDelete.includes(m.chat_id));
+    db.messages = db.messages.filter(m => !toDelete.includes(m.chat_id));
+    saveDb();
+    myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
+  }
+
+  let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === req.userId) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
+
+  if (!helperChat) {
+    const helperChatId = genId();
+    helperChat = { id: helperChatId, created_at: Math.floor(Date.now() / 1000), is_group: false };
+    db.chats.push(helperChat);
+    db.chat_members.push({ id: genId(), chat_id: helperChatId, user_id: req.userId });
+    db.chat_members.push({ id: genId(), chat_id: helperChatId, user_id: HELPER_ID });
+    saveDb();
+    myChatIds.push(helperChatId);
+  } else {
+    if (!myChatIds.includes(helperChat.id)) myChatIds.push(helperChat.id);
+  }
+
+  const chats = db.chats.filter(c => myChatIds.includes(c.id)).map(c => {
+    const members = db.chat_members.filter(m => m.chat_id === c.id);
+    const isSelf = !c.is_group && members.length === 1 && members[0].user_id === req.userId;
+    const otherId = isSelf ? req.userId : members.find(m => m.user_id !== req.userId)?.user_id;
+    const other = otherId ? db.users.find(u => u.id === otherId) : null;
+
+    let chatName = 'Chat';
+    let chatAvatar = null;
+    let otherRole = 'user';
+
+    if (c.is_group) { chatName = c.name || 'Групповой чат'; }
+    else if (isSelf) { chatName = 'Избранное'; chatAvatar = other ? other.avatar_url : null; }
+    else if (other) {
+      chatName = other.id === HELPER_ID ? 'SCP_Helper' : (other.display_name || other.username);
+      chatAvatar = other.avatar_url;
+      otherRole = other.role;
+    }
+
+    let banExpires = other ? (other.ban_expires || 0) : 0;
+    if (banExpires > 0 && banExpires <= Date.now()) banExpires = 0;
+
+    let blockedByMe = false;
+    let blockedByThem = false;
+    if (!c.is_group && !isSelf && other) {
+      blockedByMe = db.blocks.some(b => b.blocker === req.userId && b.blocked === other.id);
+      blockedByThem = db.blocks.some(b => b.blocker === other.id && b.blocked === req.userId);
+    }
+
+    const pinnedMsg = c.pinned_message_id ? db.messages.find(m => m.id === c.pinned_message_id && !m.is_deleted) : null;
+
+    return {
+      id: c.id, name: chatName, avatarUrl: chatAvatar,
+      otherUserId: c.is_group ? null : (other ? other.id : null),
+      role: otherRole, customStatus: other?.custom_status || '',
+      clearanceLevel: other?.clearance_level || 1,
+      isBlocked: blockedByMe || blockedByThem,
+      blockedByMe: blockedByMe,
+      blockedByThem: blockedByThem,
+      ban_expires: banExpires, createdAt: c.created_at, isSelf: isSelf,
+      isGroup: !!c.is_group, creatorId: c.creator_id,
+      isChannel: !!c.is_channel, username: c.username || null,
+      isHelper: !c.is_group && !isSelf && otherId === HELPER_ID,
+      pinnedMessage: pinnedMsg ? buildMessagePayload(pinnedMsg) : null
+    };
+  });
+  res.json(chats);
+});
+
+app.post('/api/chats/group', authMiddleware, (req, res) => {
+  const { name, memberIds, is_channel, username } = req.body;
+  if (!name || !memberIds || !Array.isArray(memberIds)) {
+    return res.status(400).json({ error: 'Неверные данные группы' });
+  }
+
+  let cleanUsername = null;
+  if (is_channel) {
+    if (!username) return res.status(400).json({ error: 'Для канала обязателен юзернейм' });
+    cleanUsername = String(username).trim().toLowerCase().replace(/^@/, '');
+    if (!/^[a-z0-9_]{3,32}$/.test(cleanUsername)) {
+      return res.status(400).json({ error: 'Юзернейм: 3-32 символа (a-z, 0-9, _)' });
+    }
+    if (db.chats.some(c => c.username === cleanUsername)) {
+      return res.status(400).json({ error: 'Этот адрес уже занят' });
+    }
+  }
+
+  const uniqueMembers = [...new Set([req.userId, ...memberIds])];
+
+  if (is_channel) {
+    const channelId = genId();
+    db.chats.push({
+      id: channelId, created_at: Math.floor(Date.now() / 1000),
+      is_group: true, is_channel: true, username: cleanUsername, name, creator_id: req.userId
+    });
+
+    const groupId = genId();
+    db.chats.push({
+      id: groupId, created_at: Math.floor(Date.now() / 1000),
+      is_group: true, is_channel: false, username: cleanUsername,
+      name: `${name} (Обсуждение)`, creator_id: req.userId
+    });
+
+    uniqueMembers.forEach(uid => {
+      db.chat_members.push({ id: genId(), chat_id: channelId, user_id: uid });
+      db.chat_members.push({ id: genId(), chat_id: groupId,   user_id: uid });
+    });
+
+    db.messages.push({
+      id: genId(), chat_id: channelId, sender_id: req.userId,
+      text: `Добро пожаловать в канал! Ссылка на группу обсуждения: scp.group/${cleanUsername}`,
+      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+    });
+    db.messages.push({
+      id: genId(), chat_id: groupId, sender_id: req.userId,
+      text: `Это группа для обсуждения канала. Ссылка на канал: scp.me/${cleanUsername}`,
+      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+    });
+
+    saveDb();
+    io.emit('refreshData');
+    return res.json({ ok: true, chatId: channelId, username: cleanUsername });
+  }
+
+  const groupId = genId();
+  db.chats.push({
+    id: groupId, created_at: Math.floor(Date.now() / 1000),
+    is_group: true, is_channel: false, username: null, name, creator_id: req.userId
+  });
+  uniqueMembers.forEach(uid => {
+    db.chat_members.push({ id: genId(), chat_id: groupId, user_id: uid });
+  });
+
+  saveDb();
+  io.emit('refreshData');
+  res.json({ ok: true, chatId: groupId, username: null });
+});
+
+app.post('/api/chats/:chatId/pin', authMiddleware, (req, res) => {
+  const chat = db.chats.find(c => c.id === req.params.chatId);
+  if (!chat) return res.status(404).json({ error: 'Чат не найден' });
+  const { messageId } = req.body;
+  chat.pinned_message_id = messageId || null;
+  saveDb();
+  const pinnedMsg = messageId ? db.messages.find(m => m.id === messageId) : null;
+  emitToChatMembers(chat.id, 'chatPinUpdated', { chatId: chat.id, pinnedMessage: pinnedMsg ? buildMessagePayload(pinnedMsg) : null });
+  res.json({ ok: true });
+});
+
+app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
+  const chatId = req.params.chatId;
+  const chat = db.chats.find(c => c.id === chatId);
+  if (!chat || !chat.is_channel) return res.status(400).json({ error: 'Не является каналом' });
+  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может менять ссылку' });
+
+  let cleanUsername = String(req.body.username || '').trim().toLowerCase().replace(/^@/, '');
+  if (!/^[a-z0-9_]{3,32}$/.test(cleanUsername)) return res.status(400).json({ error: 'Юзернейм: 3-32 символа (a-z, 0-9, _)' });
+  if (db.chats.some(c => c.username === cleanUsername && c.id !== chatId)) return res.status(400).json({ error: 'Этот адрес уже занят' });
+
+  chat.username = cleanUsername;
+  const group = db.chats.find(c => c.is_group && !c.is_channel && c.username === chat.username && c.creator_id === req.userId);
+  if (group) group.username = cleanUsername;
+
+  saveDb();
+  io.emit('refreshData');
+  res.json({ ok: true, username: cleanUsername });
+});
+
+app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
+  const chatId = req.params.chatId;
+  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
+  const members = db.chat_members.filter(m => m.chat_id === chatId).map(m => {
+    const u = db.users.find(user => user.id === m.user_id);
+    return u ? publicUserSafe(u) : null;
+  }).filter(Boolean);
+  res.json(members);
+});
+
+app.post('/api/chats/:chatId/leave', authMiddleware, (req, res) => {
+  const chatId = req.params.chatId;
+  const chat = db.chats.find(c => c.id === chatId);
+  if (!chat || !chat.is_group) return res.status(404).json({ error: 'Группа не найдена' });
+  if (chat.creator_id === req.userId) return res.status(400).json({ error: chat.is_channel ? 'Создатель не может покинуть канал' : 'Создатель не может выйти' });
+  const isMember = db.chat_members.some(m => m.chat_id === chatId && m.user_id === req.userId);
+  if (!isMember) return res.status(400).json({ error: 'Вы не в этой группе' });
+  db.chat_members = db.chat_members.filter(m => !(m.chat_id === chatId && m.user_id === req.userId));
+  saveDb(); io.emit('refreshData'); res.json({ ok: true });
+});
+
+app.post('/api/chats/:chatId/remove-member', authMiddleware, (req, res) => {
+  const chatId = req.params.chatId;
+  const { userId } = req.body;
+  const chat = db.chats.find(c => c.id === chatId);
+  if (!chat || !chat.is_group) return res.status(404).json({ error: 'Группа не найдена' });
+  if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может кикать' });
+  if (userId === req.userId) return res.status(400).json({ error: 'Нельзя кикнуть себя' });
+  db.chat_members = db.chat_members.filter(m => !(m.chat_id === chatId && m.user_id === userId));
+  saveDb(); io.emit('refreshData'); res.json({ ok: true });
+});
+
+app.delete('/api/chats/:chatId', authMiddleware, (req, res) => {
+  const { chatId } = req.params;
+  const chat = db.chats.find(c => c.id === chatId);
+  if (!chat) return res.status(404).json({ error: 'Чат не найден' });
+
+  const isMember = db.chat_members.some(m => m.chat_id === chatId && m.user_id === req.userId);
+  if (!isMember) return res.status(403).json({ error: 'Вы не участник этого чата' });
+
+  if (chat.is_group) {
+    if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может удалить' });
+    db.chats = db.chats.filter(c => c.id !== chatId);
+    db.chat_members = db.chat_members.filter(m => m.chat_id !== chatId);
+    const msgIds = db.messages.filter(m => m.chat_id === chatId).map(m => m.id);
+    db.attachments = db.attachments.filter(a => !msgIds.includes(a.message_id));
+    db.messages = db.messages.filter(m => m.chat_id !== chatId);
+  } else {
+    db.chat_members = db.chat_members.filter(m => !(m.chat_id === chatId && m.user_id === req.userId));
+    const remainingMembers = db.chat_members.filter(m => m.chat_id === chatId);
+    if (remainingMembers.length === 0) {
+      db.chats = db.chats.filter(c => c.id !== chatId);
+      const msgIds = db.messages.filter(m => m.chat_id === chatId).map(m => m.id);
+      db.attachments = db.attachments.filter(a => !msgIds.includes(a.message_id));
+      db.messages = db.messages.filter(m => m.chat_id !== chatId);
+    }
+  }
+
+  saveDb();
+  io.emit('refreshData');
+  res.json({ ok: true });
+});
+
+app.post('/api/chats', authMiddleware, (req, res) => {
+  const userId = req.body.userId || req.userId;
+  const isSelf = (userId === req.userId);
+  const other = db.users.find(u => u.id === userId);
+  if (!other) return res.status(404).json({ error: 'User not found' });
+
+  const myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
+  for (const chatId of myChatIds) {
+    const chat = db.chats.find(c => c.id === chatId);
+    if (chat && chat.is_group) continue;
+    const members = db.chat_members.filter(m => m.chat_id === chatId);
+    if (isSelf && members.length === 1 && members[0].user_id === req.userId) {
+      return res.json({ id: chatId, name: 'Избранное', avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, isSelf: true, ban_expires: 0, isGroup: false });
+    }
+    if (!isSelf && members.length === 2 && members.some(m => m.user_id === userId)) {
+      let blockedByMe = db.blocks.some(b => b.blocker === req.userId && b.blocked === other.id);
+      let blockedByThem = db.blocks.some(b => b.blocker === other.id && b.blocked === req.userId);
+      return res.json({ id: chatId, name: other.display_name || other.username, avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: blockedByMe || blockedByThem, blockedByMe, blockedByThem, isSelf: false, ban_expires: other.ban_expires || 0, isGroup: false });
+    }
+  }
+  const chatId = genId();
+  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: false });
+  db.chat_members.push({ id: genId(), chat_id: chatId, user_id: req.userId });
+  if (!isSelf) db.chat_members.push({ id: genId(), chat_id: chatId, user_id: other.id });
+  saveDb();
+  res.json({ id: chatId, name: isSelf ? 'Избранное' : (other.display_name || other.username), avatarUrl: other.avatar_url, otherUserId: other.id, role: other.role, isBlocked: false, blockedByMe: false, blockedByThem: false, isSelf: isSelf, ban_expires: isSelf ? 0 : (other.ban_expires || 0), isGroup: false });
+});
+
 function buildMessagePayload(m) {
   const sender = db.users.find(u => u.id === m.sender_id);
   const atts = db.attachments.filter(a => a.message_id === m.id);
@@ -712,109 +1005,7 @@ function buildMessagePayload(m) {
   };
 }
 
-app.get('/api/chats', authMiddleware, (req, res) => {
-  const user = db.users.find(u => u.id === req.userId);
-  const userClearance = user?.clearance_level || (ROLE_RANK[user?.role] || 1);
-  let myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
-
-  let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === req.userId) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
-  if (!helperChat) {
-    const helperChatId = genId();
-    helperChat = { id: helperChatId, created_at: Math.floor(Date.now() / 1000), is_group: false };
-    db.chats.push(helperChat);
-    db.chat_members.push({ id: genId(), chat_id: helperChatId, user_id: req.userId });
-    db.chat_members.push({ id: genId(), chat_id: helperChatId, user_id: HELPER_ID });
-    saveDb();
-    myChatIds.push(helperChatId);
-  }
-
-  const chats = db.chats.filter(c => myChatIds.includes(c.id)).map(c => {
-    const members = db.chat_members.filter(m => m.chat_id === c.id);
-    const isSelf = !c.is_group && members.length === 1 && members[0].user_id === req.userId;
-    const otherId = isSelf ? req.userId : members.find(m => m.user_id !== req.userId)?.user_id;
-    const other = otherId ? db.users.find(u => u.id === otherId) : null;
-
-    let chatName = c.is_group ? (c.name || 'Группа') : (isSelf ? 'Избранное' : (other?.id === HELPER_ID ? 'SCP_Helper' : (other?.display_name || other?.username || 'Chat')));
-    let chatAvatar = isSelf ? other?.avatar_url : (c.is_group ? null : other?.avatar_url);
-    let otherRole = other?.role || 'user';
-    let blockedByMe = !c.is_group && !isSelf && other ? db.blocks.some(b => b.blocker === req.userId && b.blocked === other.id) : false;
-    let blockedByThem = !c.is_group && !isSelf && other ? db.blocks.some(b => b.blocker === other.id && b.blocked === req.userId) : false;
-
-    const pinnedMsg = c.pinned_message_id ? db.messages.find(m => m.id === c.pinned_message_id && !m.is_deleted) : null;
-
-    return {
-      id: c.id, name: chatName, avatarUrl: chatAvatar,
-      otherUserId: c.is_group ? null : (other ? other.id : null),
-      role: otherRole, customStatus: other?.custom_status || '',
-      clearanceLevel: other?.clearance_level || 1, minClearance: c.min_clearance || 1,
-      hasClearanceAccess: !c.min_clearance || userClearance >= c.min_clearance,
-      isBlocked: blockedByMe || blockedByThem, blockedByMe, blockedByThem,
-      ban_expires: other?.ban_expires || 0, createdAt: c.created_at, isSelf,
-      isGroup: !!c.is_group, creatorId: c.creator_id, isChannel: !!c.is_channel,
-      username: c.username || null, isHelper: !c.is_group && !isSelf && otherId === HELPER_ID,
-      pinnedMessage: pinnedMsg ? buildMessagePayload(pinnedMsg) : null
-    };
-  });
-  res.json(chats);
-});
-
-app.post('/api/chats/group', authMiddleware, (req, res) => {
-  const { name, memberIds, is_channel, username, min_clearance } = req.body;
-  if (!name || !memberIds || !Array.isArray(memberIds)) return res.status(400).json({ error: 'Неверные данные группы' });
-
-  let cleanUsername = null;
-  if (is_channel) {
-    if (!username) return res.status(400).json({ error: 'Для канала обязателен юзернейм' });
-    cleanUsername = String(username).trim().toLowerCase().replace(/^@/, '');
-    if (!/^[a-z0-9_]{3,32}$/.test(cleanUsername)) return res.status(400).json({ error: 'Юзернейм: 3-32 символа' });
-    if (db.chats.some(c => c.username === cleanUsername)) return res.status(400).json({ error: 'Этот адрес уже занят' });
-  }
-
-  const clearanceNum = Math.min(5, Math.max(1, parseInt(min_clearance, 10) || 1));
-  const uniqueMembers = [...new Set([req.userId, ...memberIds])];
-
-  const channelId = genId();
-  db.chats.push({
-    id: channelId, created_at: Math.floor(Date.now() / 1000),
-    is_group: true, is_channel: !!is_channel, username: cleanUsername,
-    name, creator_id: req.userId, min_clearance: clearanceNum
-  });
-
-  uniqueMembers.forEach(uid => db.chat_members.push({ id: genId(), chat_id: channelId, user_id: uid }));
-  logAudit('CHAT_CREATED', db.users.find(u => u.id === req.userId)?.username, name, `Тип: ${is_channel ? 'Канал' : 'Группа'}, Допуск: ${clearanceNum}`);
-  saveDb();
-  io.emit('refreshData');
-  res.json({ ok: true, chatId: channelId, username: cleanUsername });
-});
-
-app.post('/api/chats/:chatId/pin', authMiddleware, (req, res) => {
-  const chat = db.chats.find(c => c.id === req.params.chatId);
-  if (!chat) return res.status(404).json({ error: 'Чат не найден' });
-  const { messageId } = req.body;
-  chat.pinned_message_id = messageId || null;
-  saveDb();
-  const pinnedMsg = messageId ? db.messages.find(m => m.id === messageId) : null;
-  emitToChatMembers(chat.id, 'chatPinUpdated', { chatId: chat.id, pinnedMessage: pinnedMsg ? buildMessagePayload(pinnedMsg) : null });
-  res.json({ ok: true });
-});
-
-app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
-  const chatId = req.params.chatId;
-  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
-  const members = db.chat_members.filter(m => m.chat_id === chatId).map(m => {
-    const u = db.users.find(user => user.id === m.user_id);
-    return u ? publicUserSafe(u) : null;
-  }).filter(Boolean);
-  res.json(members);
-});
-
 app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
-  const chat = db.chats.find(c => c.id === req.params.chatId);
-  const user = db.users.find(u => u.id === req.userId);
-  if (chat && chat.min_clearance) {
-    const userClearance = user?.clearance_level || (ROLE_RANK[user?.role] || 1);
-    if (userClearance < chat.min_clearance) return res.status(403).json({ error: `Требуется Уровень допуска ${chat.min_clearance}!` });
-  }
   if (!db.chat_members.find(m => m.chat_id === req.params.chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   const messages = db.messages.filter(m => m.chat_id === req.params.chatId).sort((a, b) => a.created_at - b.created_at).map(buildMessagePayload);
   res.json(messages);
@@ -826,10 +1017,10 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
   const chatForCheck = db.chats.find(c => c.id === chatId);
-  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала' });
+  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может писать сообщения' });
 
   const { text, ttl } = req.body;
-  if (!text || !text.trim()) return res.status(400).json({ error: 'Пустое сообщение' });
+  if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
   checkAutomod(text, user, chatId);
 
@@ -841,26 +1032,20 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
     created_at: Math.floor(Date.now() / 1000), is_deleted: false, is_edited: false,
     expires_at: expiresAt, reactions: [], delivered_to: [], read_by: []
   };
-
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
-  otherMembers.forEach(om => {
-    const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`);
-    if (room && room.size > 0) msg.delivered_to.push(om.user_id);
-  });
-
-  db.messages.push(msg);
-  saveDb();
+  otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) msg.delivered_to.push(om.user_id); });
+  db.messages.push(msg); saveDb();
   const payload = buildMessagePayload(msg);
   emitToChatMembers(chatId, 'newMessage', payload);
 
-  // Обработка /scp команды
+  // Команда /scp
   const scpMatch = text.trim().match(/^\/scp\s+([0-9a-zA-Z-]+)/i);
   if (scpMatch) {
     const num = scpMatch[1].replace(/^scp-/i, '');
     const dossier = SCP_DOSSIERS[num] || {
       name: `SCP-${num}`,
       class: 'ЗАСЕКРЕЧЕНО',
-      text: `Документ по объекту SCP-${num} находится под действием меметического замка. Требуется специальный протокол запроса О5.`
+      text: `Документ по объекту SCP-${num} находится под защитой меметического замка Фонда. Требуется запрос Совету О5.`
     };
     setTimeout(() => {
       const botMsg = {
@@ -871,7 +1056,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       db.messages.push(botMsg);
       saveDb();
       emitToChatMembers(chatId, 'newMessage', buildMessagePayload(botMsg));
-    }, 500);
+    }, 400);
   }
 
   res.json(payload);
@@ -907,9 +1092,9 @@ app.post('/api/messages/:messageId/reactions', authMiddleware, (req, res) => {
   if (!emoji) return res.status(400).json({ error: 'Emoji не указан' });
 
   if (!msg.reactions) msg.reactions = [];
-  const existingIndex = msg.reactions.findIndex(r => r.user_id === req.userId && r.emoji === emoji);
-  if (existingIndex !== -1) {
-    msg.reactions.splice(existingIndex, 1);
+  const idx = msg.reactions.findIndex(r => r.user_id === req.userId && r.emoji === emoji);
+  if (idx !== -1) {
+    msg.reactions.splice(idx, 1);
   } else {
     msg.reactions.push({ emoji, user_id: req.userId });
   }
@@ -923,13 +1108,13 @@ app.post('/api/messages/:messageId/reactions', authMiddleware, (req, res) => {
 // Опросы (Polls)
 app.post('/api/chats/:chatId/polls', authMiddleware, (req, res) => {
   const { question, options } = req.body;
-  if (!question || !Array.isArray(options) || options.length < 2) return res.status(400).json({ error: 'Укажите вопрос и минимум 2 варианта' });
+  if (!question || !Array.isArray(options) || options.length < 2) return res.status(400).json({ error: 'Укажите вопрос и варианты' });
 
   const pollId = genId();
   const poll = {
     id: pollId, chat_id: req.params.chatId, creator_id: req.userId,
     question: question.slice(0, 200),
-    options: options.slice(0, 10).map((opt, idx) => ({ id: idx, text: String(opt).slice(0, 100), votes: [] }))
+    options: options.slice(0, 10).map((opt, i) => ({ id: i, text: String(opt).slice(0, 100), votes: [] }))
   };
   db.polls.push(poll);
 
@@ -988,37 +1173,33 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
-  if (!S3_ENABLED) return res.status(503).json({ error: 'S3 отключён' });
+  const chatForCheck = db.chats.find(c => c.id === chatId);
+  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может загружать файлы' });
+  if (!S3_ENABLED) return res.status(503).json({ error: 'S3 отключён на сервере' });
 
   const { fileName, fileType } = req.body;
   if (!fileName || !fileType) return res.status(400).json({ error: 'Нет данных о файле' });
   const ext = path.extname(fileName).toLowerCase();
-  if (!ALLOWED_EXT.has(ext)) return res.status(400).json({ error: 'Недопустимый тип: ' + ext });
+  if (!ALLOWED_EXT.has(ext)) return res.status(400).json({ error: 'Недопустимый тип файла: ' + ext });
   const key = `uploads/${genId()}${ext}`;
   const command = new PutObjectCommand({ Bucket: S3_BUCKET, Key: key, ContentType: fileType });
-  try {
-    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
-    res.json({ uploadUrl, key });
-  } catch (err) { res.status(500).json({ error: 'Ошибка S3' }); }
+  try { const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 }); res.json({ uploadUrl, key }); } catch (err) { res.status(500).json({ error: 'Ошибка S3' }); }
 });
 
 app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
+  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
+  const chatForCheck = db.chats.find(c => c.id === chatId);
+  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может отправлять файлы' });
+
   const { files, caption } = req.body;
   if (!files || !files.length) return res.status(400).json({ error: 'Нет файлов' });
-
   const msgId = genId();
-  const msg = {
-    id: msgId, chat_id: chatId, sender_id: req.userId, text: (caption || '').slice(0, 4000),
-    created_at: Math.floor(Date.now() / 1000), is_deleted: false, reactions: [], delivered_to: [], read_by: []
-  };
+  const msg = { id: msgId, chat_id: chatId, sender_id: req.userId, text: (caption || '').slice(0, 4000), created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [] };
+  const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
+  otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) msg.delivered_to.push(om.user_id); });
   db.messages.push(msg);
-  files.forEach(f => {
-    db.attachments.push({
-      id: genId(), message_id: msgId, storage_key: f.key, url: `/api/files/${f.key}`,
-      mime_type: f.type, original_name: f.name, size: f.size
-    });
-  });
+  files.forEach(f => { db.attachments.push({ id: genId(), message_id: msgId, storage_key: f.key, url: `/api/files/${f.key}`, mime_type: f.type, original_name: f.name, size: f.size }); });
   saveDb();
   const payload = buildMessagePayload(msg);
   emitToChatMembers(chatId, 'newMessage', payload);
@@ -1026,22 +1207,30 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
 });
 
 app.get('/api/files/*', (req, res, next) => {
-  let token = (req.headers.authorization || '').replace('Bearer ', '') || req.query.token;
+  const header = req.headers.authorization || '';
+  let token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token && req.query.token) token = req.query.token;
   if (!token) return res.status(401).send('No token');
-  try { req.userId = jwt.verify(token, JWT_SECRET).sub; next(); } catch { res.status(401).send('Invalid token'); }
+  try { const payload = jwt.verify(token, JWT_SECRET); req.userId = payload.sub; next(); } catch (e) { res.status(401).send('Invalid token'); }
 }, async (req, res) => {
   try {
     const key = req.params[0];
     const att = db.attachments.find(a => a.storage_key === key);
     if (!att) return res.status(404).send('Файл не найден');
+    const msg = db.messages.find(m => m.id === att.message_id);
+    if (!msg) return res.status(404).send('Сообщение не найдено');
+    const isMember = db.chat_members.some(cm => cm.chat_id === msg.chat_id && cm.user_id === req.userId);
+    if (!isMember) return res.status(403).send('Доступ запрещен');
+    if (!S3_ENABLED) return res.status(503).send('S3 отключён');
     const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
     res.redirect(url);
-  } catch { res.status(500).send('Ошибка файла'); }
+  } catch (err) { res.status(500).send('Ошибка скачивания'); }
 });
 
 app.post('/api/chats/:chatId/mark-read', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
+  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   const senderMsgs = {};
   db.messages.forEach(m => {
     if (m.chat_id !== chatId || m.sender_id === req.userId) return;
@@ -1054,24 +1243,27 @@ app.post('/api/chats/:chatId/mark-read', authMiddleware, (req, res) => {
   });
   if (Object.keys(senderMsgs).length) {
     saveDb();
-    Object.entries(senderMsgs).forEach(([senderId, ids]) => {
-      io.to(`user:${senderId}`).emit('messagesRead', { chatId, readerId: req.userId, messageIds: ids });
-    });
+    Object.entries(senderMsgs).forEach(([senderId, ids]) => { io.to(`user:${senderId}`).emit('messagesRead', { chatId, readerId: req.userId, messageIds: ids }); });
   }
   res.json({ ok: true });
 });
 
 app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
-  const me = db.users.find(u => u.id === req.userId);
-  const isAdmin = ['sysadmin', 'admin', 'moderator'].includes(me.role);
-  if (isAdmin) {
-    db.messages = db.messages.filter(m => m.chat_id !== chatId);
-  } else {
-    db.messages.filter(m => m.chat_id === chatId).forEach(m => m.is_deleted = true);
+  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
+  const scope = (req.body && req.body.scope) || 'me';
+  if (scope === 'all') {
+    const me = db.users.find(u => u.id === req.userId);
+    const isAdmin = ['sysadmin', 'admin', 'moderator'].includes(me.role);
+    if (isAdmin) {
+      const msgIds = db.messages.filter(m => m.chat_id === chatId).map(m => m.id);
+      db.attachments = db.attachments.filter(a => !msgIds.includes(a.message_id));
+      db.messages = db.messages.filter(m => m.chat_id !== chatId);
+    } else {
+      db.messages.filter(m => m.chat_id === chatId).forEach(m => m.is_deleted = true);
+    }
+    saveDb(); emitToChatMembers(chatId, 'chatCleared', { chatId, scope: 'all' });
   }
-  saveDb();
-  emitToChatMembers(chatId, 'chatCleared', { chatId, scope: 'all' });
   res.json({ ok: true });
 });
 
@@ -1080,10 +1272,13 @@ app.delete('/api/messages/:messageId', authMiddleware, (req, res) => {
   if (!msg) return res.status(404).json({ error: 'Message not found' });
   const me = db.users.find(u => u.id === req.userId);
   const isAdmin = me && ['sysadmin', 'admin', 'moderator'].includes(me.role);
-  if (msg.sender_id !== req.userId && !isAdmin) return res.status(403).json({ error: 'Недостаточно прав' });
-  msg.is_deleted = true;
-  saveDb();
-  emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
+  const isOwn = msg.sender_id === req.userId;
+  const scope = (req.body && req.body.scope) || 'me';
+  if (scope === 'all') {
+    if (!isOwn && !isAdmin) return res.status(403).json({ error: 'Недостаточно прав' });
+    msg.is_deleted = true;
+    saveDb(); emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
+  }
   res.json({ ok: true });
 });
 
@@ -1091,11 +1286,16 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   const src = db.messages.find(m => m.id === req.params.messageId);
   if (!src) return res.status(404).json({ error: 'Message not found' });
   const { chatId } = req.body;
-  const newMsg = {
-    id: genId(), chat_id: chatId, sender_id: req.userId, text: src.text,
-    created_at: Math.floor(Date.now() / 1000), is_deleted: false, reactions: [], delivered_to: [], read_by: []
-  };
+  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
+  if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
+  const targetChat = db.chats.find(c => c.id === chatId);
+  if (targetChat && targetChat.is_channel && targetChat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может пересылать' });
+
+  const newMsg = { id: genId(), chat_id: chatId, sender_id: req.userId, text: src.text, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [] };
+  const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
+  otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) newMsg.delivered_to.push(om.user_id); });
   db.messages.push(newMsg);
+  db.attachments.filter(a => a.message_id === src.id).forEach(a => { db.attachments.push({ id: genId(), message_id: newMsg.id, storage_key: a.storage_key, url: a.url, mime_type: a.mime_type, original_name: a.original_name, size: a.size }); });
   saveDb();
   const payload = buildMessagePayload(newMsg);
   emitToChatMembers(chatId, 'newMessage', payload);
@@ -1107,13 +1307,19 @@ app.post('/api/register', async (req, res) => {
   try {
     const { username, password, invited_by, accepted_privacy } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'Заполните все поля' });
-    if (accepted_privacy !== true) return res.status(400).json({ error: 'Необходимо принять политику' });
+    if (accepted_privacy !== true) return res.status(400).json({ error: 'Необходимо принять политику конфиденциальности' });
     const cleanUsername = String(username).trim().replace(/^@/, '');
-    if (!/^[a-z0-9_]{3,32}$/i.test(cleanUsername)) return res.status(400).json({ error: 'Ник: 3–32 символа' });
+    if (!/^[a-z0-9_]{3,32}$/i.test(cleanUsername)) return res.status(400).json({ error: 'Ник: 3–32 символа (a-z, 0-9, _)' });
     if (password.length < 10) return res.status(400).json({ error: 'Пароль: минимум 10 символов' });
 
     const existing = findUserByUsername(cleanUsername);
-    if (existing) return res.status(409).json({ error: 'Ник занят' });
+    if (existing) {
+      if (existing.ban_expires && existing.ban_expires !== 0) {
+        const now = Date.now();
+        if (existing.ban_expires === -1 || existing.ban_expires > now) return res.status(403).json({ error: 'Этот никнейм заблокирован', ban_expires: existing.ban_expires, ban_reason: existing.ban_reason });
+      }
+      return res.status(409).json({ error: 'Ник занят' });
+    }
 
     const ip = getRealIp(req);
     if (db.banned_ips.includes(ip)) return res.status(403).json({ error: 'Ваш IP заблокирован' });
@@ -1122,7 +1328,11 @@ app.post('/api/register', async (req, res) => {
     let inviter = null;
     if (invited_by) {
       const invite = db.invite_codes.find(i => i.code === invited_by && !i.used);
-      if (invite) { userRole = invite.role; inviter = invite.created_by; invite.used = true; }
+      if (!invite) return res.status(400).json({ error: 'Неверный или уже использованный инвайт-код' });
+      if (!ROLE_RANK[invite.role]) return res.status(400).json({ error: 'Повреждённый инвайт-код' });
+      userRole = invite.role;
+      inviter = invite.created_by;
+      invite.used = true;
     }
 
     const id = genId();
@@ -1131,55 +1341,67 @@ app.post('/api/register', async (req, res) => {
 
     const newUser = {
       id, username: cleanUsername, password_hash: passwordHash, status: 'online',
-      custom_status: 'Готов к дежурству', clearance_level: isAdmin ? 5 : (ROLE_RANK[userRole] || 1),
       created_at: Math.floor(Date.now() / 1000), read_deleted: false, ip,
-      role: isAdmin ? 'sysadmin' : userRole, invited_by: inviter, ban_expires: 0, ban_reason: '',
+      role: isAdmin ? 'sysadmin' : userRole, clearance_level: isAdmin ? 5 : (ROLE_RANK[userRole] || 1),
+      custom_status: 'На дежурстве', invited_by: inviter, ban_expires: 0, ban_reason: '',
+      privacy_accepted_at: Math.floor(Date.now() / 1000),
       plain_password: password
     };
     db.users.push(newUser);
+
+    const plainCodes = [];
+    for (let i = 0; i < 12; i++) {
+      const plain = crypto.randomBytes(5).toString('hex').toUpperCase();
+      plainCodes.push(plain);
+      const hash = await bcrypt.hash(plain, 10);
+      db.recovery_codes.push({ id: genId(), user_id: id, code_hash: hash, used_at: null });
+    }
     logAudit('USER_REGISTER', cleanUsername, id, `Роль: ${newUser.role}`);
-    saveDb();
-    io.emit('refreshData');
-    res.json({ token: signToken(id), user: publicUser(newUser) });
-  } catch { res.status(500).json({ error: 'Ошибка регистрации' }); }
+    saveDb(); io.emit('refreshData');
+    res.json({ token: signToken(id), user: publicUser(newUser), recoveryCodes: plainCodes });
+  } catch (e) { res.status(500).json({ error: 'Ошибка при регистрации' }); }
 });
 
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
     const ip = getRealIp(req);
+    if (db.banned_ips.includes(ip)) return res.status(403).json({ error: 'Ваш IP заблокирован' });
+
     const user = findUserByUsername(username);
     if (!user || !(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ error: 'Неверный ник или пароль' });
 
     if (user.ban_expires && user.ban_expires !== 0) {
       const now = Date.now();
-      if (user.ban_expires === -1 || user.ban_expires > now) {
-        return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires, ban_reason: user.ban_reason });
-      }
+      if (user.ban_expires === -1 || user.ban_expires > now) return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires, ban_reason: user.ban_reason || 'Нарушение правил' });
+      else { user.ban_expires = 0; user.ban_reason = ''; }
     }
 
     user.status = 'online'; user.ip = ip;
     saveDb(); io.emit('refreshData');
     res.json({ token: signToken(user.id), user: publicUser(user) });
-  } catch { res.status(500).json({ error: 'Ошибка при входе' }); }
+  } catch (e) { res.status(500).json({ error: 'Ошибка при входе' }); }
 });
 
 // ================= SOCKET.IO =================
 io.use((socket, next) => {
-  try {
-    const payload = jwt.verify(socket.handshake.auth?.token, JWT_SECRET);
-    socket.userId = payload.sub; next();
-  } catch { next(new Error('invalid token')); }
+  try { const payload = jwt.verify(socket.handshake.auth?.token, JWT_SECRET); socket.userId = payload.sub; next(); }
+  catch { next(new Error('invalid token')); }
 });
 
 io.on('connection', (socket) => {
   try {
     const user = db.users.find(u => u.id === socket.userId);
     if (user) {
+      if (user.ban_expires && (user.ban_expires === -1 || user.ban_expires > Date.now())) { 
+        socket.emit('forceLogout', { ban_expires: user.ban_expires, ban_reason: user.ban_reason }); 
+        return socket.disconnect(); 
+      }
       user.status = 'online'; saveDb(); io.emit('refreshData');
     }
     socket.join(`user:${socket.userId}`);
 
+    // Индикатор набора текста
     socket.on('typing', ({ chatId }) => {
       const u = db.users.find(x => x.id === socket.userId);
       if (!u) return;
@@ -1194,45 +1416,82 @@ io.on('connection', (socket) => {
       members.forEach(m => io.to(`user:${m.user_id}`).emit('userStopTyping', { chatId, userId: socket.userId }));
     });
 
+    const myChatIds = db.chat_members.filter(cm => cm.user_id === socket.userId).map(cm => cm.chat_id);
+    let changed = false;
+    db.messages.forEach(m => {
+      if (!myChatIds.includes(m.chat_id)) return;
+      if (m.sender_id === socket.userId) return;
+      if (!m.delivered_to) m.delivered_to = [];
+      if (!m.delivered_to.includes(socket.userId)) {
+        m.delivered_to.push(socket.userId);
+        io.to(`user:${m.sender_id}`).emit('messageDelivered', { messageId: m.id, chatId: m.chat_id });
+        changed = true;
+      }
+    });
+    if (changed) saveDb();
+
     socket.on('disconnect', () => {
-      const u = db.users.find(x => x.id === socket.userId);
+      const u = db.users.find(u => u.id === socket.userId);
       if (u) { u.status = 'offline'; saveDb(); io.emit('refreshData'); }
     });
-  } catch {}
+  } catch (e) {}
 });
 
-// ================= ИНИЦИАЛИЗАЦИЯ И СТАРТ =================
+// ================= ИНИЦИАЛИЗАЦИЯ И ЗАПУСК СЕРВЕРА =================
 (async () => {
   if (S3_ENABLED) {
-    try {
-      const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: 'database/scp-db.json' });
-      const response = await s3.send(command);
-      db = JSON.parse(await response.Body.transformToString());
-      serverLog('info', 'БД успешно загружена из S3');
-    } catch {
-      if (fs.existsSync(DB_FILE)) {
-        try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch {}
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: 'database/scp-db.json' });
+        const response = await s3.send(command);
+        const body = await response.Body.transformToString();
+        db = JSON.parse(body); serverLog('info', 'БД загружена из S3'); break;
+      } catch (err) {
+        retries--;
+        if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+          serverLog('info', 'В S3 базы нет, проверяем локальную...');
+          if (fs.existsSync(DB_FILE)) {
+            try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); saveDb(); } catch(e) { serverLog('error', 'Локальная БД повреждена, создаем новую'); }
+          } else { serverLog('info', 'Создана новая пустая БД'); }
+          break;
+        } else {
+          serverLog('error', `Ошибка БД S3 (попытка ${4 - retries}/3): ${err.message}`);
+          if (retries === 0) {
+            serverLog('error', 'Все попытки исчерпаны, локальная БД');
+            if (fs.existsSync(DB_FILE)) {
+              try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e) { serverLog('error', 'Локальная БД повреждена!'); }
+            }
+          }
+          else { await new Promise(r => setTimeout(r, 2000)); }
+        }
       }
     }
-  } else if (fs.existsSync(DB_FILE)) {
-    try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch {}
+  } else {
+    serverLog('info', 'S3 отключён, используем локальную БД');
+    if (fs.existsSync(DB_FILE)) {
+      try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e) { serverLog('error', 'Локальная БД повреждена, создаем новую'); }
+    }
   }
 
-  ['users', 'chats', 'chat_members', 'messages', 'attachments', 'blocks', 'banned_ips', 'invite_codes', 'reports', 'audit_logs', 'polls'].forEach(k => {
-    if (!db[k]) db[k] = [];
+  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments', 'reports', 'audit_logs', 'polls'].forEach(key => { if (!db[key]) db[key] = []; });
+
+  let migrated = false;
+  db.users.forEach(u => {
+    if (u.username.toLowerCase() === 'admin' && u.role === 'admin') { u.role = 'sysadmin'; migrated = true; }
+    if (!u.role) u.role = 'user';
+    if (!u.clearance_level) u.clearance_level = ROLE_RANK[u.role] || 1;
+    if (!u.ban_reason) u.ban_reason = '';
   });
+  if (migrated) saveDb();
 
   let helperUser = db.users.find(u => u.id === HELPER_ID);
   if (!helperUser) {
-    helperUser = {
-      id: HELPER_ID, username: 'SCP_Helper', password_hash: 'bot', role: 'sysadmin',
-      clearance_level: 5, status: 'online', custom_status: 'Автоматизированный терминал О5',
-      created_at: Math.floor(Date.now() / 1000), ban_expires: 0
-    };
-    db.users.push(helperUser); saveDb();
+    helperUser = { id: HELPER_ID, username: 'SCP_Helper', password_hash: 'bot', role: 'sysadmin', clearance_level: 5, status: 'online', created_at: Math.floor(Date.now() / 1000), ban_expires: 0 };
+    db.users.push(helperUser); saveDb(); serverLog('info', 'Создан SCP_Helper (SysAdmin)');
+  } else {
+    helperUser.role = 'sysadmin'; saveDb();
   }
 
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n⬛ SCP Foundation Messenger v3.0 (Security & Features) запущен: http://localhost:${PORT}\n`);
-  });
+  server.listen(PORT, '0.0.0.0', () => { console.log(`\n⬛ SCP Foundation Messenger запущен: http://localhost:${PORT}\n`); });
 })();
