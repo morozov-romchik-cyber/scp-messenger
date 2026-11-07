@@ -2931,11 +2931,15 @@ async function uploadFilesWithProgress(files, caption = '') {
   if (isUploading) return alert('Подождите, предыдущая загрузка ещё идёт');
   if (!files || !files.length) return;
 
+  // --- ИСПРАВЛЕНИЕ: Намертво запоминаем ID чата, куда отправляем файл ---
+  const targetChatId = state.currentChat.id;
+  // ----------------------------------------------------------------------
+
   // --- ИСПРАВЛЕНИЕ: Очищаем черновик при отправке файла ---
-  if (state.currentChat.id) {
-      delete chatDrafts[state.currentChat.id];
+  if (targetChatId) {
+      delete chatDrafts[targetChatId];
       localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
-      updateChatPreview(state.currentChat.id);
+      updateChatPreview(targetChatId);
   }
   // -----------------------------------------------------------
 
@@ -2952,7 +2956,8 @@ async function uploadFilesWithProgress(files, caption = '') {
       const label = totalFiles === 1 ? file.name : `Файл ${i+1} из ${totalFiles}`;
       progressText.textContent = `⏳ Подготовка ${label}...`;
 
-      const { uploadUrl, key } = await api(`/chats/${state.currentChat.id}/get-upload-url`, {
+      // Используем targetChatId
+      const { uploadUrl, key } = await api(`/chats/${targetChatId}/get-upload-url`, {
         method: 'POST',
         body: JSON.stringify({ fileName: file.name, fileType: file.type || 'application/octet-stream' })
       });
@@ -2994,11 +2999,18 @@ async function uploadFilesWithProgress(files, caption = '') {
     }
 
     progressText.textContent = `⏳ Сохранение сообщения...`;
-    const msg = await api(`/chats/${state.currentChat.id}/confirm-upload`, {
+    // Используем targetChatId
+    const msg = await api(`/chats/${targetChatId}/confirm-upload`, {
       method: 'POST',
       body: JSON.stringify({ files: uploadedFilesData, caption })
     });
-    appendMessage(msg);
+    
+    // --- ИСПРАВЛЕНИЕ: Отрисовываем сообщение только если мы всё ещё в этом чате ---
+    if (state.currentChat && state.currentChat.id === targetChatId) {
+        appendMessage(msg);
+    }
+    // ------------------------------------------------------------------------------
+    
   } catch (err) {
     alert('Ошибка загрузки: ' + err.message);
   } finally {
@@ -3072,12 +3084,16 @@ document.getElementById('paste-file-send-btn').addEventListener('click', () => {
 document.getElementById('composer').addEventListener('submit', async (e) => {
   e.preventDefault(); const input = document.getElementById('msg-input'); const text = input.value.trim();
   if (!text || !state.currentChat) return;
+  
+  // ИСПРАВЛЕНИЕ: Намертво запоминаем чат, чтобы при переключении ничего не сломалось
+  const targetChatId = state.currentChat.id;
+
   input.value = ''; 
   input.style.height = 'auto';
   
-  delete chatDrafts[state.currentChat.id];
+  delete chatDrafts[targetChatId];
   localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
-  updateChatPreview(state.currentChat.id);
+  updateChatPreview(targetChatId);
 
   let body = text;
   
@@ -3088,7 +3104,12 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   }
   
   state.replyTo = null; document.getElementById('reply-bar').classList.remove('visible');
-  try { const msg = await api('/chats/' + state.currentChat.id + '/messages', { method: 'POST', body: JSON.stringify({ text: body }) }); appendMessage(msg); } catch (e) { alert(e.message); }
+  try { 
+      const msg = await api('/chats/' + targetChatId + '/messages', { method: 'POST', body: JSON.stringify({ text: body }) }); 
+      if (state.currentChat && state.currentChat.id === targetChatId) {
+          appendMessage(msg); 
+      }
+  } catch (e) { alert(e.message); }
 });
 document.getElementById('file-btn').addEventListener('click', () => {
   if (!state.currentChat) return alert('Выберите чат');
