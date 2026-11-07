@@ -309,7 +309,7 @@ app.get('/api/admin/all-chats', authMiddleware, (req, res) => {
   res.json(chats);
 });
 
-// НОВЫЙ ЭНДПОИНТ: ДЕТАЛИ ЧАТА (ГРУППЫ/КАНАЛА)
+// ДЕТАЛИ ЧАТА (ГРУППЫ/КАНАЛА)
 app.get('/api/admin/chat-details/:chatId', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
