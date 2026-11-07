@@ -203,8 +203,10 @@
   .lightbox-controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); border: 1px solid #333; padding: 8px 16px; border-radius: 20px; display: flex; align-items: center; gap: 15px; z-index: 10; color: #fff; font-family: 'Fira Code', monospace; pointer-events: auto; }
   .lightbox-controls button { background: transparent; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 5px; }
   .lightbox-controls button:disabled { opacity: 0.3; cursor: not-allowed; }
+  
   .lightbox-close { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7); border: 1px solid #333; color: #fff; font-size: 24px; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; pointer-events: auto; }
   .lightbox-close:hover { background: #ff4d4d; border-color: #ff4d4d; }
+  
   .lightbox-download { position: absolute; top: 20px; right: 80px; background: rgba(0,0,0,0.7); border: 1px solid #333; color: #fff; font-size: 24px; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; pointer-events: auto; text-decoration: none; }
   .lightbox-download:hover { background: #00ff9d; border-color: #00ff9d; color: #000; }
 
@@ -221,7 +223,6 @@
   #composer button#send-btn { background: var(--accent); color: #000; border: none; }
   #composer button#send-btn:hover { opacity: 0.8; }
 
-  /* ОКНО СМАЙЛИКОВ */
   .emoji-picker {
     position: absolute; top: 60px; right: 24px; background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px;
     width: 450px; max-width: calc(100vw - 48px); height: 350px; max-height: calc(100vh - 150px);
@@ -314,7 +315,6 @@
 
   .wb-select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; outline: none; cursor: pointer; font-size: 13px; height: 32px; }
   
-  /* ФИКС ДЛЯ ТЕЛЕФОНОВ (touch-action) */
   .wb-canvas-wrapper { flex: 1; overflow: auto; background: #1a1a1a; position: relative; display: block; cursor: crosshair; touch-action: pan-x pan-y; }
   #wb-canvas-container { position: relative; display: inline-block; margin: 0 auto; }
   #wb-canvas, #wb-preview-canvas { background: #121212; display: block; box-shadow: 0 0 20px rgba(0,0,0,0.8); touch-action: none; cursor: crosshair; }
@@ -378,12 +378,12 @@
 <div class="toast-container" id="toast-container"></div>
 
 <svg id="landscape" viewBox="0 0 1440 320" preserveAspectRatio="none">
-  <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
+  <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" cy="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
 
 <!-- УЛУЧШЕННЫЙ ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (ZOOM & PAN) -->
 <div id="lightbox">
-  <a class="lightbox-download" id="lightbox-download-btn" href="" download target="_blank" title="Скачать">📥</a>
+  <button class="lightbox-download" id="lightbox-download-btn" title="Скачать">📥</button>
   <div class="lightbox-close" onclick="closeLightbox()">×</div>
   <div class="lightbox-controls" id="lightbox-nav" style="display: none;">
     <button onclick="navLightbox(-1)" id="lightbox-prev">❮</button>
@@ -1632,9 +1632,6 @@ window.navLightbox = function(dir) {
     if (lbCurrentIndex < 0) lbCurrentIndex = 0;
     if (lbCurrentIndex >= lbImages.length) lbCurrentIndex = lbImages.length - 1;
     
-    lbScale = 1;
-    lbTranslateX = 0;
-    lbTranslateY = 0;
     updateLightboxImage();
     
     document.getElementById('lightbox-counter').textContent = `${lbCurrentIndex + 1} / ${lbImages.length}`;
@@ -1644,22 +1641,65 @@ window.navLightbox = function(dir) {
 
 function updateLightboxImage() {
     lightboxImg.src = lbImages[lbCurrentIndex];
-    lightboxDownloadBtn.href = lbImages[lbCurrentIndex];
-    updateLightboxTransform();
+    
+    // --- ИСПРАВЛЕНИЕ 1: Автоматически подгоняем масштаб, чтобы картинка влезла на экран ---
+    lightboxImg.onload = () => {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const iw = lightboxImg.naturalWidth;
+        const ih = lightboxImg.naturalHeight;
+        
+        // Вычисляем, во сколько раз нужно уменьшить картинку, чтобы она влезла на экран
+        const scaleX = (vw * 0.9) / iw; // 0.9 оставляет отступы по краям
+        const scaleY = (vh * 0.9) / ih;
+        
+        // Не увеличиваем картинку больше её оригинального размера
+        lbScale = Math.min(scaleX, scaleY, 1);
+        
+        lbTranslateX = 0;
+        lbTranslateY = 0;
+        updateLightboxTransform();
+    };
 }
 
-// === МОБИЛЬНЫЙ ЗУМ И ПЕРЕТАСКИВАНИЕ ===
-let touchStartDist = 0;
-let initialScale = 1;
+// --- ИСПРАВЛЕНИЕ 2: Правильное скачивание ---
+lightboxDownloadBtn.addEventListener('click', async () => {
+    const url = lbImages[lbCurrentIndex];
+    const filename = url.split('/').pop().split('?')[0] || 'image.jpg';
+    
+    try {
+        // Скачиваем картинку как файл (Блоб), чтобы обойти защиту браузера
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+        // Если CORS не позволяет скачать, открываем в новой вкладке
+        window.open(url, '_blank');
+    }
+});
 
+// --- ИСПРАВЛЕНИЕ 3: Разрешаем отдалять картинку сильнее ---
 lightbox.addEventListener('wheel', (e) => {
     e.preventDefault();
     const zoomFactor = 0.1;
     if (e.deltaY < 0) lbScale += zoomFactor;
     else lbScale -= zoomFactor;
-    lbScale = Math.max(0.5, Math.min(lbScale, 5));
+    // Меняем лимиты: от 0.1х (сильное отдаление) до 10х (сильное приближение)
+    lbScale = Math.max(0.1, Math.min(lbScale, 10)); 
     updateLightboxTransform();
 }, { passive: false });
+
+// === МОБИЛЬНЫЙ ЗУМ И ПЕРЕТАСКИВАНИЕ ===
+let touchStartDist = 0;
+let initialScale = 1;
 
 lightbox.addEventListener('pointerdown', (e) => {
     if (e.target.closest('.lightbox-controls') || e.target.closest('.lightbox-close') || e.target.closest('.lightbox-download')) return;
@@ -1694,7 +1734,7 @@ lightbox.addEventListener('touchmove', (e) => {
         e.preventDefault(); 
         const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
         lbScale = initialScale * (dist / touchStartDist);
-        lbScale = Math.max(0.5, Math.min(lbScale, 5));
+        lbScale = Math.max(0.1, Math.min(lbScale, 10));
         updateLightboxTransform();
     }
 }, { passive: false });
