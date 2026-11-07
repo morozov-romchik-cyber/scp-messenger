@@ -309,6 +309,29 @@ app.get('/api/admin/all-chats', authMiddleware, (req, res) => {
   res.json(chats);
 });
 
+// НОВЫЙ ЭНДПОИНТ: ДЕТАЛИ ЧАТА (ГРУППЫ/КАНАЛА)
+app.get('/api/admin/chat-details/:chatId', authMiddleware, (req, res) => {
+  const me = db.users.find(u => u.id === req.userId);
+  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  
+  const chat = db.chats.find(c => c.id === req.params.chatId);
+  if (!chat) return res.status(404).json({ error: 'Чат не найден' });
+  
+  const members = db.chat_members.filter(m => m.chat_id === chat.id).map(m => {
+    const u = db.users.find(user => user.id === m.user_id);
+    return u ? { id: u.id, username: u.username, displayName: u.display_name, role: u.role, avatarUrl: u.avatar_url } : null;
+  }).filter(Boolean);
+  
+  const creator = db.users.find(u => u.id === chat.creator_id);
+  
+  res.json({
+    id: chat.id, name: chat.name, isChannel: !!chat.is_channel, isGroup: !!chat.is_group,
+    username: chat.username, creator_id: chat.creator_id, creator_name: creator ? creator.username : 'Unknown',
+    created_at: chat.created_at,
+    members
+  });
+});
+
 app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
