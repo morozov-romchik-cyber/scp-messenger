@@ -103,7 +103,8 @@ const signToken = (userId) => jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn:
 const publicUser = (u) => ({
   id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url,
   status: u.status, level: u.level || 1, read_deleted: u.read_deleted || false,
-  ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null, ban_expires: u.ban_expires || 0, ban_reason: u.ban_reason || ''
+  ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null, ban_expires: u.ban_expires || 0, ban_reason: u.ban_reason || '',
+  custom_status: u.custom_status || ''
 });
 
 const publicUserSafe = (u) => {
@@ -481,6 +482,9 @@ app.put('/api/users/profile', authMiddleware, (req, res) => {
   if (typeof req.body.display_name === 'string') {
     user.display_name = req.body.display_name.trim().slice(0, 32);
   }
+  if (typeof req.body.custom_status === 'string') {
+    user.custom_status = req.body.custom_status.trim().slice(0, 64);
+  }
   saveDb();
   io.emit('refreshData');
   res.json(publicUser(user));
@@ -532,7 +536,8 @@ app.get('/api/users/:userId', authMiddleware, (req, res) => {
     id: target.id, username: target.username, displayName: target.display_name || null,
     avatarUrl: target.avatar_url || null, status: target.status || 'offline',
     role: target.role || 'user', ban_expires: target.ban_expires || 0,
-    created_at: target.created_at || 0, ip: canSeeIp ? (target.ip || 'Скрыт') : 'Скрыт'
+    created_at: target.created_at || 0, ip: canSeeIp ? (target.ip || 'Скрыт') : 'Скрыт',
+    custom_status: target.custom_status || ''
   });
 });
 
@@ -662,7 +667,8 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       ban_expires: banExpires, createdAt: c.created_at, isSelf: isSelf,
       isGroup: !!c.is_group, creatorId: c.creator_id,
       isChannel: !!c.is_channel, username: c.username || null,
-      isHelper: !c.is_group && !isSelf && otherId === HELPER_ID
+      isHelper: !c.is_group && !isSelf && otherId === HELPER_ID,
+      otherStatus: other && !c.is_group ? (other.custom_status || '') : ''
     };
   });
   res.json(chats);
@@ -865,6 +871,8 @@ function buildMessagePayload(m) {
     sender: sender ? publicUserSafe(sender) : { id: m.sender_id, username: 'Unknown', displayName: null },
     createdAt: m.created_at, is_deleted: m.is_deleted || false,
     delivered, read, isSelfChat,
+    reactions: m.reactions || [],
+    edited: m.edited || false,
     attachments: atts.map(a => ({ url: a.url, mime: a.mime_type, name: a.original_name, size: a.size }))
   };
 }
@@ -1028,6 +1036,37 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   res.json(payload);
 });
 
+// ================= РЕАКЦИИ =================
+app.post('/api/messages/:messageId/react', authMiddleware, (req, res) => {
+  const msg = db.messages.find(m => m.id === req.params.messageId);
+  if (!msg) return res.status(404).json({ error: 'Message not found' });
+  if (!db.chat_members.find(m => m.chat_id === msg.chat_id && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
+  const { emoji } = req.body;
+  if (!emoji || typeof emoji !== 'string' || emoji.length > 8) return res.status(400).json({ error: 'Недопустимая реакция' });
+  if (!msg.reactions) msg.reactions = [];
+  const idx = msg.reactions.findIndex(r => r.userId === req.userId && r.emoji === emoji);
+  if (idx >= 0) msg.reactions.splice(idx, 1); else msg.reactions.push({ emoji, userId: req.userId });
+  saveDb();
+  emitToChatMembers(msg.chat_id, 'messageReacted', { messageId: msg.id, reactions: msg.reactions });
+  res.json({ ok: true, reactions: msg.reactions });
+});
+
+// ================= РЕДАКТИРОВАНИЕ =================
+app.put('/api/messages/:messageId', authMiddleware, (req, res) => {
+  const msg = db.messages.find(m => m.id === req.params.messageId);
+  if (!msg) return res.status(404).json({ error: 'Message not found' });
+  if (msg.sender_id !== req.userId) return res.status(403).json({ error: 'Только автор может редактировать' });
+  if (msg.is_deleted) return res.status(400).json({ error: 'Сообщение удалено' });
+  const { text } = req.body;
+  if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Пустое сообщение' });
+  msg.text = text.slice(0, 4000);
+  msg.edited = true;
+  msg.edited_at = Math.floor(Date.now() / 1000);
+  saveDb();
+  emitToChatMembers(msg.chat_id, 'messageEdited', { messageId: msg.id });
+  res.json({ ok: true, text: msg.text });
+});
+
 // ================= AUTH =================
 app.post('/api/register', async (req, res) => {
   try {
@@ -1124,6 +1163,18 @@ io.on('connection', (socket) => {
       user.status = 'online'; saveDb(); io.emit('refreshData');
     }
     socket.join(`user:${socket.userId}`);
+
+    // Индикатор набора текста
+    socket.on('typing', ({ chatId }) => {
+      if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === socket.userId)) return;
+      db.chat_members.filter(m => m.chat_id === chatId && m.user_id !== socket.userId)
+        .forEach(m => io.to(`user:${m.user_id}`).emit('userTyping', { chatId, userId: socket.userId }));
+    });
+    socket.on('stopTyping', ({ chatId }) => {
+      db.chat_members.filter(m => m.chat_id === chatId && m.user_id !== socket.userId)
+        .forEach(m => io.to(`user:${m.user_id}`).emit('userStopTyping', { chatId, userId: socket.userId }));
+    });
+
     const myChatIds = db.chat_members.filter(cm => cm.user_id === socket.userId).map(cm => cm.chat_id);
     let changed = false;
     db.messages.forEach(m => {
@@ -1189,6 +1240,7 @@ io.on('connection', (socket) => {
     if (u.username.toLowerCase() === 'admin' && u.role === 'admin') { u.role = 'sysadmin'; migrated = true; }
     if (!u.role) u.role = 'user';
     if (!u.ban_reason) u.ban_reason = '';
+    if (u.custom_status === undefined) u.custom_status = '';
   });
   if (migrated) saveDb();
 
