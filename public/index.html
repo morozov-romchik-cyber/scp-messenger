@@ -48,6 +48,14 @@
   .badge-moderator { background: #ffcc00; color: #000; }
   .badge-helper { background: #00ccff; color: #000; }
 
+  /* Clearance Badges */
+  .clearance-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: bold; font-family: 'Fira Code'; margin-left: 4px; border: 1px solid #444; }
+  .cl-1 { background: #333; color: #fff; }
+  .cl-2 { background: #1e3a8a; color: #fff; }
+  .cl-3 { background: #facc15; color: #000; }
+  .cl-4 { background: #ea580c; color: #fff; }
+  .cl-5 { background: #dc2626; color: #fff; border-color: #ff8888; box-shadow: 0 0 5px #dc2626; }
+
   #auth { display: flex; align-items: center; justify-content: center; height: 100%; padding: 20px; position: relative; z-index: 1; }
   .auth-card { width: 100%; max-width: 420px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 40px 32px; box-shadow: 0 20px 40px rgba(0,0,0,0.8); backdrop-filter: blur(10px); }
   .auth-card h1 { font-family: 'Fira Code', monospace; color: var(--accent); font-size: 24px; letter-spacing: 2px; margin-bottom: 6px; text-align: center; }
@@ -92,7 +100,7 @@
   .favorites-shortcut:hover { background: var(--border); }
 
   #chat-list { flex: 1; overflow-y: auto; height: 0; }
-  .chat-item { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .15s; display: flex; align-items: center; gap: 12px; user-select: none; }
+  .chat-item { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .15s; display: flex; align-items: center; gap: 12px; user-select: none; position: relative; }
   .chat-item:hover { background: var(--card); }
   .chat-item.active { background: var(--card); border-left: 3px solid var(--accent); }
   .chat-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; font-family: 'Fira Code'; color: var(--text); font-size: 16px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
@@ -100,6 +108,11 @@
   .chat-item .name { font-weight: 600; font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 4px; }
   .chat-item .preview { font-size: 12px; color: var(--muted); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
   .badge { background: var(--accent); color: #000; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 700; font-family: 'Fira Code', monospace; }
+  
+  .pin-btn { opacity: 0.3; font-size: 16px; cursor: pointer; transition: opacity 0.2s; margin-left: auto; padding: 0 5px; }
+  .pin-btn:hover, .pin-btn.active { opacity: 1; color: #ffd700; }
+  .star-btn { font-size: 18px; cursor: pointer; color: var(--border); margin-left: auto; padding: 0 5px; }
+  .star-btn.active { color: #ffd700; }
 
   .sidebar-bottom { padding: 16px; border-top: 1px solid var(--border); background: var(--panel); display: flex; justify-content: center; }
   
@@ -133,6 +146,13 @@
   .clear-chat-btn:hover { transform: scale(1.2); opacity: 1; }
 
   #user-banned-banner { display: none; background: #ff3333; color: #ffffff; padding: 10px 16px; font-size: 13px; font-weight: bold; font-family: 'Fira Code', monospace; text-align: center; border-bottom: 1px solid #4a1515; box-shadow: 0 4px 10px rgba(255, 51, 51, 0.2); z-index: 10; }
+  
+  #pinned-banner { display: none; background: var(--card); border-bottom: 1px solid var(--border); padding: 8px 16px; align-items: center; justify-content: space-between; cursor: pointer; z-index: 10; border-left: 3px solid #ffd700; }
+  #pinned-banner.visible { display: flex; }
+  .pinned-content { flex: 1; min-width: 0; font-size: 12px; }
+  .pinned-title { color: #ffd700; font-weight: bold; font-family: 'Fira Code'; display: flex; align-items: center; gap: 5px; }
+  .pinned-text { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pinned-close { background: transparent; border: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 0 10px; }
 
   #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; position: relative; z-index: 2; }
   .msg-row { display: flex; gap: 12px; align-items: flex-end; max-width: 85%; position: relative; }
@@ -160,6 +180,7 @@
   .msg .reply-quote:hover { background: rgba(255, 255, 255, 0.08); }
   .msg .reply-quote .rq-name { color: var(--accent); font-weight: 600; margin-bottom: 2px; font-family: 'Fira Code', monospace; }
   .msg .reply-quote .rq-text { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg .edited-label { font-size: 10px; color: var(--muted); font-style: italic; margin-left: 4px; }
 
   .msg-footer { font-size: 11px; margin-top: 4px; text-align: right; font-family: 'Fira Code', monospace; color: var(--muted); display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
   .msg-status .tick { display: inline-block; font-weight: bold; }
@@ -219,21 +240,27 @@
 
   #composer { flex-shrink: 0; display: flex; gap: 12px; padding: 16px 24px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); background: rgba(22, 27, 34, 0.9); backdrop-filter: blur(10px); border-top: 1px solid var(--border); align-items: flex-end; position: relative; z-index: 2; }
   #composer textarea { flex: 1; background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 8px; font-family: inherit; font-size: 16px; resize: none; max-height: 140px; min-height: 44px; }
-  #composer button { background: var(--card); color: var(--text); border: 1px solid var(--border); width: 44px; height: 44px; border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  #composer button { background: var(--card); color: var(--text); border: 1px solid var(--border); width: 44px; height: 44px; border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+  #composer button:hover { background: var(--border); }
   #composer button#send-btn { background: var(--accent); color: #000; border: none; }
   #composer button#send-btn:hover { opacity: 0.8; }
+  
+  #composer.recording #msg-input { color: #ff4d4d; font-weight: bold; }
+  #mic-btn.recording { background: #ff4d4d; color: #fff; border-color: #ff4d4d; animation: pulse 1s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 77, 77, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0); } }
 
-  .emoji-picker {
-    position: absolute; top: 60px; right: 24px; background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px;
-    width: 450px; max-width: calc(100vw - 48px); height: 350px; max-height: calc(100vh - 150px);
-    display: none; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100; overflow: hidden;
-  }
+  .emoji-picker { position: absolute; top: 60px; right: 24px; background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px; width: 450px; max-width: calc(100vw - 48px); height: 350px; display: none; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100; overflow: hidden; }
   .emoji-picker.visible { display: flex; }
   .emoji-content { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 6px; padding: 12px; overflow-y: auto; width: 100%; height: 100%; }
-  .emoji-item { font-size: 22px; display: flex; align-items: center; justify-content: center; width: 100%; height: 38px; overflow: hidden; white-space: nowrap; cursor: pointer; border-radius: 6px; transition: background 0.2s; user-select: none; line-height: 1; }
+  .emoji-item { font-size: 22px; display: flex; align-items: center; justify-content: center; width: 100%; height: 38px; cursor: pointer; border-radius: 6px; transition: background 0.2s; user-select: none; }
   .emoji-item:hover { background: var(--border); }
   .emoji-resize-handle { position: absolute; bottom: 0; left: 0; width: 20px; height: 20px; cursor: sw-resize; z-index: 102; }
   .emoji-resize-handle::after { content: ''; position: absolute; bottom: 4px; left: 4px; width: 8px; height: 8px; border-bottom: 2px solid var(--muted); border-left: 2px solid var(--muted); border-bottom-left-radius: 2px; }
+
+  .sticker-picker { position: absolute; top: 60px; right: 80px; background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px; width: 300px; display: none; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100; padding: 10px; }
+  .sticker-picker.visible { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-height: 350px; overflow-y: auto; }
+  .sticker-item { width: 100%; height: 100px; object-fit: contain; cursor: pointer; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 5px; transition: transform 0.2s; }
+  .sticker-item:hover { transform: scale(1.05); background: rgba(255,255,255,0.1); }
 
   .file-progress { position: absolute; bottom: 90px; right: 24px; padding: 10px 16px; font-size: 12px; color: var(--text); font-family: 'Fira Code', monospace; background: var(--panel); border: 1px solid var(--border-hover); border-radius: 8px; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 10; align-items: center; gap: 12px; }
   .file-progress.visible { display: flex; }
@@ -244,14 +271,17 @@
   .modal-content { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 24px; width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); max-height: 90vh; display: flex; flex-direction: column; overflow-y: auto; }
   .modal-content h3 { font-family: 'Fira Code', monospace; margin-bottom: 20px; font-size: 16px; color: var(--accent); text-align: center; }
   .setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; font-size: 14px; }
-  .setting-row select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 4px; outline: none; font-family: inherit; }
+  .setting-row select, .setting-row input[type="text"] { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 4px; outline: none; font-family: inherit; }
   .setting-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
   .modal-btn { width: 100%; background: var(--accent); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: opacity 0.2s; flex-shrink: 0; }
   .modal-btn:hover { opacity: 0.8; }
+  
+  .reaction-selector { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+  .reaction-btn { background: transparent; border: none; font-size: 24px; cursor: pointer; transition: transform 0.2s; }
+  .reaction-btn:hover { transform: scale(1.3); }
 
-  .forward-list { overflow-y: auto; flex: 1; margin-bottom: 10px; max-height: 40vh; }
-  .forward-item { padding: 10px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; gap: 10px; }
-  .forward-item:hover { background: var(--card); }
+  #edit-msg-modal .modal-content { width: 400px; }
+  #edit-msg-input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; resize: vertical; min-height: 80px; margin-bottom: 15px; outline: none; }
 
   #admin-dashboard-modal .modal-content { width: 90vw; max-width: 1000px; height: 85vh; padding: 0; overflow: hidden; flex-direction: row; border: 1px solid var(--admin-accent); box-shadow: 0 0 30px rgba(255, 51, 51, 0.15); background: var(--admin-bg); }
   .admin-sidebar { width: 240px; background: #0d0404; border-right: 1px solid var(--admin-border); display: flex; flex-direction: column; overflow-y: auto; }
@@ -340,6 +370,27 @@
   /* Делаем скроллбар для доски видимым и удобным на телефоне */
   .wb-canvas-wrapper::-webkit-scrollbar { width: 16px; height: 16px; }
   .wb-canvas-wrapper::-webkit-scrollbar-thumb { background: #8b949e; border-radius: 8px; border: 4px solid #1a1a1a; }
+
+  /* НОВЫЕ СТИЛИ ДЛЯ ФИЧ */
+  .reaction-bar { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+  .reaction-chip { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 12px; padding: 2px 6px; font-size: 12px; cursor: pointer; user-select: none; transition: all 0.2s; }
+  .reaction-chip.active { background: rgba(29, 155, 240, 0.2); border-color: #1d9bf0; color: #1d9bf0; }
+  .reaction-chip:hover { background: rgba(255,255,255,0.1); }
+  
+  .poll-container { background: rgba(0,0,0,0.2); border-radius: 6px; padding: 10px; margin-top: 8px; border: 1px solid var(--border); min-width: 200px; }
+  .poll-question { font-weight: bold; font-size: 14px; margin-bottom: 10px; }
+  .poll-option { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px 12px; margin-bottom: 6px; cursor: pointer; position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: center; z-index: 1; transition: border-color 0.2s; }
+  .poll-option:hover { border-color: var(--border-hover); }
+  .poll-option.voted { border-color: #1d9bf0; font-weight: bold; }
+  .poll-bar { position: absolute; top: 0; left: 0; height: 100%; background: rgba(29, 155, 240, 0.2); z-index: -1; transition: width 0.3s ease; }
+  .poll-percent { font-size: 12px; color: var(--muted); font-family: 'Fira Code'; }
+
+  #typing-indicator { height: 20px; font-size: 12px; color: var(--muted); padding: 0 24px; font-family: 'Fira Code'; font-style: italic; opacity: 0; transition: opacity 0.3s; display: flex; align-items: center; gap: 4px; }
+  #typing-indicator.visible { opacity: 1; }
+  .typing-dots span { animation: typing 1.4s infinite ease-in-out both; width: 4px; height: 4px; background-color: var(--muted); border-radius: 50%; display: inline-block; margin-left: 2px; }
+  .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+  .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
   @media (max-width: 720px) {
     aside { display: none; width: 100%; position: absolute; inset: 0; z-index: 20; }
@@ -583,10 +634,12 @@
       <img id="profile-avatar" class="profile-avatar" src="/favicon.png" style="display: none;" />
       <div id="profile-display-name" style="font-size: 18px; font-weight: 600; margin-bottom: 2px;">-</div>
       <div id="profile-username" class="profile-username">@-</div>
+      <div id="profile-status" style="font-size: 12px; color: #1d9bf0; margin-top: 4px; font-family: 'Fira Code';">-</div>
       <div id="profile-online" class="profile-online">⚪ Не в сети</div>
     </div>
     <div class="profile-info-box">
       <div class="profile-info-row"><span>Роль:</span><span id="profile-role" style="font-weight: 600;">-</span></div>
+      <div class="profile-info-row"><span>Допуск:</span><span id="profile-clearance" style="font-weight: 600;">-</span></div>
       <div class="profile-info-row"><span>ID:</span><span id="profile-id" style="color: #ffd700;">-</span></div>
       <div class="profile-info-row" id="profile-ip-row" style="display: none; margin-bottom: 0;"><span>IP:</span><span id="profile-ip" style="color: #00ff9d;">-</span></div>
     </div>
@@ -623,6 +676,9 @@
       <div class="admin-tab" data-tab="staff">📋 Список персонала</div>
       <div class="admin-tab" data-tab="support" id="tab-btn-support" style="display: none;">💬 Поддержка & Логи</div>
       <div class="admin-tab" data-tab="alerts" id="tab-btn-alerts" style="display: none; color: #ff3333; font-weight: bold;">🚨 Срочные оповещения</div>
+      <div class="admin-tab" data-tab="audit">🕵️ Аудит-Лог</div>
+      <div class="admin-tab" data-tab="stats">📊 Статистика</div>
+      <div class="admin-tab" data-tab="automod" style="color: #ff9933;">🛡️ Авто-мод</div>
       <div style="flex: 1;"></div>
       <div class="admin-tab" style="color: #ff3333; border-left-color: transparent;" onclick="document.getElementById('admin-dashboard-modal').classList.remove('visible')">✖ Закрыть</div>
     </div>
@@ -726,11 +782,35 @@
           </div>
         </div>
       </div>
+      <!-- NEW ADMIN TABS -->
+      <div id="tab-audit" class="admin-tab-content" style="display: none;">
+        <div class="admin-header"><h2>Журнал Аудита</h2></div>
+        <div class="admin-section"><div class="log-box" id="audit-log-box">[System] Ожидание событий...<br></div></div>
+      </div>
+      <div id="tab-stats" class="admin-tab-content" style="display: none;">
+        <div class="admin-header"><h2>Статистика</h2></div>
+        <div class="admin-section" style="text-align: center;">
+          <div style="display: flex; justify-content: space-around; font-family: 'Fira Code'; padding: 20px 0;">
+            <div><div style="font-size: 24px; color: #00ff9d;">142</div><div style="font-size: 11px; color: #884444;">Сообщений</div></div>
+            <div><div style="font-size: 24px; color: #00ff9d;">18</div><div style="font-size: 11px; color: #884444;">Пользователей</div></div>
+            <div><div style="font-size: 24px; color: #00ff9d;">3</div><div style="font-size: 11px; color: #884444;">Канала</div></div>
+          </div>
+        </div>
+      </div>
+      <div id="tab-automod" class="admin-tab-content" style="display: none;">
+        <div class="admin-header"><h2>Авто-модерация</h2></div>
+        <div class="admin-section">
+          <h4>Черный список слов</h4>
+          <textarea style="width: 100%; height: 100px; background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px; border-radius: 6px; font-family: inherit; outline: none; margin-bottom: 10px;">побег
+нарушение условий
+оружие</textarea>
+          <button class="admin-btn">Сохранить список</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- НОВОЕ МОДАЛЬНОЕ ОКНО: ДЕТАЛИ ЧАТА -->
 <div class="modal" id="chat-details-modal">
   <div class="modal-content" style="width: 500px; max-height: 85vh;">
     <h3 id="cd-title" style="color: #ff3333;">ДЕТАЛИ ЧАТА</h3>
@@ -775,9 +855,16 @@
 
 <div class="modal" id="msg-actions-modal">
   <div class="modal-content">
-    <h3>ДЕЙСТВИЯ</h3>
+    <div class="reaction-selector">
+      <button class="reaction-btn" onclick="toggleReaction(state.activeMsgId, '👍')">👍</button>
+      <button class="reaction-btn" onclick="toggleReaction(state.activeMsgId, '❤️')">❤️</button>
+      <button class="reaction-btn" onclick="toggleReaction(state.activeMsgId, '😂')">😂</button>
+      <button class="reaction-btn" onclick="toggleReaction(state.activeMsgId, '😮')">😮</button>
+      <button class="reaction-btn" onclick="toggleReaction(state.activeMsgId, '😢')">😢</button>
+    </div>
     <button class="modal-btn" id="msg-copy-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">📋 Копировать текст</button>
-    <!-- НОВАЯ КНОПКА СКАЧИВАНИЯ -->
+    <button class="modal-btn" id="msg-edit-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">✏️ Изменить</button>
+    <button class="modal-btn" id="msg-pin-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">📌 Закрепить</button>
     <button class="modal-btn" id="msg-download-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">📥 Скачать вложения</button>
     <button class="modal-btn" id="msg-reply-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Ответить</button>
     <button class="modal-btn" id="msg-forward-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Переслать</button>
@@ -785,6 +872,26 @@
     <button class="modal-btn" id="msg-del-me-btn" style="background: transparent; color: #ff4d4d; border: 1px solid #ff4d4d; margin-bottom: 10px;">Удалить у себя</button>
     <button class="modal-btn" id="msg-del-all-btn" style="background: #ff4d4d; color: #fff; margin-bottom: 10px; display: none;">Удалить у всех</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('msg-actions-modal').classList.remove('visible')">Отмена</button>
+  </div>
+</div>
+
+<div class="modal" id="edit-msg-modal">
+  <div class="modal-content">
+    <h3>РЕДАКТИРОВАТЬ</h3>
+    <textarea id="edit-msg-input"></textarea>
+    <button class="modal-btn" onclick="submitEditMessage()">Сохранить</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('edit-msg-modal').classList.remove('visible')">Отмена</button>
+  </div>
+</div>
+
+<div class="modal" id="create-poll-modal">
+  <div class="modal-content">
+    <h3>СОЗДАТЬ ОПРОС</h3>
+    <input type="text" id="poll-question-input" placeholder="Вопрос" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; margin-bottom: 10px; outline: none;">
+    <input type="text" id="poll-option-1" placeholder="Вариант 1" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; margin-bottom: 10px; outline: none;">
+    <input type="text" id="poll-option-2" placeholder="Вариант 2" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; margin-bottom: 10px; outline: none;">
+    <button class="modal-btn" onclick="submitPoll()">Опубликовать</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('create-poll-modal').classList.remove('visible')">Отмена</button>
   </div>
 </div>
 
@@ -821,16 +928,19 @@
 <div class="modal" id="settings-modal">
   <div class="modal-content">
     <h3>⚙️ НАСТРОЙКИ</h3>
+    
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px; font-weight: bold; color: var(--accent);">Ваш профиль:</span>
       <div style="font-size: 13px; display: flex; flex-direction: column; gap: 6px; width: 100%; font-family: 'Fira Code';">
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Логин:</span><span id="set-my-username" style="font-weight:bold;">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Роль:</span><span id="set-my-role" style="font-weight:bold;">...</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Допуск:</span><span id="set-my-clearance" style="font-weight:bold;">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Статус:</span><span id="set-my-status" style="color: #00ccff;">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">ID:</span><span id="set-my-id" style="color: #ffd700;">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">IP:</span><span id="set-my-ip" style="color: #00ff9d;">...</span></div>
       </div>
     </div>
+
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px;">Отображаемое имя (Никнейм):</span>
       <div style="display: flex; gap: 10px; width: 100%;">
@@ -838,6 +948,15 @@
         <button class="modal-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;" id="update-display-name-btn">Сохранить</button>
       </div>
     </div>
+
+    <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
+      <span style="margin-bottom: 10px;">Кастомный статус:</span>
+      <div style="display: flex; gap: 10px; width: 100%;">
+        <input type="text" id="settings-status-input" placeholder="В секторе 4..." style="flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; outline: none;" maxlength="40">
+        <button class="modal-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;" id="update-status-btn">Сохранить</button>
+      </div>
+    </div>
+
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px;">Ваш Аватар:</span>
       <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
@@ -846,12 +965,14 @@
         <input type="file" id="avatar-input" accept="image/*" hidden>
       </div>
     </div>
+
     <div style="border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <div class="setting-row"><span>Время года:</span><select id="season-select"><option value="winter">Зима ❄️</option><option value="spring">Весна 🌱</option><option value="summer">Лето ☀️</option><option value="autumn">Осень 🍂</option></select></div>
       <div class="setting-row"><span>Погода:</span><select id="weather-select"><option value="none">Ясно</option><option value="rain">Дождь 🌧️</option><option value="snow">Снег 🌨️</option></select></div>
       <div class="setting-row"><span>Призраки (SCP):</span><input type="checkbox" id="ghosts-toggle"></div>
       <div class="setting-row"><span>Избранные чаты:</span><input type="checkbox" id="favorites-toggle"></div>
     </div>
+
     <button class="modal-btn" id="logout-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-top: 10px;">Выйти из аккаунта</button>
     <button class="modal-btn" id="delete-account-btn" style="background: #ff4d4d; color: #fff; margin-top: 10px;">Удалить аккаунт</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted); margin-top: 10px;" onclick="document.getElementById('settings-modal').classList.remove('visible')">Закрыть</button>
@@ -961,7 +1082,16 @@
     <div id="user-banned-banner">⛔ Пользователь заблокирован</div>
     <div id="blocked-banner" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; z-index: 10;">Пользователь заблокирован вами</div>
 
+    <div id="pinned-banner" onclick="scrollToPinned()">
+      <div class="pinned-content">
+        <div class="pinned-title">📌 Закрепленное сообщение</div>
+        <div class="pinned-text" id="pinned-text-preview"></div>
+      </div>
+      <button class="pinned-close" onclick="event.stopPropagation(); document.getElementById('pinned-banner').classList.remove('visible');">×</button>
+    </div>
+
     <div id="messages"><div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div></div>
+    <div id="typing-indicator">Печатает <div class="typing-dots"><span></span><span></span><span></span></div></div>
     
     <div class="file-progress" id="file-progress">
       <span id="file-progress-text">⏳ Загрузка... 0%</span>
@@ -977,9 +1107,20 @@
     </div>
 
     <div class="emoji-picker" id="emoji-picker"></div>
+    
+    <!-- SCP Sticker Picker -->
+    <div class="sticker-picker" id="sticker-picker">
+      <img src="https://scp-wiki.wdfiles.com/local--files/scp-173/SCP-173.jpg" class="sticker-item" onclick="sendSticker('https://scp-wiki.wdfiles.com/local--files/scp-173/SCP-173.jpg')">
+      <img src="https://scp-wiki.wdfiles.com/local--files/scp-096/SCP-096.jpg" class="sticker-item" onclick="sendSticker('https://scp-wiki.wdfiles.com/local--files/scp-096/SCP-096.jpg')">
+      <img src="https://scp-wiki.wdfiles.com/local--files/scp-682/SCP-682.jpg" class="sticker-item" onclick="sendSticker('https://scp-wiki.wdfiles.com/local--files/scp-682/SCP-682.jpg')">
+      <img src="https://scp-wiki.wdfiles.com/local--files/scp-999/SCP-999.jpg" class="sticker-item" onclick="sendSticker('https://scp-wiki.wdfiles.com/local--files/scp-999/SCP-999.jpg')">
+    </div>
 
     <form id="composer">
       <textarea id="msg-input" placeholder="Введите сообщение..." rows="1"></textarea>
+      <button type="button" id="poll-btn" title="Опрос" style="display: none;">📊</button>
+      <button type="button" id="sticker-btn" title="Стикеры" style="display: none;">🎭</button>
+      <button type="button" id="mic-btn" title="Голосовое">🎤</button>
       <button type="button" class="file" id="whiteboard-btn" title="Белая доска">🎨</button>
       <button type="button" class="file" id="emoji-btn" title="Emoji">😀</button>
       <button type="button" class="file" id="file-btn" title="Attach">📎</button>
@@ -992,13 +1133,17 @@
 <script src="/socket.io/socket.io.js"></script>
 <script>
 let favoriteChats = JSON.parse(localStorage.getItem('scp_fav_chats') || '[]');
+let pinnedChats = JSON.parse(localStorage.getItem('scp_pinned_chats') || '[]');
 let chatDrafts = JSON.parse(localStorage.getItem('scp_drafts') || '{}');
-const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false };
+let pinnedMessagesMap = JSON.parse(localStorage.getItem('scp_pinned_msgs') || '{}');
+
+const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false, isRecording: false, mediaRecorder: null, audioChunks: [] };
 
 const authScreen = document.getElementById('auth');
 const chatScreen = document.getElementById('chat');
 let authMode = 'login';
 let isCreatingChannel = false;
+let typingTimer = null;
 
 const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
 const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
@@ -1092,2673 +1237,509 @@ function initEmojiPicker() {
   document.getElementById('emoji-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     picker.classList.toggle('visible');
+    document.getElementById('sticker-picker').classList.remove('visible');
   });
 }
 
-// ================= УВЕДОМЛЕНИЯ И ЗВУК =================
-let globalAudioCtx = null;
-function unlockAudio() {
-    if (!globalAudioCtx) { globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-    if (globalAudioCtx.state === 'suspended') { globalAudioCtx.resume(); }
-}
-document.addEventListener('click', unlockAudio, { once: true });
-document.addEventListener('keydown', unlockAudio, { once: true });
-
-function playNotificationSound() {
-    try {
-        if (!globalAudioCtx) return;
-        const now = globalAudioCtx.currentTime;
-        const notes = [110.00, 138.59, 164.81, 220.00]; 
-        const duration = 0.15; 
-        notes.forEach((freq, i) => {
-            const osc = globalAudioCtx.createOscillator();
-            const gain = globalAudioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(globalAudioCtx.destination);
-            osc.type = 'sine'; 
-            const startTime = now + (i * duration);
-            osc.frequency.setValueAtTime(freq, startTime);
-            gain.gain.setValueAtTime(0, startTime);
-            gain.gain.linearRampToValueAtTime(0.6, startTime + 0.03); 
-            if (i === notes.length - 1) {
-                gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.6);
-            } else {
-                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-            }
-            osc.start(startTime);
-            osc.stop(startTime + (i === notes.length - 1 ? 0.6 : duration));
-        });
-    } catch (e) { console.error(e); }
-}
-
-function showNotification(sender, text, avatarUrl, chatId) {
-    const container = document.getElementById('toast-container');
-    if (container.children.length >= 3) { container.removeChild(container.firstChild); }
-    const toast = document.createElement('div');
-    toast.className = 'toast-msg';
-    let avatarContent = avatarUrl 
-        ? `<img src="${escAttr(avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
-        : esc((sender || '?')[0].toUpperCase());
-    toast.innerHTML = `
-        <button class="toast-close" onclick="event.stopPropagation(); this.parentElement.remove();">×</button>
-        <div class="toast-avatar">${avatarContent}</div>
-        <div class="toast-content">
-            <div class="toast-title">Новое сообщение</div>
-            <div class="toast-sender">@${esc(sender)}</div>
-            <div class="toast-text">${esc(text)}</div>
-        </div>
-    `;
-    toast.onclick = () => {
-        const chat = state.chats.find(c => c.id === chatId);
-        if (chat) {
-            openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem);
-        }
-        toast.remove();
-    };
-    container.appendChild(toast);
-    playNotificationSound();
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(50px)';
-            setTimeout(() => toast.remove(), 300);
-        }
-    }, 5000);
-
-    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
-        const sysNote = new Notification(`Новое сообщение от @${sender}`, {
-            body: text, icon: avatarUrl || '/favicon.png', tag: 'scp-msg-' + chatId, renotify: true
-        });
-        sysNote.onclick = function(e) {
-            e.preventDefault();
-            window.focus(); 
-            const chat = state.chats.find(c => c.id === chatId);
-            if (chat) {
-                openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem);
-            }
-            this.close();
-        };
-    }
-}
-
-// ================= БЕЛАЯ ДОСКА (Paint Style) =================
-let wbCanvas = document.getElementById('wb-canvas');
-let wbCtx = wbCanvas.getContext('2d');
-let wbPreviewCanvas = document.getElementById('wb-preview-canvas');
-let wbPreviewCtx = wbPreviewCanvas.getContext('2d');
-let wbTextLayer = document.getElementById('wb-text-layer');
-
-let wbIsDrawing = false;
-let wbTool = 'pen';
-let wbColor = '#ffffff';
-let wbLineWidth = 4;
-let wbLastX = 0;
-let wbLastY = 0;
-let wbHistory = [];
-
-// Настройки текста
-let wbFontSize = 24;
-let wbFontBold = false;
-let wbFontItalic = false;
-let wbTextObj = null; 
-let isDraggingText = false;
-let isRotatingText = false;
-let textStartX = 0, textStartY = 0;
-let textInitialRot = 0;
-let textInitialX = 0, textInitialY = 0;
-
-function initWhiteboard() {
-  const w = 2000;
-  const h = 4000;
-  
-  wbCanvas.width = w;
-  wbCanvas.height = h;
-  wbCtx.fillStyle = '#121212';
-  wbCtx.fillRect(0, 0, w, h);
-  
-  wbPreviewCanvas.width = w;
-  wbPreviewCanvas.height = h;
-  wbPreviewCtx.clearRect(0, 0, w, h);
-
-  wbHistory = [];
-  saveWbState();
-  document.getElementById('wb-canvas-wrapper').scrollTop = 0;
-  document.getElementById('wb-canvas-wrapper').scrollLeft = 0;
-  
-  if (wbTextObj) finalizeText();
-  wbTextLayer.innerHTML = '';
-  
-  document.getElementById('wb-font-size').value = '24';
-  wbFontSize = 24;
-  wbFontBold = false;
-  wbFontItalic = false;
-  document.getElementById('wb-btn-bold').classList.remove('active');
-  document.getElementById('wb-btn-italic').classList.remove('active');
-}
-
-function saveWbState() {
-  if (wbHistory.length > 15) wbHistory.shift();
-  wbHistory.push(wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height));
-}
-
-function undoWb() {
-  if (wbTextObj) finalizeText();
-  if (wbHistory.length > 1) {
-    wbHistory.pop();
-    const prevState = wbHistory[wbHistory.length - 1];
-    wbCtx.putImageData(prevState, 0, 0);
-    wbPreviewCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
-  } else if (wbHistory.length === 1) {
-    wbCtx.fillStyle = '#121212';
-    wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
-    saveWbState();
-  }
-}
-
-function clearWb() {
-  if (!confirm('Очистить всю доску?')) return;
-  if (wbTextObj) finalizeText();
-  wbCtx.fillStyle = '#121212';
-  wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
-  wbPreviewCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
-  saveWbState();
-}
-
-function setWbTool(tool) {
-  wbTool = tool;
-  document.querySelectorAll('.wb-btn').forEach(b => b.classList.remove('active'));
-  const activeBtn = document.getElementById('wb-tool-' + tool);
-  if (activeBtn) activeBtn.classList.add('active');
-  
-  const textSettings = document.getElementById('wb-text-settings');
-  if (tool === 'text') {
-    textSettings.style.display = 'flex';
-    wbCanvas.style.cursor = 'text';
-  } else {
-    textSettings.style.display = 'none';
-    wbCanvas.style.cursor = 'crosshair';
-    if (wbTextObj) finalizeText();
-  }
-}
-
-function setWbColor(el) {
-  document.querySelectorAll('.wb-color').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  wbColor = el.dataset.color;
-  if (wbTool === 'eraser') setWbTool('pen');
-  
-  if (wbTextObj) {
-    const content = wbTextObj.element.querySelector('.wb-text-content');
-    content.style.color = wbColor;
-  }
-}
-
-function toggleWbFontStyle(style) {
-  if (style === 'bold') {
-    wbFontBold = !wbFontBold;
-    document.getElementById('wb-btn-bold').classList.toggle('active', wbFontBold);
-  } else if (style === 'italic') {
-    wbFontItalic = !wbFontItalic;
-    document.getElementById('wb-btn-italic').classList.toggle('active', wbFontItalic);
-  }
-  if (wbTextObj) updateActiveTextStyle();
-}
-
-function updateActiveTextStyle() {
-  if (!wbTextObj) return;
-  const content = wbTextObj.element.querySelector('.wb-text-content');
-  content.style.fontSize = wbFontSize + 'px';
-  content.style.fontWeight = wbFontBold ? 'bold' : 'normal';
-  content.style.fontStyle = wbFontItalic ? 'italic' : 'normal';
-}
-
-document.getElementById('whiteboard-btn').addEventListener('click', () => {
-  if (!state.currentChat) return alert('Сначала выберите чат');
-  if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
-  document.getElementById('whiteboard-modal').classList.add('visible');
-  setTimeout(initWhiteboard, 50);
-});
-
-function getWbCoords(e) {
-  const rect = wbCanvas.getBoundingClientRect();
-  return {
-    x: e.clientX - rect.left,
-    y: e.clientY - rect.top
-  };
-}
-
-function updateWbCoords(e) {
-  if (!document.getElementById('whiteboard-modal').classList.contains('visible')) return;
-  const coords = getWbCoords(e);
-  const panel = document.getElementById('wb-coords-panel');
-  if (panel) panel.textContent = `X: ${Math.round(coords.x)} | Y: ${Math.round(coords.y)}`;
-}
-
-// ================= ТЕКСТОВЫЙ ИНСТРУМЕНТ (ВЕКТОРНЫЙ) =================
-function createTextBox(x, y) {
-  if (wbTextObj) finalizeText();
-
-  const box = document.createElement('div');
-  box.className = 'wb-text-box active';
-  box.style.left = x + 'px';
-  box.style.top = y + 'px';
-
-  const handle = document.createElement('div');
-  handle.className = 'wb-rotate-handle';
-  handle.title = 'Потяните, чтобы повернуть';
-
-  const content = document.createElement('div');
-  content.className = 'wb-text-content';
-  content.contentEditable = 'true';
-  content.setAttribute('data-placeholder', 'Введите текст...');
-  
-  content.style.fontSize = wbFontSize + 'px';
-  content.style.fontWeight = wbFontBold ? 'bold' : 'normal';
-  content.style.fontStyle = wbFontItalic ? 'italic' : 'normal';
-  content.style.color = wbColor;
-
-  box.appendChild(handle);
-  box.appendChild(content);
-  wbTextLayer.appendChild(box);
-
-  wbTextObj = { x, y, rotation: 0, element: box, contentEl: content };
-
-  setTimeout(() => content.focus({ preventScroll: true }), 10);
-
-  content.addEventListener('input', () => {});
-  content.addEventListener('keydown', (e) => { if (e.key === 'Escape') finalizeText(); });
-
-  box.addEventListener('pointerdown', (e) => {
-    if (e.target === handle || e.target === content) return;
+// Новые функции (Стикеры, Голосовые, Опросы и т.д.)
+document.getElementById('sticker-btn').addEventListener('click', (e) => {
     e.stopPropagation();
-    if (wbTextObj) {
-      wbTextObj.element.classList.add('active');
-      isDraggingText = true;
-      textStartX = e.clientX;
-      textStartY = e.clientY;
-      textInitialX = wbTextObj.x;
-      textInitialY = wbTextObj.y;
-      box.setPointerCapture(e.pointerId);
-    }
-  });
-
-  handle.addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    isRotatingText = true;
-    const rect = box.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    textStartX = e.clientX - centerX;
-    textStartY = e.clientY - centerY;
-    textInitialRot = wbTextObj.rotation;
-    handle.setPointerCapture(e.pointerId);
-  });
-}
-
-window.addEventListener('pointermove', (e) => {
-  if (isDraggingText && wbTextObj) {
-    const dx = e.clientX - textStartX;
-    const dy = e.clientY - textStartY;
-    wbTextObj.x = textInitialX + dx;
-    wbTextObj.y = textInitialY + dy;
-    wbTextObj.element.style.left = wbTextObj.x + 'px';
-    wbTextObj.element.style.top = wbTextObj.y + 'px';
-  }
-  
-  if (isRotatingText && wbTextObj) {
-    const box = wbTextObj.element;
-    const rect = box.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    
-    const curX = e.clientX - centerX;
-    const curY = e.clientY - centerY;
-    
-    const angleRad = Math.atan2(curY, curX);
-    let angleDeg = (angleRad * 180 / Math.PI) + 90; 
-    
-    wbTextObj.rotation = angleDeg;
-    box.style.transform = `rotate(${angleDeg}deg)`;
-  }
+    document.getElementById('sticker-picker').classList.toggle('visible');
+    document.getElementById('emoji-picker').classList.remove('visible');
 });
 
-window.addEventListener('pointerup', () => {
-  isDraggingText = false;
-  isRotatingText = false;
-});
-
-function finalizeText() {
-  if (!wbTextObj) return;
-  const text = wbTextObj.contentEl.innerText.trim();
-  const box = wbTextObj.element;
-  
-  if (text) {
-    const content = wbTextObj.contentEl;
-    const textLines = text.split('\n');
-    
-    const style = window.getComputedStyle(content);
-    const fontSize = parseInt(style.fontSize);
-    const lineHeight = fontSize * 1.2;
-    
-    wbCtx.save();
-    
-    const centerX = wbTextObj.x + (box.offsetWidth / 2);
-    const centerY = wbTextObj.y + (box.offsetHeight / 2);
-    
-    wbCtx.translate(centerX, centerY);
-    wbCtx.rotate(wbTextObj.rotation * Math.PI / 180);
-    
-    const isItalic = style.fontStyle === 'italic' ? 'italic ' : '';
-    const isBold = parseInt(style.fontWeight) >= 700 ? 'bold ' : '';
-    wbCtx.font = `${isItalic}${isBold}${fontSize}px Inter, sans-serif`;
-    wbCtx.fillStyle = style.color;
-    wbCtx.textAlign = 'center';
-    wbCtx.textBaseline = 'middle';
-    
-    const startY = -(textLines.length - 1) * lineHeight / 2;
-    textLines.forEach((line, index) => {
-      wbCtx.fillText(line, 0, startY + index * lineHeight);
-    });
-    
-    wbCtx.restore();
-    saveWbState();
-  }
-  
-  box.remove();
-  wbTextObj = null;
-}
-
-wbCanvas.addEventListener('pointerdown', (e) => {
-  if (wbTool === 'text') {
-    if (wbTextObj) {
-      const rect = wbTextObj.element.getBoundingClientRect();
-      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-        finalizeText();
-      }
-      return;
-    }
-    
-    const coords = getWbCoords(e);
-    createTextBox(coords.x, coords.y);
-    e.preventDefault();
-  }
-});
-
-// ================= РИСОВАНИЕ ФИГУР И ЛИНИЙ =================
-function drawShapeOnCtx(ctx, tool, startX, startY, curX, curY, color, lineWidth) {
-    ctx.beginPath();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineWidth;
-    
-    if (tool === 'line') {
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(curX, curY);
-    } else if (tool === 'rect') {
-      ctx.rect(startX, startY, curX - startX, curY - startY);
-    } else if (tool === 'circle') {
-      const radius = Math.sqrt(Math.pow(curX - startX, 2) + Math.pow(curY - startY, 2));
-      ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
-    } else if (tool === 'ellipse') {
-      const rx = Math.abs(curX - startX);
-      const ry = Math.abs(curY - startY);
-      ctx.ellipse(startX, startY, rx, ry, 0, 0, 2 * Math.PI);
-    } else if (tool === 'triangle') {
-      ctx.moveTo(startX + (curX - startX) / 2, startY); 
-      ctx.lineTo(curX, curY); 
-      ctx.lineTo(startX, curY); 
-      ctx.closePath();
-    }
-    ctx.stroke();
-}
-
-function startWbDraw(e) {
-  if (wbTool === 'text') return;
-  if (e.type === 'touchstart') e.preventDefault();
-  
-  const coords = getWbCoords(e);
-  wbIsDrawing = true;
-  wbLastX = coords.x;
-  wbLastY = coords.y;
-  
-  wbCtx.beginPath();
-  wbCtx.moveTo(wbLastX, wbLastY);
-  
-  if (wbTool === 'pen' || wbTool === 'eraser') {
-    wbCtx.lineCap = 'round';
-    wbCtx.lineJoin = 'round';
-    wbCtx.strokeStyle = wbTool === 'eraser' ? '#121212' : wbColor;
-    wbCtx.lineWidth = wbTool === 'eraser' ? 30 : wbLineWidth;
-  }
-}
-
-function drawWb(e) {
-  updateWbCoords(e);
-  if (!wbIsDrawing) return;
-  if (e.type === 'touchmove') e.preventDefault();
-  
-  const coords = getWbCoords(e);
-  
-  if (wbTool === 'pen' || wbTool === 'eraser') {
-    wbCtx.lineTo(coords.x, coords.y);
-    wbCtx.stroke();
-  } else if (wbTool === 'line' || wbTool === 'rect' || wbTool === 'circle' || wbTool === 'ellipse' || wbTool === 'triangle') {
-    wbPreviewCtx.clearRect(0, 0, wbPreviewCanvas.width, wbPreviewCanvas.height);
-    drawShapeOnCtx(wbPreviewCtx, wbTool, wbLastX, wbLastY, coords.x, coords.y, wbColor, wbLineWidth);
-  }
-}
-
-function stopWbDraw(e) {
-  if (wbIsDrawing) {
-    wbIsDrawing = false;
-    
-    if (wbTool !== 'pen' && wbTool !== 'eraser') {
-      const coords = getWbCoords(e);
-      if (coords.x !== 0 || coords.y !== 0 || wbLastX !== 0 || wbLastY !== 0) {
-        drawShapeOnCtx(wbCtx, wbTool, wbLastX, wbLastY, coords.x, coords.y, wbColor, wbLineWidth);
-      }
-      wbPreviewCtx.clearRect(0, 0, wbPreviewCanvas.width, wbPreviewCanvas.height);
-    }
-    
-    saveWbState();
-  }
-}
-
-wbCanvas.addEventListener('pointerdown', (e) => {
-  if (wbTool !== 'text') {
-    wbCanvas.setPointerCapture(e.pointerId);
-    startWbDraw(e);
-  }
-});
-window.addEventListener('pointermove', drawWb);
-window.addEventListener('pointerup', stopWbDraw);
-window.addEventListener('pointercancel', stopWbDraw);
-
-wbCanvas.addEventListener('pointermove', updateWbCoords);
-
-async function sendWhiteboard() {
-  if (!state.currentChat) return;
-  if (wbTextObj) finalizeText();
-  
-  const modal = document.getElementById('whiteboard-modal');
-  modal.classList.remove('visible');
-  
-  wbCanvas.toBlob(async (blob) => {
-    if (!blob) return alert('Ошибка при создании изображения');
-    const file = new File([blob], `drawing_${Date.now()}.png`, { type: 'image/png' });
-    await uploadFilesWithProgress([file], '🎨 Рисунок с доски');
-  }, 'image/png');
-}
-
-// ================= ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (ZOOM & PAN) =================
-let lbScale = 1;
-let lbTranslateX = 0;
-let lbTranslateY = 0;
-let lbIsDragging = false;
-let lbStartX = 0;
-let lbStartY = 0;
-let lbImages = [];
-let lbCurrentIndex = 0;
-
-const lightbox = document.getElementById('lightbox');
-const lightboxImg = document.getElementById('lightbox-img');
-const lightboxDownloadBtn = document.getElementById('lightbox-download-btn');
-
-function updateLightboxTransform() {
-    lightboxImg.style.transform = `translate(-50%, -50%) translate(${lbTranslateX}px, ${lbTranslateY}px) scale(${lbScale})`;
-}
-
-window.openLightbox = function(images, startIndex) {
-    lbImages = images;
-    lbCurrentIndex = startIndex || 0;
-    lbScale = 1;
-    lbTranslateX = 0;
-    lbTranslateY = 0;
-    
-    updateLightboxImage();
-    lightbox.classList.add('visible');
-    
-    const nav = document.getElementById('lightbox-nav');
-    if (lbImages.length > 1) {
-        nav.style.display = 'flex';
-        document.getElementById('lightbox-counter').textContent = `${lbCurrentIndex + 1} / ${lbImages.length}`;
-        document.getElementById('lightbox-prev').disabled = lbCurrentIndex === 0;
-        document.getElementById('lightbox-next').disabled = lbCurrentIndex === lbImages.length - 1;
-    } else {
-        nav.style.display = 'none';
-    }
-};
-
-window.closeLightbox = function() {
-    lightbox.classList.remove('visible');
-};
-
-window.navLightbox = function(dir) {
-    lbCurrentIndex += dir;
-    if (lbCurrentIndex < 0) lbCurrentIndex = 0;
-    if (lbCurrentIndex >= lbImages.length) lbCurrentIndex = lbImages.length - 1;
-    
-    updateLightboxImage();
-    
-    document.getElementById('lightbox-counter').textContent = `${lbCurrentIndex + 1} / ${lbImages.length}`;
-    document.getElementById('lightbox-prev').disabled = lbCurrentIndex === 0;
-    document.getElementById('lightbox-next').disabled = lbCurrentIndex === lbImages.length - 1;
-};
-
-function updateLightboxImage() {
-    lightboxImg.src = lbImages[lbCurrentIndex];
-    
-    // --- ИСПРАВЛЕНИЕ 1: Автоматически подгоняем масштаб, чтобы картинка влезла на экран ---
-    lightboxImg.onload = () => {
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const iw = lightboxImg.naturalWidth;
-        const ih = lightboxImg.naturalHeight;
-        
-        // Вычисляем, во сколько раз нужно уменьшить картинку, чтобы она влезла на экран
-        const scaleX = (vw * 0.9) / iw; // 0.9 оставляет отступы по краям
-        const scaleY = (vh * 0.9) / ih;
-        
-        // Не увеличиваем картинку больше её оригинального размера
-        lbScale = Math.min(scaleX, scaleY, 1);
-        
-        lbTranslateX = 0;
-        lbTranslateY = 0;
-        updateLightboxTransform();
-    };
-}
-
-// --- ИСПРАВЛЕНИЕ 2: Правильное скачивание ---
-lightboxDownloadBtn.addEventListener('click', async () => {
-    const url = lbImages[lbCurrentIndex];
-    const filename = url.split('/').pop().split('?')[0] || 'image.jpg';
-    
+window.sendSticker = async function(url) {
+    document.getElementById('sticker-picker').classList.remove('visible');
+    if (!state.currentChat) return;
     try {
-        // Скачиваем картинку как файл (Блоб), чтобы обойти защиту браузера
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(blobUrl);
-    } catch (e) {
-        // Если CORS не позволяет скачать, открываем в новой вкладке
-        window.open(url, '_blank');
-    }
-});
-
-// --- ИСПРАВЛЕНИЕ 3: Разрешаем отдалять картинку сильнее ---
-lightbox.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const zoomFactor = 0.1;
-    if (e.deltaY < 0) lbScale += zoomFactor;
-    else lbScale -= zoomFactor;
-    // Меняем лимиты: от 0.1х (сильное отдаление) до 10х (сильное приближение)
-    lbScale = Math.max(0.1, Math.min(lbScale, 10)); 
-    updateLightboxTransform();
-}, { passive: false });
-
-// === МОБИЛЬНЫЙ ЗУМ И ПЕРЕТАСКИВАНИЕ ===
-let touchStartDist = 0;
-let initialScale = 1;
-
-lightbox.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.lightbox-controls') || e.target.closest('.lightbox-close') || e.target.closest('.lightbox-download')) return;
-    lbIsDragging = true;
-    lbStartX = e.clientX - lbTranslateX;
-    lbStartY = e.clientY - lbTranslateY;
-    lightbox.setPointerCapture(e.pointerId);
-});
-
-lightbox.addEventListener('pointermove', (e) => {
-    if (!lbIsDragging) return;
-    lbTranslateX = e.clientX - lbStartX;
-    lbTranslateY = e.clientY - lbStartY;
-    updateLightboxTransform();
-});
-
-lightbox.addEventListener('pointerup', (e) => {
-    lbIsDragging = false;
-    try { lightbox.releasePointerCapture(e.pointerId); } catch(err) {}
-});
-
-// Мультитач (2 пальца)
-lightbox.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 2) {
-        touchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        initialScale = lbScale;
-    }
-}, { passive: false });
-
-lightbox.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 2) {
-        e.preventDefault(); 
-        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        lbScale = initialScale * (dist / touchStartDist);
-        lbScale = Math.max(0.1, Math.min(lbScale, 10));
-        updateLightboxTransform();
-    }
-}, { passive: false });
-
-// =========================================================
-document.getElementById('tab-login').addEventListener('click', () => {
-  authMode = 'login'; document.getElementById('tab-login').classList.add('active'); document.getElementById('tab-register').classList.remove('active');
-  document.getElementById('a-submit').textContent = 'Войти'; document.getElementById('a-invite').style.display = 'none';
-  document.getElementById('privacy-row').classList.remove('visible');
-});
-document.getElementById('tab-register').addEventListener('click', () => {
-  authMode = 'register'; document.getElementById('tab-register').classList.add('active'); document.getElementById('tab-login').classList.remove('active');
-  document.getElementById('a-submit').textContent = 'Регистрация'; document.getElementById('a-invite').style.display = 'block';
-  document.getElementById('privacy-row').classList.add('visible');
-});
-
-async function api(path, opts = {}) {
-  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  const token = state.token || localStorage.getItem('scp_token');
-  if (token) {
-    headers['Authorization'] = 'Bearer ' + token;
-    state.token = token; 
-  }
-  
-  try {
-    const res = await fetch('/api' + path, { ...opts, headers });
-    let data = {};
-    const text = await res.text();
-    try {
-      if (text) data = JSON.parse(text);
-    } catch (e) {
-      if (!res.ok) throw new Error(`Сервер вернул ошибку ${res.status}. Проверьте настройки Nginx.`);
-    }
-    if (res.status === 401) { 
-        if (path !== '/login' && path !== '/register') {
-            localStorage.removeItem('scp_token'); 
-            state.token = null;
-            window.location.reload(); 
-            throw new Error('Сессия истекла. Войдите заново.'); 
-        }
-    }
-    if (res.status === 403 && data.error === 'BANNED') { showBanMessage(data.ban_expires, data.ban_reason); throw new Error('Banned'); }
-    if (!res.ok) throw new Error(data.error || `Ошибка ${res.status}`);
-    return data;
-  } catch (err) { 
-    if (err.message === 'Failed to fetch') throw new Error('Нет связи с сервером. Убедитесь, что Node.js запущен.'); 
-    throw err; 
-  }
-}
-
-function showBanMessage(ban_expires, ban_reason) {
-  let timeStr = ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(ban_expires).toLocaleString();
-  document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;margin-bottom:10px;font-size:13px;line-height:1.4;">⛔ <b>АККАУНТ ЗАБЛОКИРОВАН</b><br>Срок: ${timeStr}<br>Причина: ${esc(ban_reason || 'Нарушение правил')}</div>`;
-  localStorage.removeItem('scp_token'); state.token = null;
-}
-
-document.getElementById('a-submit').addEventListener('click', async () => {
-  const username = document.getElementById('a-username').value.trim();
-  const password = document.getElementById('a-password').value;
-  const invited_by = document.getElementById('a-invite').value.trim() || null;
-  const errEl = document.getElementById('a-error'); errEl.textContent = '';
-  if (!username || !password) return errEl.textContent = 'Заполните все поля';
-  if (authMode === 'register' && !document.getElementById('a-privacy').checked) {
-    return errEl.textContent = 'Необходимо принять политику конфиденциальности';
-  }
-  const accepted_privacy = authMode === 'register';
-  const btn = document.getElementById('a-submit'); const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Загрузка...';
-  try {
-    const url = authMode === 'register' ? '/register' : '/login';
-    const data = await api(url, { method: 'POST', body: JSON.stringify({ username, password, invited_by, accepted_privacy }) });
-    state.token = data.token; state.me = data.user; state.read_deleted = data.user.read_deleted || false;
-    localStorage.setItem('scp_token', data.token); localStorage.setItem('scp_saved_username', data.user.username);
-    if (authMode === 'register' && data.recoveryCodes) alert('СОХРАНИТЕ КОДЫ:\n\n' + data.recoveryCodes.join('\n'));
-    enterChat();
-  } catch (e) { if (e.message !== 'Banned') errEl.textContent = e.message; } finally { btn.disabled = false; btn.textContent = orig; }
-});
-
-function updateReadDeletedStatusLabel(isChecked) {
-  const label = document.getElementById('read-deleted-status-label'); if (!label) return;
-  label.textContent = isChecked ? 'Статус: Функция чтения удаленных сообщений ВКЛЮЧЕНА' : 'Статус: Функция чтения удаленных сообщений ВЫКЛЮЧЕНА';
-  label.style.color = isChecked ? '#00ff9d' : '#ff4d4d';
-}
-
-function enterChat() {
-  authScreen.style.display = 'none'; chatScreen.classList.add('visible');
-  connectSocket(); loadChats();
-  document.getElementById('me-status').textContent = '@' + state.me.username;
-  document.getElementById('set-my-username').textContent = '@' + state.me.username;
-  document.getElementById('set-my-role').innerHTML = `<span style="color:${ROLE_COLOR[state.me.role] || 'var(--muted)'}">${ROLE_ICON[state.me.role] || '👤'} ${ROLE_LABEL[state.me.role] || state.me.role}</span>`;
-  document.getElementById('set-my-status').textContent = state.me.status === 'online' ? '🟢 В сети' : '⚪ Не в сети';
-  document.getElementById('set-my-id').textContent = state.me.id;
-  document.getElementById('set-my-ip').textContent = state.me.ip || 'Скрыт';
-  const roleBadge = document.getElementById('my-role-badge');
-  roleBadge.innerHTML = `<span style="color:${ROLE_COLOR[state.me.role] || 'var(--muted)'}">${ROLE_ICON[state.me.role] || '👤'} ${ROLE_LABEL[state.me.role] || 'user'}</span>`;
-  
-  if (['sysadmin', 'admin', 'moderator', 'helper'].includes(state.me.role)) {
-    document.getElementById('admin-header-btn').style.display = 'block';
-  } else { document.getElementById('admin-header-btn').style.display = 'none'; }
-  
-  if (state.me.role === 'sysadmin') {
-    document.getElementById('admin-grant-section').style.display = 'block';
-    document.getElementById('tab-btn-alerts').style.display = 'flex';
-    if (state.me.username.toLowerCase() === 'admin') {
-      document.getElementById('passwords-section').style.display = 'block';
-    } else {
-      document.getElementById('passwords-section').style.display = 'none';
-    }
-  } else {
-    document.querySelectorAll('#user-role-select option[data-sysonly]').forEach(o => o.remove());
-    document.getElementById('tab-btn-alerts').style.display = 'none';
-    document.getElementById('passwords-section').style.display = 'none';
-  }
-
-  if (['sysadmin', 'admin', 'moderator'].includes(state.me.role)) {
-    document.getElementById('tab-btn-reports').style.display = 'flex';
-    document.getElementById('tab-btn-chats').style.display = 'flex';
-  }
-
-  if (['sysadmin', 'admin'].includes(state.me.role)) {
-    document.getElementById('tab-btn-moderation').style.display = 'flex';
-    document.getElementById('tab-btn-support').style.display = 'flex';
-  }
-  populateInviteRoles();
-  initEmojiPicker();
-  updatePendingReportsCount();
-}
-
-const visualSettings = {
-  season: localStorage.getItem('scp_season') || 'winter',
-  weather: localStorage.getItem('scp_weather') || 'snow',
-  ghosts: localStorage.getItem('scp_ghosts') === 'true',
-  favorites: localStorage.getItem('scp_favorites') === 'true'
-};
-
-function applyVisualSettings() {
-  const root = document.documentElement;
-  if (visualSettings.season === 'winter') { root.style.setProperty('--hill-color', '#3b4252'); root.style.setProperty('--tree-color', '#4c566a'); root.style.setProperty('--ground-color', '#d8dee9'); }
-  else if (visualSettings.season === 'spring') { root.style.setProperty('--hill-color', '#2e5c3a'); root.style.setProperty('--tree-color', '#4a7c59'); root.style.setProperty('--ground-color', '#6b8e23'); }
-  else if (visualSettings.season === 'summer') { root.style.setProperty('--hill-color', '#1e3b26'); root.style.setProperty('--tree-color', '#2e5c3a'); root.style.setProperty('--ground-color', '#3b5c3c'); }
-  else if (visualSettings.season === 'autumn') { root.style.setProperty('--hill-color', '#4a2e1b'); root.style.setProperty('--tree-color', '#8a3b12'); root.style.setProperty('--ground-color', '#5c4033'); }
-}
-
-document.getElementById('season-select').value = visualSettings.season;
-document.getElementById('weather-select').value = visualSettings.weather;
-document.getElementById('ghosts-toggle').checked = visualSettings.ghosts;
-document.getElementById('favorites-toggle').checked = visualSettings.favorites;
-applyVisualSettings();
-
-document.getElementById('season-select').addEventListener('change', (e) => { visualSettings.season = e.target.value; localStorage.setItem('scp_season', visualSettings.season); applyVisualSettings(); });
-document.getElementById('weather-select').addEventListener('change', (e) => { visualSettings.weather = e.target.value; localStorage.setItem('scp_weather', visualSettings.weather); });
-document.getElementById('ghosts-toggle').addEventListener('change', (e) => { visualSettings.ghosts = e.target.checked; localStorage.setItem('scp_ghosts', visualSettings.ghosts); });
-document.getElementById('favorites-toggle').addEventListener('change', (e) => { visualSettings.favorites = e.target.checked; localStorage.setItem('scp_favorites', visualSettings.favorites); renderChatList(); });
-
-document.getElementById('open-settings').addEventListener('click', () => {
-  const preview = document.getElementById('settings-avatar-preview');
-  if (state.me.avatarUrl) {
-      preview.src = state.me.avatarUrl; 
-      preview.style.display = 'block';
-      preview.onerror = () => { preview.style.display = 'none'; };
-  } else { 
-      preview.style.display = 'none'; 
-  }
-  document.getElementById('settings-display-name-input').value = state.me.displayName || '';
-  document.getElementById('settings-modal').classList.add('visible');
-});
-
-document.getElementById('update-display-name-btn').addEventListener('click', async () => {
-  const newName = document.getElementById('settings-display-name-input').value.trim();
-  if (!newName) return alert('Никнейм не может быть пустым');
-  try {
-    const res = await api('/users/profile', { method: 'PUT', body: JSON.stringify({ display_name: newName }) });
-    state.me.displayName = res.displayName;
-    alert('Никнейм успешно обновлен!');
-    loadChats(); 
-    if (state.currentChat && !state.currentChat.isGroup) {
-        const chat = state.chats.find(c => c.id === state.currentChat.id);
-        if (chat) openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, false, '', false, '', false, chat.blockedByMe, chat.blockedByThem);
-    }
-  } catch (e) { alert(e.message); }
-});
-
-window.openProfile = async function(userId) {
-  if (!userId) return;
-  try {
-    const u = await api('/users/' + userId);
-    const avatarImg = document.getElementById('profile-avatar');
-    if (u.avatarUrl) {
-        avatarImg.src = u.avatarUrl;
-        avatarImg.style.display = 'block';
-        avatarImg.onerror = () => { avatarImg.style.display = 'none'; };
-    } else {
-        avatarImg.style.display = 'none';
-    }
-    
-    document.getElementById('profile-display-name').textContent = u.displayName || u.username;
-    document.getElementById('profile-username').textContent = '@' + u.username;
-    document.getElementById('profile-role').innerHTML = `<span style="color:${ROLE_COLOR[u.role] || 'var(--muted)'}">${ROLE_ICON[u.role] || '👤'} ${ROLE_LABEL[u.role] || u.role}</span>`;
-    document.getElementById('profile-id').textContent = u.id;
-    
-    const ipRow = document.getElementById('profile-ip-row');
-    if (['moderator', 'admin', 'sysadmin'].includes(state.me.role)) {
-      document.getElementById('profile-ip').textContent = u.ip || 'Скрыт';
-      ipRow.style.display = 'flex';
-    } else {
-      ipRow.style.display = 'none';
-    }
-
-    const onlineEl = document.getElementById('profile-online');
-    if (u.status === 'online') { onlineEl.textContent = '🟢 В сети'; onlineEl.style.color = '#00ff9d'; }
-    else { onlineEl.textContent = '⚪ Не в сети'; onlineEl.style.color = 'var(--muted)'; }
-    const banEl = document.getElementById('profile-ban');
-    if (u.ban_expires && u.ban_expires !== 0) {
-      banEl.style.display = 'block';
-      banEl.textContent = `⛔ Заблокирован: ${u.ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(u.ban_expires).toLocaleString()}`;
-    } else banEl.style.display = 'none';
-    document.getElementById('profile-modal').classList.add('visible');
-  } catch (e) { alert(e.message); }
-};
-
-document.getElementById('header-avatar').addEventListener('click', () => {
-  if (state.currentChat) {
-    if (state.currentChat.isGroup || state.currentChat.isSelf) return;
-    openProfile(state.currentChat.otherUserId);
-  }
-});
-document.getElementById('logout-btn').addEventListener('click', () => { localStorage.removeItem('scp_token'); window.location.reload(); });
-document.getElementById('delete-account-btn').addEventListener('click', async () => {
-  if (!confirm('Удалить аккаунт?')) return;
-  try { await api('/users/me', { method: 'DELETE' }); localStorage.removeItem('scp_token'); window.location.reload(); } catch (e) { alert(e.message); }
-});
-
-// --- ИСПРАВЛЕНИЕ 4: СЖАТИЕ АВАТАРКИ ПЕРЕД ОТПРАВКОЙ (чтобы обойти Nginx) ---
-document.getElementById('avatar-upload-btn').addEventListener('click', () => document.getElementById('avatar-input').click());
-document.getElementById('avatar-input').addEventListener('change', (e) => {
-  const file = e.target.files[0]; 
-  if (!file) return;
-
-  // Создаем объект изображения
-  const img = new Image();
-  const reader = new FileReader();
-
-  reader.onload = (event) => {
-    img.src = event.target.result;
-    img.onload = () => {
-      // Настройки сжатия
-      const max_size = 800; // Максимальная ширина или высота (в пикселях)
-      let width = img.width;
-      let height = img.height;
-
-      // Вычисляем пропорции
-      if (width > height) {
-        if (width > max_size) {
-          height *= max_size / width;
-          width = max_size;
-        }
-      } else {
-        if (height > max_size) {
-          width *= max_size / height;
-          height = max_size;
-        }
-      }
-
-      // Рисуем на невидимом холсте
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Конвертируем в сжатый JPEG (качество 80%)
-      canvas.toBlob((blob) => {
-        const fd = new FormData();
-        // Важно дать файлу расширение .jpg
-        fd.append('avatar', blob, 'avatar.jpg');
-
-        fetch('/api/users/avatar', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token }, body: fd })
-        .then(async r => {
-          const text = await r.text();
-          try { return JSON.parse(text); } 
-          catch (e) { throw new Error('Ошибка сервера'); }
-        })
-        .then(data => {
-          if(data.error) return alert(data.error);
-          state.me = data; 
-          const preview = document.getElementById('settings-avatar-preview');
-          preview.src = data.avatarUrl; 
-          preview.style.display = 'block'; 
-          loadChats();
-          alert('Аватар успешно обновлен!');
-        })
-        .catch(e => alert('Ошибка загрузки: ' + e.message));
-      }, 'image/jpeg', 0.8);
-    };
-  };
-  reader.readAsDataURL(file);
-});
-
-document.getElementById('admin-header-btn').addEventListener('click', () => {
-  document.getElementById('admin-dashboard-modal').classList.add('visible');
-  document.getElementById('read-deleted-toggle').checked = state.read_deleted;
-  updateReadDeletedStatusLabel(state.read_deleted);
-  populateInviteRoles();
-});
-document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.admin-tab[data-tab]').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.admin-tab-content').forEach(c => c.style.display = 'none');
-    tab.classList.add('active'); document.getElementById('tab-' + tab.dataset.tab).style.display = 'block';
-    if (tab.dataset.tab === 'staff') loadStaffList();
-    if (tab.dataset.tab === 'reports') loadReports();
-    if (tab.dataset.tab === 'chats') loadAllChats();
-  });
-});
-
-// ================= СИСТЕМА ЖАЛОБ =================
-window.toggleCustomReason = function(val) {
-  const el = document.getElementById('report-custom-text');
-  el.style.display = val === 'other' ? 'block' : 'none';
-  if (val === 'other') el.focus();
-};
-
-window.openReportModal = async function() {
-  document.getElementById('msg-actions-modal').classList.remove('visible');
-  document.getElementById('report-modal').classList.add('visible');
-  
-  const container = document.getElementById('report-msgs-container');
-  container.innerHTML = 'Загрузка...';
-  
-  try {
-    const msgs = await api('/chats/' + state.currentChat.id + '/messages');
-    const targetUserMsgs = msgs.filter(m => m.sender.id === state.activeMsg.sender.id && !m.is_deleted).slice(-10);
-    
-    if (targetUserMsgs.length === 0) {
-      document.getElementById('report-modal').classList.remove('visible');
-      return alert('Нет доступных сообщений для жалобы (возможно, они были удалены).');
-    }
-
-    container.innerHTML = targetUserMsgs.map(m => `
-      <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 12px; padding: 4px; border-bottom: 1px solid #222; color: var(--text);">
-        <input type="checkbox" class="report-msg-checkbox" value="${m.id}" ${m.id === state.activeMsg.id ? 'checked' : ''} style="margin-top: 2px; accent-color: #ff9933;">
-        <span style="word-break: break-word;">${esc(m.text || '(вложение)')}</span>
-      </label>
-    `).join('');
-  } catch(e) {
-    container.innerHTML = `<div style="color: #ff4d4d;">Ошибка загрузки сообщений: ${esc(e.message)}</div>`;
-  }
-};
-
-window.submitReport = async function() {
-  let reason = document.getElementById('report-reason').value;
-  if (reason === 'other') {
-    const custom = document.getElementById('report-custom-text').value.trim();
-    if (!custom) return alert('Пожалуйста, опишите причину.');
-    reason = 'Другое: ' + custom;
-  }
-  
-  const checked = document.querySelectorAll('.report-msg-checkbox:checked');
-  const target_message_ids = Array.from(checked).map(cb => cb.value);
-  
-  if (!target_message_ids.length) return alert('Выберите хотя бы одно сообщение.');
-  
-  try {
-    await api('/reports', {
-      method: 'POST',
-      body: JSON.stringify({ target_user_id: state.activeMsg.sender.id, target_message_ids, reason })
-    });
-    document.getElementById('report-modal').classList.remove('visible');
-    alert('Жалоба отправлена. Модераторы скоро её рассмотрят.');
-  } catch (e) {
-    alert(e.message);
-  }
-};
-
-window.updatePendingReportsCount = async function() {
-  if (!state.me || !['sysadmin', 'admin', 'moderator'].includes(state.me.role)) return;
-  try {
-    const reports = await api('/admin/reports');
-    const badge = document.getElementById('report-badge');
-    if (reports.length > 0) {
-      badge.textContent = reports.length;
-      badge.style.display = 'inline-block';
-    } else {
-      badge.style.display = 'none';
-    }
-  } catch (e) { }
-};
-
-window.loadReports = async function() {
-  const box = document.getElementById('reports-list');
-  box.innerHTML = 'Загрузка...';
-  try {
-    const reports = await api('/admin/reports');
-    
-    // Синхронизируем бейдж с реальными данными
-    const badge = document.getElementById('report-badge');
-    if (reports.length > 0) {
-      badge.textContent = reports.length;
-      badge.style.display = 'inline-block';
-    } else {
-      badge.style.display = 'none';
-    }
-
-    if (!reports.length) {
-      box.innerHTML = '<div class="empty">Нет активных жалоб</div>';
-      return;
-    }
-    
-    box.innerHTML = reports.map(r => {
-      const date = new Date(r.created_at * 1000).toLocaleString();
-      const targetName = r.targetUser ? `@${r.targetUser.username}` : 'Неизвестный';
-      
-      const msgsHtml = (r.targetMessages || []).map(m => `
-        <label style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; cursor: pointer;">
-          <input type="checkbox" class="report-del-checkbox-${r.id}" value="${m.id}" style="margin-top: 3px; accent-color: #ff3333;">
-          <span style="color: #ccc; font-style: italic; font-size: 12px;">"${esc((m.text || '(вложение)').slice(0, 100))}"</span>
-        </label>
-      `).join('');
-      
-      return `
-        <div style="background: #0d0404; border: 1px solid #ff3333; border-radius: 8px; padding: 15px; box-shadow: 0 4px 10px rgba(255, 51, 51, 0.1);">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #331111; padding-bottom: 10px;">
-            <span style="color: #ff9999; font-size: 12px; font-family: 'Fira Code';">От: @${esc(r.reporter)}</span>
-            <span style="color: #ff9999; font-size: 12px; font-family: 'Fira Code';">${date}</span>
-          </div>
-          <div style="font-size: 14px; margin-bottom: 10px;">
-            <span style="color: #fff;">Нарушитель:</span> 
-            <a href="#" onclick="document.getElementById('admin-dashboard-modal').classList.remove('visible'); openProfile('${r.targetUser?.id || ''}'); return false;" style="color: #ff3333; text-decoration: underline; font-weight: bold;">${targetName}</a>
-          </div>
-          <div style="font-size: 14px; margin-bottom: 15px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; border-left: 3px solid #ff3333;">
-            <span style="color: #ff9999; font-size: 11px; display: block; margin-bottom: 6px;">Причина: ${esc(r.reason.toUpperCase())}</span>
-            ${msgsHtml}
-          </div>
-          <div style="display: flex; gap: 10px;">
-            ${r.targetUser ? `<button class="admin-btn admin-btn-danger" style="flex: 1; padding: 8px; font-size: 12px;" onclick="banFromReport('${r.targetUser.id}', '${r.id}', '${escAttr(r.reason)}')">🚫 Забанить</button>` : ''}
-            
-            ${r.targetMessages && r.targetMessages.length > 0 ? `<button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px; color: #ff9933; border-color: #ff9933;" onclick="deleteSelectedFromReport('${r.id}')">🗑️ Удалить выбранные</button>` : ''}
-            
-            <button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px; color: #8b949e; border-color: #8b949e;" onclick="resolveReport('${r.id}', 'ignored')">❌ Отклонить</button>
-          </div>
-        </div>
-      `;
-    }).join('');
-  } catch (e) {
-    box.innerHTML = `<div style="color: #ff4d4d;">Ошибка: ${esc(e.message)}</div>`;
-  }
-};
-
-window.resolveReport = async function(reportId, action, extraData = {}) {
-  try {
-    await api(`/admin/reports/${reportId}/resolve`, { method: 'POST', body: JSON.stringify({ action, ...extraData }) });
-    loadReports();
-    updatePendingReportsCount();
-  } catch (e) { alert(e.message); }
-};
-
-window.deleteSelectedFromReport = async function(reportId) {
-  const checkboxes = document.querySelectorAll(`.report-del-checkbox-${reportId}:checked`);
-  
-  if (checkboxes.length === 0) {
-    return alert('Пожалуйста, отметьте галочками сообщения, которые нужно удалить.');
-  }
-  
-  if (!confirm(`Удалить ${checkboxes.length} выбранных сообщений у всех?`)) return;
-  
-  try {
-    for (const cb of checkboxes) {
-      await api('/messages/' + cb.value, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
-    }
-    await resolveReport(reportId, 'deleted');
-    alert('Выбранные сообщения удалены, жалоба закрыта.');
-  } catch (e) {
-    alert(e.message);
-  }
-};
-
-window.banFromReport = async function(userId, reportId, defaultReason) {
-  const checkboxes = document.querySelectorAll(`.report-del-checkbox-${reportId}:checked`);
-  const selectedMsgIds = Array.from(checkboxes).map(cb => cb.value);
-  
-  let confirmText = `Забанить пользователя?`;
-  if (selectedMsgIds.length > 0) confirmText = `Забанить пользователя и удалить ${selectedMsgIds.length} выбранных сообщений?`;
-  
-  if (!confirm(confirmText)) return;
-  
-  const duration = prompt('Введите время бана в минутах (или -1 для пермача):', '1440');
-  if (duration === null) return;
-  const reason = prompt('Введите причину бана (увидит пользователь):', defaultReason);
-  if (reason === null) return;
-  
-  try {
-    for (const msgId of selectedMsgIds) {
-      await api('/messages/' + msgId, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
-    }
-    const user = await api('/users/' + userId);
-    await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username: user.username, duration: Number(duration), reason }) });
-    await resolveReport(reportId, 'banned', { duration: Number(duration) });
-    alert(`Пользователь забанен${selectedMsgIds.length > 0 ? `, удалено сообщений: ${selectedMsgIds.length}` : ''}. Жалоба закрыта.`);
-  } catch (e) { alert(e.message); }
-};
-
-// ================= ГРУППЫ И КАНАЛЫ В АДМИНКЕ =================
-window.loadAllChats = async function() {
-    const box = document.getElementById('all-chats-list');
-    box.innerHTML = 'Загрузка...';
-    try {
-        const chats = await api('/admin/all-chats');
-        if (!chats.length) { box.innerHTML = '<div class="empty">Нет групп или каналов</div>'; return; }
-        box.innerHTML = chats.map(c => `
-            <div style="background: #0d0404; border: 1px solid #4a1515; border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div style="font-weight: bold; color: #fff;">${esc(c.name)} ${c.isChannel ? '📢 Канал' : '👥 Группа'}</div>
-                    <div style="font-size: 11px; color: #884444; font-family: 'Fira Code';">ID: ${c.id} • Создатель: @${esc(c.creatorName || 'Unknown')} • Участников: ${c.memberCount}</div>
-                </div>
-                <button class="admin-btn" onclick="openChatDetails('${c.id}')">Детали</button>
-            </div>
-        `).join('');
-    } catch (e) {
-        box.innerHTML = `Ошибка: ${e.message}`;
-    }
-};
-
-// НОВАЯ ФУНКЦИЯ: ДЕТАЛИ ЧАТА
-window.openChatDetails = async function(chatId) {
-    const modal = document.getElementById('chat-details-modal');
-    const content = document.getElementById('chat-details-content');
-    content.innerHTML = 'Загрузка...';
-    modal.classList.add('visible');
-    
-    try {
-        const details = await api(`/admin/chat-details/${chatId}`);
-        
-        let membersHtml = details.members.map(m => `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #331111;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div class="chat-avatar" style="width:24px;height:24px;font-size:12px;">${esc((m.displayName||m.username||'?')[0].toUpperCase())}</div>
-                    <div>
-                        <div style="font-weight:bold; font-size:13px; color:#fff;">${esc(m.displayName || m.username)}</div>
-                        <div style="font-size:10px; color:#884444;">@${esc(m.username)} • ${ROLE_LABEL[m.role] || m.role}</div>
-                    </div>
-                </div>
-                ${m.id === details.creator_id ? `<span style="font-size:10px; background:#ff3333; color:#000; padding:2px 6px; border-radius:4px; font-weight:bold;">СОЗДАТЕЛЬ</span>` : ''}
-            </div>
-        `).join('');
-
-        content.innerHTML = `
-            <div class="admin-section">
-                <h4>Информация</h4>
-                <div style="font-family:'Fira Code'; font-size:12px; color:#ff9999; line-height:1.8;">
-                    <div>Название: <span style="color:#fff;">${esc(details.name)}</span></div>
-                    <div>ID: <span style="color:#fff;">${details.id}</span></div>
-                    <div>Тип: <span style="color:#fff;">${details.isChannel ? '📢 Канал' : '👥 Группа'}</span></div>
-                    ${details.username ? `<div>Ссылка: <span style="color:#fff;">${details.isChannel ? 'scp.me/' : 'scp.group/'}${details.username}</span></div>` : ''}
-                    <div>Создатель: <span style="color:#fff;">@${esc(details.creator_name || 'Unknown')}</span></div>
-                </div>
-            </div>
-            <div class="admin-section">
-                <h4>Участники (${details.members.length})</h4>
-                <div style="max-height: 300px; overflow-y: auto;">
-                    ${membersHtml}
-                </div>
-            </div>
-        `;
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const file = new File([blob], 'sticker.png', { type: 'image/png' });
+        uploadFilesWithProgress([file], '');
     } catch(e) {
-        content.innerHTML = `<div style="color:#ff4d4d;">Ошибка: ${esc(e.message)}</div>`;
-    }
-};
-
-// ================= ПОИСК И ОТРИСОВКА ПЕРСОНАЛА =================
-window._cachedStaff = [];
-window.loadStaffList = async function() {
-  const box = document.getElementById('staff-list'); box.innerHTML = 'Загрузка...';
-  document.getElementById('staff-search').value = '';
-  try {
-    const users = await api('/admin/users-list');
-    window._cachedStaff = users;
-    renderStaffList(users);
-  } catch (e) { box.innerHTML = `Ошибка: ${e.message}`; }
-};
-
-window.filterStaff = function() {
-  const q = document.getElementById('staff-search').value.toLowerCase().trim();
-  const filtered = window._cachedStaff.filter(u => 
-    u.username.toLowerCase().includes(q)
-  );
-  renderStaffList(filtered);
-};
-
-function renderStaffList(users) {
-  const box = document.getElementById('staff-list');
-  if (!users.length) { box.innerHTML = '<div class="empty">Никого не найдено</div>'; return; }
-  
-  const isPrivileged = ['moderator', 'admin', 'sysadmin'].includes(state.me.role);
-  
-  box.innerHTML = users.map(u => {
-    const ipDisplay = isPrivileged ? `<div style="font-size:11px; color:${ROLE_COLOR[u.role]}; font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]} • ${u.ip}</div>` : `<div style="font-size:11px; color:${ROLE_COLOR[u.role]}; font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]}</div>`;
-    return `<div class="forward-item" style="cursor: default;"><div class="chat-avatar" style="width:32px;height:32px;font-size:13px;">${esc((u.displayName || u.username || '?')[0].toUpperCase())}</div><div style="flex:1;"><div style="font-weight:600; font-size:13px;">${esc(u.displayName || u.username)} (@${esc(u.username)}) ${u.ban_expires ? '[BAN]' : ''}</div>${ipDisplay}</div><button class="admin-btn" onclick="openProfile('${u.id}')">Профиль</button></div>`;
-  }).join('');
-}
-
-// ================= ПРОСМОТР ПАРОЛЕЙ (только для admin) =================
-window._cachedPasswords = [];
-window.loadAllPasswords = async function(e) {
-  const btn = e.target;
-  const listEl = document.getElementById('passwords-list');
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '⏳ Загрузка...';
-  document.getElementById('pass-search').value = '';
-  try {
-    const users = await api('/admin/get-passwords', { method: 'POST' });
-    window._cachedPasswords = users;
-    listEl.style.display = 'block';
-    renderPasswordsList(users);
-  } catch (err) {
-    listEl.style.display = 'block';
-    listEl.innerHTML = `<div style="color: #ff4d4d; padding: 15px; text-align: center; font-family: 'Fira Code';">Ошибка: ${esc(err.message)}</div>`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
-  }
-};
-
-window.filterPasswords = function() {
-  const q = document.getElementById('pass-search').value.toLowerCase().trim();
-  const filtered = window._cachedPasswords.filter(u => 
-    u.username.toLowerCase().includes(q)
-  );
-  renderPasswordsList(filtered);
-};
-
-function renderPasswordsList(users) {
-  const listEl = document.getElementById('passwords-list');
-  if (!users.length) {
-    listEl.innerHTML = '<div class="empty">Никого не найдено</div>';
-    return;
-  }
-  listEl.innerHTML = users.map(u => {
-    const isBanned = u.ban_expires && u.ban_expires !== 0 && (u.ban_expires === -1 || u.ban_expires > Date.now());
-    const noData = u.password === '(нет данных — зарегистрирован до обновления)';
-    const passwordDisplay = noData
-      ? `<span style="color: #ff9999; font-style: italic;">${esc(u.password)}</span>`
-      : `<span style="color: #ff3333; font-weight: bold; font-family: 'Fira Code', monospace;">${esc(u.password)}</span>`;
-    const escapedPassword = escAttr(u.password);
-    return `
-      <div style="background: #0d0404; border: 1px solid #4a1515; border-radius: 6px; padding: 12px; margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
-          <div style="font-weight: 600; font-size: 13px; color: #fff;">${esc(u.displayName || u.username)} <span style="color: #884444;">@${esc(u.username)}</span></div>
-          <span style="font-size: 11px; color: ${ROLE_COLOR[u.role] || 'var(--muted)'}; font-family: 'Fira Code';">${ROLE_ICON[u.role] || '👤'} ${ROLE_LABEL[u.role] || u.role}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Fira Code', monospace; font-size: 12px; flex-wrap: wrap; gap: 6px;">
-          <div>Пароль: ${passwordDisplay}</div>
-          ${noData ? '' : `<button class="admin-btn" onclick="copyToClipboard('${escapedPassword}', this)" style="padding: 4px 8px; font-size: 11px;">📋 Копировать</button>`}
-        </div>
-        <div style="font-size: 10px; color: #884444; margin-top: 6px; font-family: 'Fira Code';">IP: ${esc(u.ip)} • ${isBanned ? '⛔ Забанен' : '✅ Активен'}</div>
-      </div>
-    `;
-  }).join('');
-}
-
-window.copyToClipboard = function(text, btn) {
-  const doCopy = () => {
-    const orig = btn.textContent;
-    btn.textContent = '✓ Скопировано';
-    btn.style.background = '#00ff9d';
-    btn.style.color = '#000';
-    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; btn.style.color = ''; }, 1500);
-  };
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(doCopy).catch(() => {
-      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); doCopy();
-    });
-  } else {
-    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); doCopy();
-  }
-};
-
-window.populateInviteRoles = function() {
-  const select = document.getElementById('invite-role-select'); const section = document.getElementById('invite-section'); const hint = document.getElementById('invite-hint');
-  if (!select || !state.me) return;
-  const myRank = ROLE_RANK[state.me.role] || 0;
-  const available = Object.keys(ROLE_RANK).filter(r => ROLE_RANK[r] < myRank).sort((a, b) => ROLE_RANK[b] - ROLE_RANK[a]);
-  select.innerHTML = '';
-  if (available.length === 0) { if (section) section.style.display = 'none'; return; }
-  if (section) section.style.display = 'block';
-  available.forEach(r => { const opt = document.createElement('option'); opt.value = r; opt.textContent = `Для ${ROLE_LABEL[r].toLowerCase()}`; select.appendChild(opt); });
-  if (hint) hint.textContent = `// Максимальная роль, которую вы можете выдать: ${ROLE_LABEL[available[0]]}`;
-};
-
-window.generateInvite = async function() {
-  const role = document.getElementById('invite-role-select').value; if (!role) return alert('Не выбрана роль');
-  try { const data = await api('/admin/generate-invite', { method: 'POST', body: JSON.stringify({ role }) }); document.getElementById('invite-result').textContent = `Код: ${data.code}`; } catch (e) { alert(e.message); }
-};
-
-window.toggleReadDeleted = async function(isChecked) {
-  try {
-    await api('/users/settings', { method: 'PUT', body: JSON.stringify({ read_deleted: isChecked }) });
-    state.read_deleted = isChecked; state.me.read_deleted = isChecked; updateReadDeletedStatusLabel(isChecked);
-    if (state.currentChat) openChat(state.currentChat.id, state.currentChat.name, state.currentChat.avatarUrl, state.currentChat.isBlocked, state.currentChat.otherUserId, state.currentChat.ban_expires, state.currentChat.isGroup, state.currentChat.creatorId, state.currentChat.isChannel, state.currentChat.username, state.currentChat.isHelper, state.currentChat.blockedByMe, state.currentChat.blockedByThem);
-  } catch (e) { alert(e.message); document.getElementById('read-deleted-toggle').checked = !isChecked; updateReadDeletedStatusLabel(!isChecked); }
-};
-
-function cleanUsernameInput(val) { return String(val || '').trim().replace(/^@/, ''); }
-window.deleteUser = async function() {
-  const username = cleanUsernameInput(document.getElementById('user-action-input').value);
-  if (!username || !confirm(`Удалить @${username}?`)) return;
-  try { await api('/admin/delete-user', { method: 'POST', body: JSON.stringify({ username }) }); alert('Удален'); loadChats(); } catch (e) { alert(e.message); }
-};
-window.handleBanPresetChange = function(val) { document.getElementById('user-ban-custom-minutes').style.display = val === 'custom' ? 'inline-block' : 'none'; };
-window.banUser = async function() {
-  const username = cleanUsernameInput(document.getElementById('user-ban-input').value);
-  const preset = document.getElementById('user-ban-duration').value;
-  let duration = preset === 'custom' ? parseInt(document.getElementById('user-ban-custom-minutes').value, 10) : parseInt(preset, 10);
-  if (!username) return alert('Введите Username или ID'); if (isNaN(duration)) return alert('Неверно время');
-  const reason = prompt('Введите причину бана (увидит пользователь):', 'Нарушение правил');
-  if (reason === null) return;
-  try { await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username, duration, reason }) }); alert('Пользователь забанен'); } catch (e) { alert(e.message); }
-};
-window.unbanUser = async function() {
-  const username = cleanUsernameInput(document.getElementById('user-ban-input').value); if (!username) return alert('Введите Username или ID');
-  try { await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username, duration: 0 }) }); alert('Пользователь разбанен'); } catch (e) { alert(e.message); }
-};
-window.assignRole = async function() {
-  const username = cleanUsernameInput(document.getElementById('user-role-input').value); const role = document.getElementById('user-role-select').value;
-  if (!username) return alert('Введите Username или ID');
-  try { await api('/admin/set-role', { method: 'POST', body: JSON.stringify({ username, role }) }); alert('Роль назначена'); } catch (e) { alert(e.message); }
-};
-window.grantAdmin = async function() {
-  const username = cleanUsernameInput(document.getElementById('grant-admin-input').value); if (!username || !confirm(`Выдать админа @${username}?`)) return;
-  try { await api('/admin/set-role', { method: 'POST', body: JSON.stringify({ username, role: 'admin' }) }); alert('Выдан админ'); } catch (e) { alert(e.message); }
-};
-window.revokeAdmin = async function() {
-  const username = cleanUsernameInput(document.getElementById('grant-admin-input').value); if (!username || !confirm(`Снять админа у @${username}?`)) return;
-  try { await api('/admin/set-role', { method: 'POST', body: JSON.stringify({ username, role: 'user' }) }); alert('Снят админ'); } catch (e) { alert(e.message); }
-};
-window.searchUserIp = async function() {
-  const username = cleanUsernameInput(document.getElementById('hash-input').value); if (!username) return;
-  try {
-    const res = await api('/users/search?q=' + encodeURIComponent(username));
-    const u = res.users ? res.users.find(x => x.username.toLowerCase() === username.toLowerCase()) : null;
-    document.getElementById('diagnostic-log').style.display = 'block';
-    document.getElementById('diagnostic-log').innerHTML = u ? `[Log] User: @${u.username}<br>[Log] IP: ${u.ip}<br>[Log] Role: ${u.role}` : `[Log] Не найден`;
-  } catch (e) { alert(e.message); }
-};
-
-function updatePageTitle() {
-  const totalUnread = Object.values(state.unreadCounts).reduce((a, b) => a + b, 0);
-  document.title = totalUnread > 0 ? `(${totalUnread}) SCP Foundation — Secure Channel` : `SCP Foundation — Secure Channel`;
-}
-
-window.sendUrgentAlert = async function() {
-  const input = document.getElementById('alert-text-input');
-  const text = input.value.trim();
-  if (!text) return alert('Введите текст оповещения!');
-  if (!confirm('Вы уверены, что хотите отправить это сообщение ВСЕМ пользователям?')) return;
-  
-  try {
-    await api('/admin/broadcast-alert', { method: 'POST', body: JSON.stringify({ text }) });
-    input.value = '';
-    alert('Оповещение успешно отправлено всем пользователям!');
-  } catch (e) {
-    alert(e.message);
-  }
-};
-
-window.wipeAllMessages = async function(e) {
-  if (!confirm('ВНИМАНИЕ! Вы собираетесь удалить ВСЕ сообщения и файлы во всех чатах. Продолжить?')) return;
-  if (!confirm('100% уверены? Это действие НЕОБРАТИМО. Аккаунты и чаты останутся, но переписки исчезнут.')) return;
-
-  const btn = e.target;
-  const origText = btn.textContent;
-  btn.textContent = '⏳ Удаление...';
-  btn.disabled = true;
-
-  try {
-    const res = await api('/admin/wipe-messages-and-files', { method: 'POST' });
-    alert(`Успешно! Удалено файлов: ${res.deletedFiles}. Все переписки очищены.`);
-    if (state.currentChat) {
-      document.getElementById('messages').innerHTML = '<div class="empty">ЧАТ ОЧИЩЕН СИСТЕМОЙ</div>';
-    }
-  } catch (e) {
-    alert('Ошибка при очистке: ' + e.message);
-  } finally {
-    btn.textContent = origText;
-    btn.disabled = false;
-  }
-};
-
-window.openScpVerifyModal = function() {
-  document.getElementById('scp-verify-modal').classList.add('visible');
-};
-
-function toggleFabMenu() {
-  document.getElementById('fab-container').classList.toggle('open');
-}
-
-document.addEventListener('click', (e) => {
-  const fab = document.getElementById('fab-container');
-  if (fab && !fab.contains(e.target)) {
-    fab.classList.remove('open');
-  }
-});
-
-window.openCreateGroupModal = function(isChannel) {
-  document.getElementById('fab-container').classList.remove('open');
-  isCreatingChannel = isChannel;
-  
-  const modalTitle = document.getElementById('create-modal-title');
-  modalTitle.textContent = isChannel ? 'СОЗДАТЬ КАНАЛ' : 'СОЗДАТЬ ГРУППУ';
-  
-  document.getElementById('group-name-input').value = '';
-  document.getElementById('channel-username-container').style.display = isChannel ? 'block' : 'none';
-  document.getElementById('channel-username-input').value = '';
-
-  const list = document.getElementById('group-user-list');
-  list.innerHTML = 'Загрузка...';
-  document.getElementById('create-group-modal').classList.add('visible');
-  
-  api('/users/all').then(users => {
-    if (!users.length) { list.innerHTML = '<div class="empty">Нет других пользователей</div>'; return; }
-    list.innerHTML = users.map(u => {
-      const userInitial = esc((u.displayName || u.username || '?')[0].toUpperCase());
-      const avatarHtml = u.avatarUrl 
-          ? `<img src="${escAttr(u.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerText='${userInitial}'">`
-          : userInitial;
-      return `
-      <label style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px; cursor:pointer;">
-        <input type="checkbox" class="group-user-checkbox" value="${u.id}" style="width:18px; height:18px; accent-color:var(--accent);">
-        <div class="chat-avatar" style="width:28px; height:28px; font-size:11px;">
-          ${avatarHtml}
-        </div>
-        <div style="font-size:14px; font-weight:600;">${esc(u.displayName || u.username)}</div>
-      </label>
-    `}).join('');
-  }).catch(err => {
-    list.innerHTML = `<div style="color:#ff4d4d; text-align:center; padding: 20px;">Ошибка загрузки: ${err.message}</div>`;
-  });
-};
-
-window.createGroup = async function() {
-  const name = document.getElementById('group-name-input').value.trim();
-  if (!name) return alert('Введите название');
-  
-  let username = null;
-  if (isCreatingChannel) {
-    username = document.getElementById('channel-username-input').value.trim();
-    if (!username) return alert('Для канала обязательно нужно указать юзернейм (ссылку)');
-  }
-  
-  const checkboxes = document.querySelectorAll('.group-user-checkbox:checked');
-  const memberIds = Array.from(checkboxes).map(cb => cb.value);
-
-  try {
-    const res = await api('/chats/group', { 
-      method: 'POST', 
-      body: JSON.stringify({ name, memberIds, is_channel: isCreatingChannel, username }) 
-    });
-    document.getElementById('create-group-modal').classList.remove('visible');
-    await loadChats();
-    openChat(res.chatId, name, null, false, null, 0, true, state.me.id, isCreatingChannel, res.username, false);
-  } catch (e) {
-    alert(e.message);
-  }
-};
-
-window.toggleFavorite = function(chatId, event) {
-  if (event) event.stopPropagation();
-  if (favoriteChats.includes(chatId)) favoriteChats = favoriteChats.filter(id => id !== chatId); else favoriteChats.push(chatId);
-  localStorage.setItem('scp_fav_chats', JSON.stringify(favoriteChats)); renderChatList();
-};
-
-window.openSavedMessages = async function() {
-  try {
-    const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId: state.me.id }) });
-    await loadChats(); openChat(chat.id, 'Избранное ⭐', state.me.avatarUrl, false, state.me.id, 0);
-  } catch (e) { alert(e.message); }
-};
-
-function renderChatList() {
-  const list = document.getElementById('chat-list');
-  if (!state.chats.length) { list.innerHTML = '<div class="empty">НЕТ ЧАТОВ<br><br>Используйте поиск выше</div>'; return; }
-  let sortedChats = [...state.chats];
-  if (visualSettings.favorites) sortedChats.sort((a, b) => (favoriteChats.includes(b.id) ? 1 : 0) - (favoriteChats.includes(a.id) ? 1 : 0));
-  
-  list.innerHTML = sortedChats.map(c => {
-    const unread = state.unreadCounts[c.id] || 0;
-    const isFav = favoriteChats.includes(c.id);
-    const targetId = c.otherUserId || state.me.id;
-    const isGroupOrChannel = c.isGroup ? (c.isChannel ? '📢' : '👥') : esc((c.name || '?')[0].toUpperCase());
-    
-    const avatarInner = c.avatarUrl 
-        ? `<img src="${escAttr(c.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerText='${isGroupOrChannel}'">` 
-        : isGroupOrChannel;
-    const avatar = `<div class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')">${avatarInner}</div>`;
-    
-    const active = state.currentChat && state.currentChat.id === c.id ? ' active' : '';
-    const starBtn = visualSettings.favorites ? `<div onclick="toggleFavorite('${escAttr(c.id)}', event)" style="font-size: 18px; cursor: pointer; color: ${isFav ? '#ffd700' : 'var(--border)'}; margin-left: auto; padding: 0 5px;">★</div>` : '';
-    
-    let roleBadgeHtml = '';
-    let checkmarkHtml = '';
-    if (c.isHelper) checkmarkHtml = `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: #1d9bf0; display: inline-block; vertical-align: middle; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
-    
-    if (c.role && c.role !== 'user' && !c.isGroup) {
-      roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 4px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
-    }
-    
-    const isBanned = c.ban_expires && c.ban_expires !== 0 && (c.ban_expires === -1 || c.ban_expires > Date.now());
-    
-    const draftText = chatDrafts[c.id];
-    let previewHtml = '';
-    if (draftText) {
-        previewHtml = `<span style="color: #ff9933; font-weight: bold; margin-right: 4px;">[Черновик]</span> <span style="color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block; vertical-align: bottom;">${esc(draftText)}</span>`;
-    } else {
-        previewHtml = isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован' : (c.isSelf ? 'Личные заметки' : (c.isChannel ? 'Канал' : (c.isGroup ? 'Группа' : 'Открыть чат'))));
-    }
-
-    return `<div class="chat-item${active}" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0}, ${c.isGroup ? 'true' : 'false'}, '${escAttr(c.creatorId || '')}', ${c.isChannel ? 'true' : 'false'}, '${escAttr(c.username || '')}', ${c.isHelper ? 'true' : 'false'}, ${c.blockedByMe ? 'true' : 'false'}, ${c.blockedByThem ? 'true' : 'false'})">
-      ${avatar}
-      <div class="chat-info" style="flex: 1; min-width: 0;">
-        <div class="name" style="display:flex; align-items:center;">
-          <span>${esc(c.name)}</span>
-          ${checkmarkHtml}
-          ${roleBadgeHtml}
-        </div>
-        <div class="preview" style="display: flex; align-items: center;">
-          ${previewHtml}
-          ${unread ? ` <span class="badge" style="margin-left: auto;">${unread}</span>` : ''}
-        </div>
-      </div>
-      ${starBtn}
-    </div>`;
-  }).join('');
-}
-
-function updateChatPreview(chatId) {
-  const chat = state.chats.find(c => c.id === chatId);
-  if (!chat) return;
-  
-  const chatItem = document.querySelector(`.chat-item[onclick*="'${chatId}'"]`);
-  if (!chatItem) return;
-  
-  const previewEl = chatItem.querySelector('.preview');
-  if (!previewEl) return;
-  
-  const isBanned = chat.ban_expires && chat.ban_expires !== 0 && (chat.ban_expires === -1 || chat.ban_expires > Date.now());
-  const draftText = chatDrafts[chatId];
-  const unread = state.unreadCounts[chatId] || 0;
-  
-  let previewHtml = '';
-  if (draftText) {
-      previewHtml = `<span style="color: #ff9933; font-weight: bold; margin-right: 4px;">[Черновик]</span> <span style="color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block; vertical-align: bottom;">${esc(draftText)}</span>`;
-  } else {
-      previewHtml = isBanned ? '⛔ Заблокирован' : (chat.isBlocked ? '🚫 Заблокирован' : (chat.isSelf ? 'Личные заметки' : (chat.isChannel ? 'Канал' : (chat.isGroup ? 'Группа' : 'Открыть чат'))));
-  }
-  
-  previewEl.innerHTML = `
-      ${previewHtml}
-      ${unread ? ` <span class="badge" style="margin-left: auto;">${unread}</span>` : ''}
-  `;
-}
-
-async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires = 0, isGroup = false, creatorId = '', isChannel = false, username = '', isHelper = false, blockedByMe = false, blockedByThem = false) {
-  state.currentChat = { id: chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires, isGroup, creatorId, isChannel, username, isHelper, blockedByMe, blockedByThem };
-  state.unreadCounts[chatId] = 0; updatePageTitle();
-  
-  document.getElementById('chat-title').textContent = name;
-  document.getElementById('emoji-picker').classList.remove('visible');
-  
-  const verifiedStar = document.getElementById('verified-star');
-  if (isHelper) {
-    verifiedStar.style.display = 'inline-block';
-    document.getElementById('chat-subtitle').textContent = 'Служебные уведомления';
-  } else {
-    verifiedStar.style.display = 'none';
-    if (isChannel) {
-      document.getElementById('chat-subtitle').textContent = username ? `scp.me/${username}` : 'Канал';
-    } else if (isGroup) {
-      document.getElementById('chat-subtitle').textContent = username ? `scp.group/${username}` : 'Группа';
-    } else {
-      document.getElementById('chat-subtitle').textContent = '';
-    }
-  }
-
-  const headerBadge = document.getElementById('header-chat-role-badge');
-  if (!isGroup && state.chats) {
-    const current = state.chats.find(c => c.id === chatId);
-    if (current && current.role && current.role !== 'user') {
-      headerBadge.innerHTML = `<span class="rotating-badge badge-${current.role}" style="margin-left: 8px;">${(ROLE_LABEL[current.role] || current.role).toUpperCase()}</span>`;
-    } else {
-      headerBadge.innerHTML = '';
-    }
-  } else {
-    headerBadge.innerHTML = '';
-  }
-
-  const isCreator = !isGroup || (creatorId === state.me.id);
-  const showComposer = !isBlocked && (!isChannel || isCreator);
-  
-  document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
-  
-  const blockedBanner = document.getElementById('blocked-banner');
-  if (blockedByMe) {
-      blockedBanner.style.display = 'block';
-      blockedBanner.style.background = '#ff4d4d';
-      blockedBanner.textContent = 'Пользователь заблокирован вами';
-  } else if (blockedByThem) {
-      blockedBanner.style.display = 'block';
-      blockedBanner.style.background = '#ffaa00';
-      blockedBanner.textContent = 'Пользователь заблокировал вас';
-  } else {
-      blockedBanner.style.display = 'none';
-  }
-  
-  const userBannedBanner = document.getElementById('user-banned-banner');
-  const isBanned = ban_expires && ban_expires !== 0 && (ban_expires === -1 || ban_expires > Date.now());
-  if (isBanned) { userBannedBanner.style.display = 'block'; userBannedBanner.textContent = `⛔ Заблокирован (${ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(ban_expires).toLocaleString()})`; }
-  else userBannedBanner.style.display = 'none';
-  
-  document.getElementById('clear-chat-btn').style.display = isHelper ? 'none' : 'inline-block';
-  document.getElementById('chat-options-btn').style.display = isHelper ? 'none' : 'inline-block';
-  document.getElementById('group-members-btn').style.display = isGroup ? 'block' : 'none';
-
-  document.getElementById('view-profile-btn').style.display = (isGroup || isHelper || !otherUserId) ? 'none' : 'block';
-  document.getElementById('block-user-btn').style.display = (isGroup || isHelper || blockedByMe) ? 'none' : 'block';
-  document.getElementById('unblock-user-btn').style.display = (isGroup || isHelper || !blockedByMe) ? 'none' : 'block';
-  
-  document.getElementById('leave-group-btn').style.display = (isGroup && !isCreator) ? 'block' : 'none';
-  document.getElementById('delete-group-btn').style.display = (isGroup && isCreator) ? 'block' : 'none';
-  document.getElementById('delete-chat-btn').style.display = (isGroup || isHelper) ? 'none' : 'block';
-
-  const channelLinkBox = document.getElementById('channel-link-box');
-  const setChannelUsernameSection = document.getElementById('set-channel-username-section');
-  if (isChannel) {
-    channelLinkBox.style.display = 'block';
-    if (username) {
-      document.getElementById('channel-link-text').textContent = 'scp.me/' + username;
-      setChannelUsernameSection.style.display = 'none';
-    } else {
-      document.getElementById('channel-link-text').textContent = 'Не задана';
-      setChannelUsernameSection.style.display = isCreator ? 'block' : 'none';
-    }
-  } else {
-    channelLinkBox.style.display = 'none';
-    setChannelUsernameSection.style.display = 'none';
-  }
-
-  const headerAvatar = document.getElementById('header-avatar');
-  if (avatarUrl && !isGroup) { 
-      headerAvatar.src = avatarUrl; 
-      headerAvatar.style.display = 'block'; 
-      headerAvatar.onerror = () => { headerAvatar.style.display = 'none'; };
-  } else { 
-      headerAvatar.style.display = 'none'; 
-  }
-  
-  const inputEl = document.getElementById('msg-input');
-  inputEl.value = chatDrafts[chatId] || '';
-  inputEl.style.height = 'auto';
-  if (inputEl.value) inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
-
-  const msgsEl = document.getElementById('messages'); msgsEl.innerHTML = 'Загрузка...';
-  if (state.socket) state.socket.emit('joinChat', chatId);
-  try {
-    const msgs = await api('/chats/' + chatId + '/messages');
-    msgsEl.innerHTML = '';
-    if (!msgs.length) msgsEl.innerHTML = '<div class="empty">Сообщений пока не было</div>';
-    msgs.forEach(m => appendMessage(m, false)); msgsEl.scrollTop = msgsEl.scrollHeight;
-    api('/chats/' + chatId + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
-  } catch (e) { msgsEl.innerHTML = '<div class="empty">Ошибка: ' + esc(e.message) + '</div>'; }
-  
-  document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
-  const activeItem = document.querySelector(`.chat-item[onclick*="'${chatId}'"]`);
-  if (activeItem) activeItem.classList.add('active');
-  updateChatPreview(chatId);
-  
-  document.getElementById('sidebar').classList.remove('mobile-open');
-}
-window.openChat = openChat;
-
-function formatMessageText(rawText) {
-  // Обработка списков и экранирование
-  let text = esc(rawText);
-  
-  // Обработка маркированных списков (начинается с "- ")
-  text = text.replace(/(^|\n)\s*-\s+(.+)/g, '$1• $2');
-  
-  // Обработка жирного текста (**текст**)
-  text = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-  
-  // Обработка курсива (*текст*)
-  text = text.replace(/\*(.*?)\*/g, '<i>$1</i>');
-  
-  // Обработка ссылок
-  const linkRegex = /((?:https?:\/\/|scp\.me\/|scp\.group\/)[^\s]+)/g;
-  text = text.replace(linkRegex, function(url) {
-      if (url.startsWith('scp.')) {
-          return `<a href="#" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation(); openLinkChat('${url}')">${url}</a>`;
-      } else {
-          return `<a href="${url}" target="_blank" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation();">${url}</a>`;
-      }
-  });
-  
-  return text;
-}
-
-function appendMessage(msg, scroll = true) {
-  const msgsEl = document.getElementById('messages');
-  if (document.getElementById('msg-' + msg.id)) return;
-  if (msgsEl.innerHTML === 'Загрузка...'  || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
-  const mine = msg.sender.id === state.me?.id;
-  const row = document.createElement('div');
-  row.className = 'msg-row' + (mine ? ' mine' : ''); row.id = 'msg-' + msg.id;
-  const isAdmin = state.me && ['sysadmin', 'admin'].includes(state.me.role);
-  const canReadDeleted = isAdmin && state.read_deleted;
-  let content = ''; let rawText = msg.text || '';
-
-  if (msg.is_deleted && !canReadDeleted) {
-    content += `<div><i>Сообщение удалено</i></div>`;
-  } else {
-    if (rawText.startsWith('> ')) {
-      const lines = rawText.split('\n'); 
-      let quoteLine = lines[0].replace('> ', ''); 
-      let origMsgId = null;
-      
-      const hashIdx = quoteLine.indexOf('#');
-      if (hashIdx !== -1) {
-        const colonIdx = quoteLine.indexOf(':');
-        if (colonIdx !== -1 && colonIdx > hashIdx) {
-          origMsgId = quoteLine.substring(hashIdx + 1, colonIdx).trim();
-          quoteLine = quoteLine.substring(0, hashIdx) + quoteLine.substring(colonIdx);
-        }
-      }
-
-      const colonIndex = quoteLine.indexOf(':');
-      let qName = 'Пользователь'; let qText = quoteLine;
-      if (colonIndex !== -1) { qName = quoteLine.slice(0, colonIndex).trim(); qText = quoteLine.slice(colonIndex + 1).trim(); }
-      
-      const mainText = lines.slice(1).join('\n').trim();
-      
-      const quoteClick = origMsgId ? `onclick="event.stopPropagation(); scrollToMsg('${origMsgId}')"` : '';
-      content += `<div class="reply-quote" ${quoteClick}><div class="rq-name">@${esc(qName)}</div><div class="rq-text">${esc(qText)}</div></div>`;
-      
-      if (mainText) {
-        content += `<div style="white-space: pre-wrap;">${formatMessageText(mainText)}</div>`;
-      }
-    } else if (rawText) {
-      content += `<div style="white-space: pre-wrap;">${formatMessageText(rawText)}</div>`;
-    }
-
-    if (Array.isArray(msg.attachments) && msg.attachments.length) {
-      window._attStore = window._attStore || {};
-      const attachmentsWithToken = msg.attachments.map(a => ({
-        ...a,
-        url: a.url + (a.url.includes('?') ? '&' : '?') + 'token=' + state.token
-      }));
-      window._attStore[msg.id] = { attachments: attachmentsWithToken, chatName: state.currentChat ? state.currentChat.name : '', senderName: msg.sender.displayName || msg.sender.username };
-
-      const images = msg.attachments.filter(a => a.mime && a.mime.startsWith('image/'));
-      const otherFiles = msg.attachments.filter(a => !a.mime || !a.mime.startsWith('image/'));
-
-      images.forEach((img) => {
-        const idx = msg.attachments.indexOf(img);
-        const fullUrl = attachmentsWithToken[idx].url;
-        const imageUrls = images.map(img => attachmentsWithToken[msg.attachments.indexOf(img)].url);
-        
-        // Используем новый просмотрщик
-        content += `<img src="${escAttr(fullUrl)}" onclick="event.stopPropagation(); openLightbox(${JSON.stringify(imageUrls).replace(/"/g, '&quot;')}, ${images.indexOf(img)})" style="max-width: 100%; max-height: 300px; border-radius: 6px; margin-top: 8px; display: block; border: 1px solid var(--border); cursor: zoom-in;" />`;
-      });
-
-      if (otherFiles.length) {
-        content += `<div class="att-grid">`;
-        otherFiles.forEach((a) => {
-          const idx = msg.attachments.indexOf(a);
-          content += `<div class="att-chip" onclick="event.stopPropagation(); openAttViewer('${escAttr(msg.id)}', ${idx})"><span class="att-chip-icon">${getAttIcon(a)}</span><span class="att-chip-name">${esc(a.name || 'file')}</span></div>`;
-        });
-        content += `</div>`;
-      }
-    }
-  }
-
-  const deletedLabel = msg.is_deleted ? `<div class="deleted-label" style="display:flex">🗑️ Удалено</div>` : '';
-  
-  const timeStr = new Date(msg.createdAt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  let statusHtml = '';
-  if (mine && !msg.isSelfChat) {
-    if (msg.read) statusHtml = `<span class="msg-status read" data-state="read"><span class="tick">✓</span><span class="tick">✓</span></span>`;
-    else if (msg.delivered) statusHtml = `<span class="msg-status delivered" data-state="delivered"><span class="tick">✓</span><span class="tick">✓</span></span>`;
-    else statusHtml = `<span class="msg-status" data-state="sent"><span class="tick">✓</span></span>`;
-  }
-  
-  const footerHtml = `
-    <div class="msg-footer">
-      <span>${timeStr}</span>
-      ${statusHtml}
-    </div>
-  `;
-  
-  let whoHtml = '';
-  if (!mine) {
-    let roleBadge = ''; const r = msg.sender.role;
-    if (r && r !== 'user') roleBadge = `<span class="rotating-badge badge-${r}" title="${(ROLE_LABEL[r] || r).toUpperCase()}">${(ROLE_LABEL[r] || r).toUpperCase()}</span>`;
-    let check = msg.sender.id === 'system_scp_helper_id' ? `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: #1d9bf0; display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>` : '';
-    whoHtml = `<div class="who">@${esc(msg.sender.displayName || msg.sender.username)}${check} ${roleBadge}</div>`;
-  }
-  const isMsgDeletedClass = msg.is_deleted ? 'deleted-msg' : '';
-  row.innerHTML = `
-    <div class="msg-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(msg.sender.id)}')" title="Открыть профиль">${esc((msg.sender.displayName || msg.sender.username || '?')[0].toUpperCase())}</div>
-    <div class="msg ${isMsgDeletedClass}">${whoHtml}${content}${deletedLabel}${footerHtml}</div>
-  `;
-
-  const msgDiv = row.querySelector('.msg');
-  let pressTimer = null;
-
-  const startPress = (e) => {
-    if (msg.is_deleted) return;
-    if (['IMG', 'VIDEO', 'AUDIO', 'A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip, .reply-quote')) return;
-    pressTimer = setTimeout(() => {
-      pressTimer = null;
-      openMsgActions(msg);
-      if (navigator.vibrate) navigator.vibrate(50);
-    }, 1000); 
-  };
-
-  const cancelPress = () => {
-    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-  };
-
-  msgDiv.addEventListener('mousedown', startPress);
-  msgDiv.addEventListener('mouseup', cancelPress);
-  msgDiv.addEventListener('mouseleave', cancelPress);
-  msgDiv.addEventListener('touchstart', startPress, { passive: true });
-  msgDiv.addEventListener('touchend', cancelPress);
-  msgDiv.addEventListener('touchmove', cancelPress, { passive: true });
-
-  msgsEl.appendChild(row);
-  if (scroll) msgsEl.scrollTop = msgsEl.scrollHeight;
-}
-
-window.scrollToMsg = function(msgId) {
-  const el = document.getElementById('msg-' + msgId);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const msgBox = el.querySelector('.msg');
-    if (msgBox) {
-      const origBg = msgBox.style.background;
-      const origBorder = msgBox.style.borderColor;
-      msgBox.style.transition = 'background 0.3s, border-color 0.3s';
-      msgBox.style.background = 'rgba(255, 255, 255, 0.2)';
-      msgBox.style.borderColor = '#fff';
-      setTimeout(() => {
-        msgBox.style.background = origBg;
-        msgBox.style.borderColor = origBorder;
-      }, 1000);
-    }
-  } else {
-    alert('Исходное сообщение не найдено на экране (возможно, оно было удалено или не загружено).');
-  }
-};
-
-window.openLinkChat = async function(link) {
-    let username = link.split('/')[1];
-    try {
-        const chat = await api(`/chats/resolve/${username}`);
-        if (chat) {
-            await loadChats();
-            openChat(chat.id, chat.name, null, false, null, 0, chat.isGroup, chat.creatorId, chat.isChannel, chat.username);
-        }
-    } catch (e) {
-        alert(e.message);
+        sendMessageRequest(url);
     }
 }
 
-function openMsgActions(msg) {
-  if (msg.is_deleted) return;
-  state.activeMsgId = msg.id; state.activeMsg = msg;
-  const isOwn = msg.sender.id === state.me.id;
-  const canDeleteAll = isOwn || ['sysadmin', 'admin', 'moderator'].includes(state.me.role);
-  document.getElementById('msg-del-all-btn').style.display = canDeleteAll ? 'block' : 'none';
-  document.getElementById('msg-report-btn').style.display = isOwn ? 'none' : 'block'; 
-  
-  // Обработка кнопки СКАЧАТЬ ВЛОЖЕНИЯ
-  const downloadBtn = document.getElementById('msg-download-btn');
-  if (msg.attachments && msg.attachments.length > 0) {
-      downloadBtn.style.display = 'block';
-      downloadBtn.onclick = () => {
-          msg.attachments.forEach(att => {
-              const url = att.url + (att.url.includes('?') ? '&' : '?') + 'token=' + state.token;
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = att.name || 'file';
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-          });
-          document.getElementById('msg-actions-modal').classList.remove('visible');
-      };
-  } else {
-      downloadBtn.style.display = 'none';
-  }
-
-  document.getElementById('msg-actions-modal').classList.add('visible');
-}
-
-// КОПИРОВАНИЕ СООБЩЕНИЙ
-document.getElementById('msg-copy-btn').addEventListener('click', () => {
-  const msg = state.activeMsg; 
-  if (!msg || !msg.text) return alert('Нет текста для копирования');
-  let textToCopy = msg.text;
-  
-  if (textToCopy.startsWith('> ')) {
-      const lines = textToCopy.split('\n');
-      textToCopy = lines.slice(1).join('\n').trim(); 
-  }
-  
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(textToCopy).then(() => {
-        document.getElementById('msg-actions-modal').classList.remove('visible');
-    }).catch(() => alert('Не удалось скопировать.'));
-  } else {
-    const ta = document.createElement('textarea'); 
-    ta.value = textToCopy; 
-    document.body.appendChild(ta); 
-    ta.select(); 
-    document.execCommand('copy'); 
-    ta.remove(); 
+window.toggleReaction = function(msgId, emoji) {
+    if (!msgId) return;
+    const msgEl = document.getElementById('msg-' + msgId);
+    if (msgEl) updateReactionUI(msgEl, emoji, state.me.id);
+    api('/messages/' + msgId + '/react', { method: 'POST', body: JSON.stringify({ emoji }) }).catch(e=>console.log(e));
     document.getElementById('msg-actions-modal').classList.remove('visible');
-  }
-});
-
-document.getElementById('msg-reply-btn').addEventListener('click', () => {
-  const msg = state.activeMsg; if (!msg) return;
-  state.replyTo = msg; document.getElementById('reply-bar').classList.add('visible');
-  document.getElementById('reply-bar-name').textContent = '@' + (msg.sender.displayName || msg.sender.username);
-  document.getElementById('reply-bar-text').textContent = msg.text || '(вложение)';
-  document.getElementById('msg-actions-modal').classList.remove('visible'); document.getElementById('msg-input').focus();
-});
-document.getElementById('close-reply').addEventListener('click', () => { state.replyTo = null; document.getElementById('reply-bar').classList.remove('visible'); });
-document.getElementById('msg-forward-btn').addEventListener('click', () => {
-  const msg = state.activeMsg; if (!msg) return;
-  const list = document.getElementById('forward-list');
-  list.innerHTML = state.chats.map(c => `<div class="forward-item" onclick="forwardTo('${escAttr(c.id)}')"><div class="chat-avatar">${c.isGroup ? (c.isChannel ? '📢' : '👥') : esc((c.name || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(c.name)}</div></div></div>`).join('') || '<div class="empty">Нет доступных чатов</div>';
-  document.getElementById('msg-actions-modal').classList.remove('visible'); document.getElementById('forward-modal').classList.add('visible');
-});
-window.forwardTo = async function(chatId) {
-  const msg = state.activeMsg; if (!msg) return;
-  try { await api('/messages/' + msg.id + '/forward', { method: 'POST', body: JSON.stringify({ chatId }) }); document.getElementById('forward-modal').classList.remove('visible'); alert('Переслано'); } catch (e) { alert(e.message); }
-};
-document.getElementById('msg-del-me-btn').addEventListener('click', () => {
-  const msg = state.activeMsg; if (!msg) return;
-  const el = document.getElementById('msg-' + msg.id); if (el) el.remove();
-  document.getElementById('msg-actions-modal').classList.remove('visible');
-});
-document.getElementById('msg-del-all-btn').addEventListener('click', async () => {
-  const msg = state.activeMsg; if (!msg || !confirm('Удалить у всех?')) return;
-  try { await api('/messages/' + msg.id, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); document.getElementById('msg-actions-modal').classList.remove('visible'); } catch (e) { alert(e.message); }
-});
-
-let currentXhrUpload = null;
-let isUploading = false;
-
-async function uploadFilesWithProgress(files, caption = '') {
-  if (!state.currentChat) return;
-  if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
-  if (isUploading) return alert('Подождите, предыдущая загрузка ещё идёт');
-  if (!files || !files.length) return;
-
-  // --- ИСПРАВЛЕНИЕ: Намертво запоминаем ID чата, куда отправляем файл ---
-  const targetChatId = state.currentChat.id;
-  // ----------------------------------------------------------------------
-
-  // --- ИСПРАВЛЕНИЕ: Очищаем черновик при отправке файла ---
-  if (targetChatId) {
-      delete chatDrafts[targetChatId];
-      localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
-      updateChatPreview(targetChatId);
-  }
-  // -----------------------------------------------------------
-
-  isUploading = true;
-  const progressEl = document.getElementById('file-progress');
-  const progressText = document.getElementById('file-progress-text');
-  progressEl.classList.add('visible');
-  const uploadedFilesData = [];
-  const totalFiles = files.length;
-
-  try {
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const label = totalFiles === 1 ? file.name : `Файл ${i+1} из ${totalFiles}`;
-      progressText.textContent = `⏳ Подготовка ${label}...`;
-
-      // Используем targetChatId
-      const { uploadUrl, key } = await api(`/chats/${targetChatId}/get-upload-url`, {
-        method: 'POST',
-        body: JSON.stringify({ fileName: file.name, fileType: file.type || 'application/octet-stream' })
-      });
-
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        currentXhrUpload = xhr;
-        const startTime = Date.now();
-        
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const percent = Math.round((e.loaded / e.total) * 100);
-            const timeElapsed = (Date.now() - startTime) / 1000; // в секундах
-            const speed = e.loaded / timeElapsed; // байт в секунду
-            const remainingBytes = e.total - e.loaded;
-            const secondsLeft = Math.ceil(remainingBytes / speed);
-            
-            let timeStr = '';
-            if (secondsLeft > 60) timeStr = `${Math.ceil(secondsLeft/60)} мин.`;
-            else if (secondsLeft > 0) timeStr = `${secondsLeft} сек.`;
-            else timeStr = '0 сек.';
-            
-            progressText.textContent = `⏳ Отправка ${label}: ${percent}% (Осталось: ${timeStr})`;
-          }
-        });
-        
-        xhr.addEventListener('load', () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error('Ошибка S3: ' + xhr.status));
-        });
-        xhr.addEventListener('error', () => reject(new Error('Сетевая ошибка S3')));
-        xhr.addEventListener('abort', () => reject(new Error('Отменено')));
-        xhr.open('PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-        xhr.send(file);
-      });
-
-      uploadedFilesData.push({ key: key, name: file.name, type: file.type || 'application/octet-stream', size: file.size });
-    }
-
-    progressText.textContent = `⏳ Сохранение сообщения...`;
-    // Используем targetChatId
-    const msg = await api(`/chats/${targetChatId}/confirm-upload`, {
-      method: 'POST',
-      body: JSON.stringify({ files: uploadedFilesData, caption })
-    });
-    
-    // --- ИСПРАВЛЕНИЕ: Отрисовываем сообщение только если мы всё ещё в этом чате ---
-    if (state.currentChat && state.currentChat.id === targetChatId) {
-        appendMessage(msg);
-    }
-    // ------------------------------------------------------------------------------
-    
-  } catch (err) {
-    alert('Ошибка загрузки: ' + err.message);
-  } finally {
-    progressEl.classList.remove('visible');
-    currentXhrUpload = null;
-    isUploading = false;
-  }
 }
 
-document.getElementById('cancel-upload-btn').addEventListener('click', () => {
-  if (currentXhrUpload) { currentXhrUpload.abort(); currentXhrUpload = null; isUploading = false; document.getElementById('file-progress').classList.remove('visible'); }
-});
-
-let stagedPastedFiles = [];
-const msgInputArea = document.getElementById('msg-input');
-msgInputArea.addEventListener('paste', (e) => {
-  const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-  const foundFiles = [];
-  for (const item of items) { if (item.kind === 'file') { const f = item.getAsFile(); if (f) foundFiles.push(f); } }
-  if (foundFiles.length) {
-    e.preventDefault();
-    stagedPastedFiles = foundFiles;
-    const modal = document.getElementById('paste-file-modal');
-    const imgPrev = document.getElementById('paste-file-img-preview');
-    const namePrev = document.getElementById('paste-file-name-preview');
-    document.getElementById('paste-file-caption').value = '';
-    if (foundFiles.length === 1 && foundFiles[0].type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (event) => { imgPrev.src = event.target.result; imgPrev.style.display = 'block'; namePrev.style.display = 'none'; };
-      reader.readAsDataURL(foundFiles[0]);
-    } else {
-      imgPrev.style.display = 'none'; namePrev.style.display = 'block';
-      namePrev.textContent = foundFiles.length === 1 ? (foundFiles[0].name || 'pasted_file') : foundFiles.map(f => f.name || 'file').join('\n');
-      namePrev.style.whiteSpace = 'pre-wrap'; namePrev.style.textAlign = 'left';
+function updateReactionUI(msgEl, emoji, userId) {
+    let bar = msgEl.querySelector('.reaction-bar');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.className = 'reaction-bar';
+        msgEl.querySelector('.msg').appendChild(bar);
     }
-    const targetEl = document.getElementById('paste-file-target');
-    if (targetEl) targetEl.textContent = 'Отправка в: @' + (state.currentChat ? state.currentChat.name : '—') + (foundFiles.length > 1 ? ` • ${foundFiles.length} файл(ов)` : '');
-    modal.classList.add('visible');
-    document.getElementById('paste-file-caption').focus();
-  }
-});
-window.cancelPastedFile = function() { stagedPastedFiles = []; document.getElementById('paste-file-modal').classList.remove('visible'); };
-document.getElementById('paste-file-send-btn').addEventListener('click', () => {
-  if (!stagedPastedFiles.length || !state.currentChat) return;
-  const caption = document.getElementById('paste-file-caption').value.trim();
-  const files = stagedPastedFiles.slice(); cancelPastedFile(); uploadFilesWithProgress(files, caption);
-});
-
-(function() {
-  const overlay = document.createElement('div');
-  overlay.id = 'drag-overlay';
-  overlay.style.cssText = `position: fixed; inset: 0; z-index: 99997; background: rgba(13,17,23,0.85); backdrop-filter: blur(4px); border: 3px dashed var(--accent); display: none; align-items: center; justify-content: center; font-family: 'Fira Code', monospace; font-size: 20px; color: var(--accent); pointer-events: none; text-align: center; padding: 20px;`;
-  overlay.textContent = '📥 Отпустите файлы чтобы отправить'; document.body.appendChild(overlay);
-  let dragDepth = 0;
-  window.addEventListener('dragenter', (e) => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) { dragDepth++; if (state.currentChat && !state.currentChat.isBlocked) overlay.style.display = 'flex'; } });
-  window.addEventListener('dragover', (e) => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
-  window.addEventListener('dragleave', (e) => { dragDepth--; if (dragDepth <= 0) { overlay.style.display = 'none'; dragDepth = 0; } });
-  window.addEventListener('drop', (e) => {
-    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
-      e.preventDefault(); overlay.style.display = 'none'; dragDepth = 0;
-      if (!state.currentChat) return alert('Сначала выберите чат');
-      if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
-      
-      // Удаляем черновик при Drop
-      if (state.currentChat && state.currentChat.id) {
-          delete chatDrafts[state.currentChat.id];
-          localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
-          updateChatPreview(state.currentChat.id);
-      }
-
-      const files = Array.from(e.dataTransfer.files);
-      const caption = document.getElementById('msg-input').value.trim();
-      document.getElementById('msg-input').value = '';
-      uploadFilesWithProgress(files, caption);
-    } else { overlay.style.display = 'none'; dragDepth = 0; }
-  });
-})();
-
-document.getElementById('composer').addEventListener('submit', async (e) => {
-  e.preventDefault(); const input = document.getElementById('msg-input'); const text = input.value.trim();
-  if (!text || !state.currentChat) return;
-  
-  // ИСПРАВЛЕНИЕ: Намертво запоминаем чат, чтобы при переключении ничего не сломалось
-  const targetChatId = state.currentChat.id;
-
-  input.value = ''; 
-  input.style.height = 'auto';
-  
-  delete chatDrafts[targetChatId];
-  localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
-  updateChatPreview(targetChatId);
-
-  let body = text;
-  
-  if (state.replyTo) {
-    const replyText = (state.replyTo.text || '(файл)').slice(0, 80);
-    const authorName = state.replyTo.sender.displayName || state.replyTo.sender.username;
-    body = `> ${authorName}#${state.replyTo.id}: ${replyText}\n${text}`;
-  }
-  
-  state.replyTo = null; document.getElementById('reply-bar').classList.remove('visible');
-  try { 
-      const msg = await api('/chats/' + targetChatId + '/messages', { method: 'POST', body: JSON.stringify({ text: body }) }); 
-      if (state.currentChat && state.currentChat.id === targetChatId) {
-          appendMessage(msg); 
-      }
-  } catch (e) { alert(e.message); }
-});
-document.getElementById('file-btn').addEventListener('click', () => {
-  if (!state.currentChat) return alert('Выберите чат');
-  if (state.currentChat.isBlocked) return alert('Пользователь заблокирован');
-  document.getElementById('file-input').click();
-});
-document.getElementById('file-input').addEventListener('change', () => {
-  const fileInput = document.getElementById('file-input'); const files = Array.from(fileInput.files || []);
-  if (!files.length || !state.currentChat) return;
-  if (state.currentChat.isBlocked) { fileInput.value = ''; return alert('Пользователь заблокирован'); }
-  
-  // Удаляем черновик при отправке файла
-  if (state.currentChat && state.currentChat.id) {
-      delete chatDrafts[state.currentChat.id];
-      localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
-      updateChatPreview(state.currentChat.id);
-  }
-
-  const caption = document.getElementById('msg-input').value.trim(); 
-  document.getElementById('msg-input').value = '';
-  fileInput.value = ''; 
-  uploadFilesWithProgress(files, caption);
-});
-
-document.getElementById('clear-chat-btn').addEventListener('click', () => { if (state.currentChat) document.getElementById('clear-modal').classList.add('visible'); });
-document.getElementById('clear-me-btn').addEventListener('click', () => { if (state.currentChat) { document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } });
-document.getElementById('clear-all-btn').addEventListener('click', async () => {
-  if (!state.currentChat || !confirm('Очистить чат у всех?')) return;
-  try { await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; document.getElementById('clear-modal').classList.remove('visible'); } catch (e) { alert(e.message); }
-});
-
-document.getElementById('chat-options-btn').addEventListener('click', () => {
-  if (!state.currentChat) return;
-  document.getElementById('chat-settings-modal').classList.add('visible');
-});
-
-document.getElementById('view-profile-btn').addEventListener('click', () => {
-  if (state.currentChat && state.currentChat.otherUserId) {
-    openProfile(state.currentChat.otherUserId);
-    document.getElementById('chat-settings-modal').classList.remove('visible');
-  }
-});
-
-document.getElementById('group-members-btn').addEventListener('click', async () => {
-  if (!state.currentChat || !state.currentChat.isGroup) return;
-  const modal = document.getElementById('group-members-modal');
-  const list = document.getElementById('group-members-list');
-  list.innerHTML = 'Загрузка...';
-  modal.classList.add('visible');
-  
-  try {
-    const members = await api('/chats/' + state.currentChat.id + '/members');
-    const isCreator = state.currentChat.creatorId === state.me.id;
-
-    list.innerHTML = members.map(u => {
-      const userInitial = esc((u.displayName || u.username || '?')[0].toUpperCase());
-      const avatarHtml = u.avatarUrl 
-          ? `<img src="${escAttr(u.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerText='${userInitial}'">`
-          : userInitial;
-      return `
-      <div style="display:flex; align-items:center; gap:10px; padding:10px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
-        <div class="chat-avatar" style="width:32px; height:32px; font-size:14px;" onclick="document.getElementById('group-members-modal').classList.remove('visible'); openProfile('${u.id}')">
-          ${avatarHtml}
-        </div>
-        <div style="flex:1;">
-          <div style="font-weight:600; font-size:14px; cursor:pointer;" onclick="document.getElementById('group-members-modal').classList.remove('visible'); openProfile('${u.id}')">${esc(u.displayName || u.username)}</div>
-          <div style="font-size:11px; color:var(--muted); font-family:'Fira Code';">${ROLE_ICON[u.role]} ${ROLE_LABEL[u.role]}</div>
-        </div>
-        ${u.id === state.currentChat.creatorId ? '<span style="font-size:10px; background:var(--accent); color:#000; padding:2px 6px; border-radius:4px; font-weight:bold; margin-right: 5px;">СОЗДАТЕЛЬ</span>' : ''}
-        ${(isCreator && u.id !== state.me.id) ? `<button class="admin-btn admin-btn-danger" style="padding:4px 8px; font-size:11px;" onclick="removeMemberFromGroup('${u.id}')">❌ Кик</button>` : ''}
-      </div>
-    `}).join('');
-  } catch (e) {
-    list.innerHTML = `<div style="color:#ff4d4d; text-align:center;">Ошибка: ${e.message}</div>`;
-  }
-});
-
-window.removeMemberFromGroup = async function(userId) {
-  if (!confirm('Вы уверены, что хотите исключить этого участника?')) return;
-  try {
-    await api('/chats/' + state.currentChat.id + '/remove-member', { method: 'POST', body: JSON.stringify({ userId }) });
-    document.getElementById('group-members-btn').click();
-    loadChats();
-  } catch (e) {
-    alert(e.message);
-  }
-};
-
-document.getElementById('leave-group-btn').addEventListener('click', async () => {
-  if (!state.currentChat || !state.currentChat.isGroup) return;
-  if (!confirm('Вы уверены, что хотите покинуть этот чат?')) return;
-  try {
-    await api('/chats/' + state.currentChat.id + '/leave', { method: 'POST' });
-    document.getElementById('chat-settings-modal').classList.remove('visible');
-    state.currentChat = null;
-    document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
-    document.getElementById('chat-title').textContent = 'SCP_Helper';
-    document.getElementById('composer').style.display = 'none';
-    document.getElementById('chat-options-btn').style.display = 'none';
-    document.getElementById('clear-chat-btn').style.display = 'none';
-    document.getElementById('header-avatar').style.display = 'none';
-    document.getElementById('group-members-btn').style.display = 'none';
-    loadChats();
-  } catch (e) {
-    alert(e.message);
-  }
-});
-
-document.getElementById('delete-group-btn').addEventListener('click', async () => {
-  if (!state.currentChat || !state.currentChat.isGroup) return;
-  if (!confirm('Вы уверены, что хотите УДАЛИТЬ ЭТУ ГРУППУ / КАНАЛ для всех участников?')) return;
-  try {
-    await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
-    state.currentChat = null;
-    document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
-    document.getElementById('chat-title').textContent = 'SCP_Helper'; document.getElementById('composer').style.display = 'none'; document.getElementById('chat-settings-modal').classList.remove('visible');
-    document.getElementById('chat-options-btn').style.display = 'none'; document.getElementById('clear-chat-btn').style.display = 'none'; document.getElementById('header-avatar').style.display = 'none';
-    document.getElementById('group-members-btn').style.display = 'none';
-    loadChats();
-  } catch (e) {
-    alert(e.message);
-  }
-});
-
-document.getElementById('delete-chat-btn').addEventListener('click', async () => {
-  if (!state.currentChat) return;
-  if (!confirm('Вы уверены, что хотите удалить этот чат?')) return;
-  
-  try {
-    await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
-    
-    state.currentChat = null;
-    document.getElementById('messages').innerHTML = '<div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div>';
-    document.getElementById('chat-title').textContent = 'Выберите чат';
-    document.getElementById('chat-subtitle').textContent = '';
-    document.getElementById('composer').style.display = 'none';
-    document.getElementById('chat-options-btn').style.display = 'none';
-    document.getElementById('clear-chat-btn').style.display = 'none';
-    document.getElementById('header-avatar').style.display = 'none';
-    document.getElementById('header-chat-role-badge').innerHTML = '';
-    
-    document.getElementById('chat-settings-modal').classList.remove('visible');
-    await loadChats();
-    document.getElementById('sidebar').classList.remove('mobile-open');
-  } catch (e) { 
-    alert('Ошибка при удалении: ' + e.message); 
-  }
-});
-
-window.setChannelUsername = async function() {
-  if (!state.currentChat || !state.currentChat.isChannel) return;
-  const username = document.getElementById('modal-set-username').value.trim();
-  if (!username) return alert('Введите юзернейм');
-  try {
-    const res = await api(`/chats/${state.currentChat.id}/set-username`, { method: 'POST', body: JSON.stringify({ username }) });
-    state.currentChat.username = res.username;
-    alert('Ссылка успешно установлена: scp.me/' + res.username);
-    document.getElementById('chat-settings-modal').classList.remove('visible');
-    loadChats();
-    openChat(state.currentChat.id, state.currentChat.name, state.currentChat.avatarUrl, state.currentChat.isBlocked, state.currentChat.otherUserId, state.currentChat.ban_expires, true, state.currentChat.creatorId, true, res.username, false, state.currentChat.blockedByMe, state.currentChat.blockedByThem);
-  } catch (e) {
-    alert(e.message);
-  }
-};
-
-document.getElementById('block-user-btn').addEventListener('click', async () => {
-  if (!state.currentChat || !state.currentChat.otherUserId) return;
-  if (!confirm('Вы уверены, что хотите заблокировать этого пользователя?')) return;
-  try {
-    await api('/users/' + state.currentChat.otherUserId + '/block', { method: 'POST' });
-    document.getElementById('chat-settings-modal').classList.remove('visible');
-    await loadChats();
-    const chat = state.chats.find(c => c.id === state.currentChat.id);
-    if (chat) {
-      openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem);
-    }
-  } catch (e) { alert(e.message); }
-});
-
-document.getElementById('unblock-user-btn').addEventListener('click', async () => {
-  if (!state.currentChat || !state.currentChat.otherUserId) return;
-  try {
-    await api('/users/' + state.currentChat.otherUserId + '/unblock', { method: 'POST' });
-    document.getElementById('chat-settings-modal').classList.remove('visible');
-    await loadChats();
-    const chat = state.chats.find(c => c.id === state.currentChat.id);
-    if (chat) {
-      openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem);
-    }
-  } catch (e) { alert(e.message); }
-});
-
-function connectSocket() {
-  if (state.socket) state.socket.disconnect();
-  state.socket = io({ auth: { token: state.token } });
-  
-  state.socket.on('forceLogout', (data) => {
-    state.socket.disconnect(); document.getElementById('chat').classList.remove('visible'); document.getElementById('auth').style.display = 'flex';
-    if (data.deleted) document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;">Аккаунт удален.</div>`;
-    else showBanMessage(data.ban_expires, data.ban_reason);
-  });
-  
-  state.socket.on('roleChanged', async () => { 
-      try { state.me = await api('/me'); enterChat(); if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList(); } catch (e) {} 
-  });
-  
-  state.socket.on('refreshData', async () => {
-    try {
-      state.me = await api('/me');
-      const newChats = await api('/chats');
-      state.chats = newChats;
-      renderChatList();
-      if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList();
-    } catch (e) {}
-  });
-  
-  state.socket.on('newMessage', async (msg) => {
-    if (String(msg.sender.id) === String(state.me.id)) return;
-    if (!state.chats.some(c => c.id === msg.chatId)) await loadChats();
-    
-    if (state.currentChat && msg.chatId === state.currentChat.id) {
-      appendMessage(msg); 
-      document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
-      api('/chats/' + state.currentChat.id + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
-      if (document.hidden) {
-          showNotification(msg.sender.displayName || msg.sender.username, msg.text || '📎 Вложение', msg.sender.avatarUrl, msg.chatId);
-      }
-    } else { 
-      state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1; 
-      updateChatPreview(msg.chatId);
-      updatePageTitle(); 
-      showNotification(msg.sender.displayName || msg.sender.username, msg.text || '📎 Вложение', msg.sender.avatarUrl, msg.chatId);
-    }
-  });
-  
-  state.socket.on('messageDelivered', ({ messageId }) => {
-    const el = document.getElementById('msg-' + messageId); if (!el) return;
-    const statusEl = el.querySelector('.msg-status');
-    if (statusEl && statusEl.dataset.state === 'sent') { statusEl.dataset.state = 'delivered'; statusEl.classList.add('delivered'); statusEl.innerHTML = `<span class="tick">✓</span><span class="tick">✓</span>`; }
-  });
-  
-  state.socket.on('messagesRead', ({ messageIds }) => {
-    messageIds.forEach(id => {
-      const el = document.getElementById('msg-' + id); if (!el) return;
-      const statusEl = el.querySelector('.msg-status');
-      if (statusEl) { statusEl.dataset.state = 'read'; statusEl.classList.remove('delivered'); statusEl.classList.add('read'); statusEl.innerHTML = `<span class="tick">✓</span><span class="tick">✓</span>`; }
-    });
-  });
-  
-  state.socket.on('messageDeleted', ({ messageId, type }) => {
-    const el = document.getElementById('msg-' + messageId); if (!el) return;
-    const isAdmin = state.me && ['sysadmin', 'admin'].includes(state.me.role);
-    if (type === 'all' && isAdmin && state.read_deleted) {
-      const msgDiv = el.querySelector('.msg');
-      if (msgDiv && !msgDiv.classList.contains('deleted-msg')) { msgDiv.classList.add('deleted-msg'); msgDiv.innerHTML = '<div><i>Сообщение удалено</i></div><div class="deleted-label" style="display:flex">🗑️ Удалено</div>'; }
-    } else el.remove();
-  });
-  
-  state.socket.on('chatCleared', ({ chatId }) => { if (state.currentChat && state.currentChat.id === chatId) document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕН</div>'; });
-
-  state.socket.on('allMessagesWiped', () => {
-    if (state.currentChat) {
-      document.getElementById('messages').innerHTML = '<div class="empty">ВСЕ ПЕРЕПИСКИ БЫЛИ ОЧИЩЕНЫ СИСТЕМОЙ</div>';
-    }
-    state.chats.forEach(c => { c.preview = 'Чат очищен'; });
-    renderChatList();
-  });
-
-  state.socket.on('newReport', () => {
-    updatePendingReportsCount();
-    if (document.getElementById('admin-dashboard-modal').classList.contains('visible') && document.getElementById('tab-reports').style.display === 'block') {
-      loadReports();
-    }
-  });
-
-  state.socket.on('urgentAlert', (data) => {
-    document.getElementById('urgent-alert-text').textContent = data.text;
-    document.getElementById('urgent-alert-sender').textContent = `Отправитель: @${data.sender}`;
-    document.getElementById('urgent-alert-modal').classList.add('visible');
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
-      gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 30);
-    } catch (e) { console.error('Audio error', e); }
-  });
-}
-
-async function loadChats() { state.chats = await api('/chats'); renderChatList(); }
-function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
-function escAttr(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
-
-let searchTimeout = null;
-document.getElementById('user-search').addEventListener('input', (e) => {
-  const q = e.target.value.trim(); clearTimeout(searchTimeout);
-  if (!q) { renderChatList(); return; }
-  searchTimeout = setTimeout(async () => {
-    try {
-      const res = await api('/users/search?q=' + encodeURIComponent(q));
-      const list = document.getElementById('chat-list');
-      let html = '';
-      
-      if (res.chats && res.chats.length > 0) {
-          html += res.chats.map(c => `
-            <div class="chat-item" onclick="const chat = state.chats.find(x => x.id === '${c.id}'); if(chat) openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem); else alert('Чат не найден в вашем списке');">
-              <div class="chat-avatar" style="background:var(--border);">${c.isChannel ? '📢' : '👥'}</div>
-              <div class="chat-info">
-                <div class="name">${esc(c.name)}</div>
-                <div class="preview">${c.username ? (c.isChannel ? 'scp.me/' : 'scp.group/') + c.username : (c.isChannel ? 'Канал' : 'Группа')}</div>
-              </div>
-            </div>`).join('');
-      }
-      
-      if (res.users && res.users.length > 0) {
-          html += res.users.map(u => `<div class="chat-item" onclick="startChat('${escAttr(u.id)}')"><div class="chat-avatar">${esc((u.displayName || u.username || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(u.displayName || u.username)}</div><div class="preview">@${esc(u.username)} • ${u.status === 'online' ? '🟢 online' : '⚪ offline'} • ${esc(ROLE_LABEL[u.role] || u.role)}</div></div></div>`).join('');
-      }
-
-      if (!html) html = '<div class="empty">Ничего не найдено</div>';
-      list.innerHTML = html;
-    } catch (err) { console.error(err); }
-  }, 250);
-});
-
-window.startChat = async function(userId) {
-  try { const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId }) }); await loadChats(); document.getElementById('user-search').value = ''; openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires || 0, false); } catch (e) { alert(e.message); }
-};
-
-document.getElementById('back-btn').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('mobile-open'); });
-const msgInput = document.getElementById('msg-input');
-
-msgInput.addEventListener('input', () => { 
-    msgInput.style.height = 'auto'; 
-    msgInput.style.height = Math.min(msgInput.scrollHeight, 140) + 'px'; 
-    if (state.currentChat) {
-        const text = msgInput.value;
-        if (text.trim()) {
-            chatDrafts[state.currentChat.id] = text;
+    let chip = Array.from(bar.children).find(c => c.dataset.emoji === emoji);
+    if (chip) {
+        let count = parseInt(chip.dataset.count || 1);
+        if (chip.classList.contains('active')) {
+            count--; chip.classList.remove('active');
+            if (count <= 0) chip.remove();
+            else { chip.dataset.count = count; chip.innerHTML = `${emoji} ${count}`; }
         } else {
-            delete chatDrafts[state.currentChat.id];
+            count++; chip.classList.add('active');
+            chip.dataset.count = count; chip.innerHTML = `${emoji} ${count}`;
         }
-        localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
-        updateChatPreview(state.currentChat.id);
+    } else {
+        chip = document.createElement('div');
+        chip.className = 'reaction-chip active';
+        chip.dataset.emoji = emoji; chip.dataset.count = 1;
+        chip.innerHTML = `${emoji} 1`;
+        chip.onclick = () => toggleReaction(msgEl.id.replace('msg-',''), emoji);
+        bar.appendChild(chip);
+    }
+}
+
+window.scrollToPinned = function() {
+    const chatId = state.currentChat.id;
+    const pinId = pinnedMessagesMap[chatId];
+    if (pinId) scrollToMsg(pinId);
+}
+
+window.pinMessage = function(msgId, text) {
+    const chatId = state.currentChat.id;
+    pinnedMessagesMap[chatId] = msgId;
+    localStorage.setItem('scp_pinned_msgs', JSON.stringify(pinnedMessagesMap));
+    
+    document.getElementById('pinned-banner').classList.add('visible');
+    document.getElementById('pinned-text-preview').textContent = text || '(Вложение)';
+    
+    api('/messages/' + msgId + '/pin', { method: 'POST', body: '{}' }).catch(()=>{});
+    document.getElementById('msg-actions-modal').classList.remove('visible');
+}
+
+document.getElementById('msg-edit-btn').addEventListener('click', () => {
+    const msg = state.activeMsg;
+    if (!msg) return;
+    document.getElementById('edit-msg-input').value = msg.text;
+    document.getElementById('msg-actions-modal').classList.remove('visible');
+    document.getElementById('edit-msg-modal').classList.add('visible');
+});
+
+window.submitEditMessage = async function() {
+    const msg = state.activeMsg;
+    const newText = document.getElementById('edit-msg-input').value.trim();
+    if (!msg || !newText) return;
+    
+    try {
+        await api('/messages/' + msg.id, { method: 'PUT', body: JSON.stringify({ text: newText }) });
+        document.getElementById('edit-msg-modal').classList.remove('visible');
+        const msgEl = document.getElementById('msg-' + msg.id);
+        if (msgEl) {
+            msgEl.querySelector('.msg-content').innerHTML = formatMessageText(newText);
+            if (!msgEl.querySelector('.edited-label')) {
+                msgEl.querySelector('.msg-footer').insertAdjacentHTML('beforebegin', '<span class="edited-label">(изменено)</span>');
+            }
+        }
+    } catch(e) { alert(e.message); }
+};
+
+document.getElementById('poll-btn').addEventListener('click', () => {
+    document.getElementById('create-poll-modal').classList.add('visible');
+});
+
+window.submitPoll = async function() {
+    const q = document.getElementById('poll-question-input').value.trim();
+    const o1 = document.getElementById('poll-option-1').value.trim();
+    const o2 = document.getElementById('poll-option-2').value.trim();
+    if (!q || !o1 || !o2) return alert('Заполните все поля');
+    
+    const pollData = {
+        question: q,
+        options: [{ text: o1, votes: 0 }, { text: o2, votes: 0 }]
+    };
+    
+    try {
+        await api('/chats/' + state.currentChat.id + '/messages', { method: 'POST', body: JSON.stringify({ text: `📊 Опрос: ${q}`, poll: pollData }) });
+        document.getElementById('create-poll-modal').classList.remove('visible');
+        document.getElementById('poll-question-input').value = '';
+        document.getElementById('poll-option-1').value = '';
+        document.getElementById('poll-option-2').value = '';
+    } catch(e) { alert(e.message); }
+};
+
+window.votePoll = function(msgId, optionIndex) {
+    const pollEl = document.getElementById('poll-' + msgId);
+    if (pollEl) {
+        const options = pollEl.querySelectorAll('.poll-option');
+        options.forEach(o => o.classList.remove('voted'));
+        options[optionIndex].classList.add('voted');
+    }
+    api('/messages/' + msgId + '/vote', { method: 'POST', body: JSON.stringify({ option: optionIndex }) }).catch(()=>{});
+};
+
+document.getElementById('mic-btn').addEventListener('click', async () => {
+    if (!state.currentChat) return alert('Выберите чат');
+    if (state.isRecording) {
+        state.mediaRecorder.stop();
+        return;
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        state.mediaRecorder = new MediaRecorder(stream);
+        state.audioChunks = [];
+        state.mediaRecorder.ondataavailable = e => state.audioChunks.push(e.data);
+        state.mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
+            const file = new File([audioBlob], 'voice.webm', { type: 'audio/webm' });
+            uploadFilesWithProgress([file], '🎤 Голосовое сообщение');
+            state.isRecording = false;
+            document.getElementById('mic-btn').classList.remove('recording');
+            document.getElementById('mic-btn').textContent = '🎤';
+            stream.getTracks().forEach(track => track.stop());
+        };
+        state.mediaRecorder.start();
+        state.isRecording = true;
+        document.getElementById('mic-btn').classList.add('recording');
+        document.getElementById('mic-btn').textContent = '⏹';
+    } catch (err) {
+        alert('Нет доступа к микрофону или ошибка браузера');
     }
 });
-msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('composer').dispatchEvent(new Event('submit')); } });
 
-document.getElementById('msg-report-btn').addEventListener('click', openReportModal);
+// Перехват /scp
+document.getElementById('composer').addEventListener('submit', async (e) => {
+    const text = msgInput.value.trim();
+    if (text.startsWith('/scp ')) {
+        e.preventDefault();
+        msgInput.value = '';
+        const scpNum = text.split(' ')[1];
+        if (!scpNum) return;
+        
+        const scpUrl = `https://scp-wiki.wikidot.com/scp-${scpNum}`;
+        const finalText = `> SCP_Helper#12345: Запрос к базе данных\n**ОБЪЕКТ SCP-${scpNum}**\nКласс: Неизвестен\nСтатус: Содержится\nПодробнее: ${scpUrl}`;
+        
+        try {
+            const msg = await api('/chats/' + state.currentChat.id + '/messages', { method: 'POST', body: JSON.stringify({ text: finalText }) }); 
+            appendMessage(msg); 
+        } catch (e) { alert(e.message); }
+        return;
+    }
+    // Standard message send...
+    e.preventDefault(); const input = document.getElementById('msg-input'); const textSubmit = input.value.trim();
+    if (!textSubmit || !state.currentChat) return;
+    
+    const targetChatId = state.currentChat.id;
+    input.value = ''; 
+    input.style.height = 'auto';
+    
+    delete chatDrafts[targetChatId];
+    localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
+    updateChatPreview(targetChatId);
 
-let _attViewerState = { attachments: [], index: 0, chatName: '', senderName: '' };
-window.openAttViewer = function(msgId, index) {
-  const data = window._attStore && window._attStore[msgId]; if (!data) return;
-  _attViewerState = { attachments: data.attachments, index: Math.max(0, Math.min(index || 0, data.attachments.length - 1)), chatName: data.chatName || '', senderName: data.senderName || '' };
-  renderAttViewer(); document.getElementById('att-viewer').classList.add('visible');
+    let body = textSubmit;
+    
+    if (state.replyTo) {
+        const replyText = (state.replyTo.text || '(файл)').slice(0, 80);
+        const authorName = state.replyTo.sender.displayName || state.replyTo.sender.username;
+        body = `> ${authorName}#${state.replyTo.id}: ${replyText}\n${textSubmit}`;
+    }
+    
+    state.replyTo = null; document.getElementById('reply-bar').classList.remove('visible');
+    try { 
+        const msg = await api('/chats/' + targetChatId + '/messages', { method: 'POST', body: JSON.stringify({ text: body }) }); 
+        if (state.currentChat && state.currentChat.id === targetChatId) {
+            appendMessage(msg); 
+        }
+    } catch (e) { alert(e.message); }
+});
+// end of interceptor
+
+// ==== ИНТЕГРАЦИЯ В СУЩЕСТВУЮЩИЕ ФУНКЦИИ ====
+
+// Модификация входа
+const originalEnterChat = enterChat;
+enterChat = function() {
+    originalEnterChat();
+    document.getElementById('set-my-clearance').innerHTML = `<span class="clearance-badge cl-${state.me.clearance_level || 1}">LEVEL ${state.me.clearance_level || 1}</span>`;
 };
-window.closeAttViewer = function() { document.getElementById('att-viewer').classList.remove('visible'); };
-window.navAttViewer = function(dir) {
-  const n = _attViewerState.index + dir;
-  if (n < 0 || n >= _attViewerState.attachments.length) return;
-  _attViewerState.index = n; renderAttViewer();
+
+// Добавление логики печати
+msgInput.addEventListener('input', () => {
+    if (state.currentChat && state.socket) {
+        state.socket.emit('typing', { chatId: state.currentChat.id, isTyping: true });
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => state.socket.emit('typing', { chatId: state.currentChat.id, isTyping: false }), 2000);
+    }
+});
+
+// Модификация сокета
+const originalConnectSocket = connectSocket;
+connectSocket = function() {
+    originalConnectSocket();
+    
+    state.socket.on('userTyping', ({ chatId, userId, username, isTyping }) => {
+        if (state.currentChat && state.currentChat.id === chatId && userId !== state.me.id) {
+            const ind = document.getElementById('typing-indicator');
+            if (isTyping) { ind.innerHTML = `@${esc(username)} печатает <div class="typing-dots"><span></span><span></span><span></span></div>`; ind.classList.add('visible'); }
+            else ind.classList.remove('visible');
+        }
+    });
+
+    state.socket.on('messageReaction', ({ msgId, emoji, userId }) => {
+        const msgEl = document.getElementById('msg-' + msgId);
+        if (msgEl) updateReactionUI(msgEl, emoji, userId);
+    });
+    
+    state.socket.on('messageEdited', ({ msgId, newText }) => {
+        const msgEl = document.getElementById('msg-' + msgId);
+        if (msgEl) {
+            msgEl.querySelector('.msg-content').innerHTML = formatMessageText(newText);
+            if (!msgEl.querySelector('.edited-label')) {
+                msgEl.querySelector('.msg-footer').insertAdjacentHTML('beforebegin', '<span class="edited-label">(изменено)</span>');
+            }
+        }
+    });
 };
 
-function renderAttViewer() {
-  const { attachments, index, chatName, senderName } = _attViewerState;
-  const a = attachments[index]; if (!a) return;
-  document.getElementById('att-viewer-title').textContent = a.name || 'Файл';
-  document.getElementById('att-viewer-meta').textContent = `От: @${senderName} → Чат: @${chatName} • ${index + 1} / ${attachments.length}`;
-  const body = document.getElementById('att-viewer-body'); const url = a.url || ''; const mime = a.mime || '';
-  if (mime.startsWith('image/')) {
-    body.innerHTML = `<img src="${escAttr(url)}" alt="" onerror="this.outerHTML='<div style=\\'color:#ff4d4d;font-size:14px;text-align:center;padding:20px;\\'>Ошибка загрузки изображения.<br>Файл мог быть удалён из S3 или ссылка недействительна.</div>'">`;
-  }
-  else if (mime.startsWith('video/')) body.innerHTML = `<video src="${escAttr(url)}" controls autoplay></video>`;
-  else if (mime.startsWith('audio/')) body.innerHTML = `<audio src="${escAttr(url)}" controls autoplay></audio>`;
-  else {
-    body.innerHTML = `<div style="text-align: center; width: 100%;">
-        <div style="font-size: 48px; margin-bottom: 15px;">${getAttIcon(a)}</div>
-        <a class="file-link" href="${escAttr(url)}" target="_blank" download="${escAttr(a.name || 'file')}" style="display: inline-flex; justify-content: center; padding: 12px 24px; font-size: 14px; background: var(--accent); color: #000; border: none;">
-          📥 Скачать ${esc(a.name || 'file')} (${formatSize(a.size)})
-        </a>
-      </div>`;
-  }
-  const nav = document.getElementById('att-viewer-nav');
-  if (attachments.length > 1) {
-    nav.style.display = 'flex';
-    nav.innerHTML = `<button onclick="navAttViewer(-1)" ${index === 0 ? 'disabled' : ''}>←</button><span>${index + 1} / ${attachments.length}</span><button onclick="navAttViewer(1)" ${index === attachments.length - 1 ? 'disabled' : ''}>→</button>`;
-  } else { nav.style.display = 'none'; nav.innerHTML = ''; }
-}
+// Модификация списка чатов (Добавление Пинов)
+const originalRenderChatList = renderChatList;
+renderChatList = function() {
+    const list = document.getElementById('chat-list');
+    if (!state.chats.length) { list.innerHTML = '<div class="empty">НЕТ ЧАТОВ</div>'; return; }
+    
+    let sortedChats = [...state.chats];
+    sortedChats.sort((a, b) => {
+        const aPin = pinnedChats.includes(a.id) ? 1 : 0;
+        const bPin = pinnedChats.includes(b.id) ? 1 : 0;
+        return bPin - aPin;
+    });
+    
+    list.innerHTML = sortedChats.map(c => {
+        const unread = state.unreadCounts[c.id] || 0;
+        const isFav = favoriteChats.includes(c.id);
+        const isPinned = pinnedChats.includes(c.id);
+        const targetId = c.otherUserId || state.me.id;
+        const isGroupOrChannel = c.isGroup ? (c.isChannel ? '📢' : '👥') : esc((c.name || '?')[0].toUpperCase());
+        
+        const avatarInner = c.avatarUrl 
+            ? `<img src="${escAttr(c.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerText='${isGroupOrChannel}'">` 
+            : isGroupOrChannel;
+        const avatar = `<div class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')">${avatarInner}</div>`;
+        
+        const active = state.currentChat && state.currentChat.id === c.id ? ' active' : '';
+        const starBtn = visualSettings.favorites ? `<div class="star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${escAttr(c.id)}', event)" title="В избранное">★</div>` : '';
+        const pinBtn = `<div class="pin-btn ${isPinned ? 'active' : ''}" onclick="togglePinChat('${escAttr(c.id)}', event)" title="Закрепить чат">📌</div>`;
+        
+        let roleBadgeHtml = '';
+        let checkmarkHtml = '';
+        if (c.isHelper) checkmarkHtml = `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: #1d9bf0; display: inline-block; vertical-align: middle; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+        
+        if (c.role && c.role !== 'user' && !c.isGroup) {
+            roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 4px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
+        }
+        
+        const isBanned = c.ban_expires && c.ban_expires !== 0 && (c.ban_expires === -1 || c.ban_expires > Date.now());
+        
+        const draftText = chatDrafts[c.id];
+        let previewHtml = '';
+        if (draftText) {
+            previewHtml = `<span style="color: #ff9933; font-weight: bold; margin-right: 4px;">[Черновик]</span> <span style="color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block; vertical-align: bottom;">${esc(draftText)}</span>`;
+        } else {
+            previewHtml = isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован' : (c.isSelf ? 'Личные заметки' : (c.isChannel ? 'Канал' : (c.isGroup ? 'Группа' : 'Открыть чат'))));
+        }
 
-function formatSize(bytes) {
-  if (!bytes) return '0 B'; const units = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0, n = bytes;
-  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
-  return n.toFixed(1) + ' ' + units[i];
-}
-function getAttIcon(a) {
-  const mime = a.mime || ''; const name = (a.name || '').toLowerCase();
-  if (mime.startsWith('image/')) return '🖼️'; if (mime.startsWith('video/')) return '🎬'; if (mime.startsWith('audio/')) return '🎵';
-  if (name.endsWith('.pdf')) return '📄'; if (/\.(zip|rar|7z|tar|gz|bz2|xz|zst)$/.test(name)) return '📦';
-  if (/\.(doc|docx)$/.test(name)) return '📝'; if (/\.(xls|xlsx|csv)$/.test(name)) return '📊'; if (/\.(ppt|pptx)$/.test(name)) return '📽️';
-  if (name.endsWith('.blend')) return '🎨';
-  return '📎';
-}
+        return `<div class="chat-item${active}" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0}, ${c.isGroup ? 'true' : 'false'}, '${escAttr(c.creatorId || '')}', ${c.isChannel ? 'true' : 'false'}, '${escAttr(c.username || '')}', ${c.isHelper ? 'true' : 'false'}, ${c.blockedByMe ? 'true' : 'false'}, ${c.blockedByThem ? 'true' : 'false'})">
+          ${avatar}
+          <div class="chat-info" style="flex: 1; min-width: 0;">
+            <div class="name" style="display:flex; align-items:center;">
+              <span>${esc(c.name)}</span>
+              ${checkmarkHtml}
+              ${roleBadgeHtml}
+            </div>
+            <div class="preview" style="display: flex; align-items: center;">
+              ${previewHtml}
+              ${unread ? ` <span class="badge" style="margin-left: auto;">${unread}</span>` : ''}
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
+             ${pinBtn}
+             ${starBtn}
+          </div>
+        </div>`;
+    }).join('');
+};
 
-(function() {
-  const el = document.getElementById('att-viewer-content'); const handle = document.getElementById('att-viewer-header');
-  if (!el || !handle) return; let isDown = false, offsetX = 0, offsetY = 0;
-  const start = (cx, cy) => { isDown = true; const rect = el.getBoundingClientRect(); el.style.left = rect.left + 'px'; el.style.top = rect.top + 'px'; el.style.transform = 'none'; offsetX = cx - rect.left; offsetY = cy - rect.top; };
-  const move = (cx, cy) => { if (!isDown) return; let nx = cx - offsetX; let ny = cy - offsetY; nx = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, nx)); ny = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, ny)); el.style.left = nx + 'px'; el.style.top = ny + 'px'; };
-  const end = () => { isDown = false; };
-  handle.addEventListener('mousedown', (e) => { if (e.target.closest('.att-viewer-close')) return; start(e.clientX, e.clientY); e.preventDefault(); });
-  window.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
-  window.addEventListener('mouseup', end);
-  handle.addEventListener('touchstart', (e) => { if (e.target.closest('.att-viewer-close')) return; const t = e.touches[0]; start(t.clientX, t.clientY); }, { passive: true });
-  window.addEventListener('touchmove', (e) => { if (!isDown) return; const t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: true });
-  window.addEventListener('touchend', end);
-})();
+window.togglePinChat = function(chatId, e) {
+    if (e) e.stopPropagation();
+    if (pinnedChats.includes(chatId)) pinnedChats = pinnedChats.filter(id => id !== chatId);
+    else pinnedChats.push(chatId);
+    localStorage.setItem('scp_pinned_chats', JSON.stringify(pinnedChats));
+    renderChatList();
+};
 
-(function() {
-  const canvas = document.getElementById('fx-canvas'); const ctx = canvas.getContext('2d');
-  let w = canvas.width = window.innerWidth; let h = canvas.height = window.innerHeight;
-  window.addEventListener('resize', () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; });
-  let particles = [];
-  function initParticles() {
-    particles = []; const count = visualSettings.weather !== 'none' ? 80 : 0;
-    for (let i = 0; i < count; i++) {
-      particles.push({ x: Math.random() * w, y: Math.random() * h, vx: visualSettings.weather === 'rain' ? (Math.random() - 0.5) * 2 : (Math.random() - 0.5) * 0.5, vy: visualSettings.weather === 'rain' ? Math.random() * 5 + 5 : Math.random() * 1 + 0.5, r: visualSettings.weather === 'rain' ? Math.random() * 1 + 0.5 : Math.random() * 2 + 1 });
+// Модификация appendMessage для отрисовки Опросов, Реакций, Допуска
+const originalAppendMessage = appendMessage;
+appendMessage = function(msg, scroll = true) {
+    const msgsEl = document.getElementById('messages');
+    if (document.getElementById('msg-' + msg.id)) return;
+    if (msgsEl.innerHTML === 'Загрузка...'  || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
+    const mine = msg.sender.id === state.me?.id;
+    const row = document.createElement('div');
+    row.className = 'msg-row' + (mine ? ' mine' : ''); row.id = 'msg-' + msg.id;
+    
+    let content = ''; let rawText = msg.text || '';
+
+    // Опросы
+    if (msg.poll) {
+        content += `<div class="poll-container" id="poll-${msg.id}">
+            <div class="poll-question">${esc(msg.poll.question)}</div>
+            ${msg.poll.options.map((opt, i) => `
+              <div class="poll-option" onclick="votePoll('${msg.id}', ${i})">
+                  <div class="poll-bar" style="width: ${(opt.votes / Math.max(1, msg.poll.options.reduce((a,b)=>a+b.votes, 0)) * 100)}%"></div>
+                  <span>${esc(opt.text)}</span>
+                  <span class="poll-percent">${opt.votes}</span>
+              </div>
+            `).join('')}
+        </div>`;
+    } else {
+        if (rawText.startsWith('> ')) {
+            const lines = rawText.split('\n'); 
+            let quoteLine = lines[0].replace('> ', ''); 
+            let origMsgId = null;
+            const hashIdx = quoteLine.indexOf('#');
+            if (hashIdx !== -1) {
+              const colonIdx = quoteLine.indexOf(':');
+              if (colonIdx !== -1 && colonIdx > hashIdx) { origMsgId = quoteLine.substring(hashIdx + 1, colonIdx).trim(); quoteLine = quoteLine.substring(0, hashIdx) + quoteLine.substring(colonIdx); }
+            }
+            const colonIndex = quoteLine.indexOf(':');
+            let qName = 'Пользователь'; let qText = quoteLine;
+            if (colonIndex !== -1) { qName = quoteLine.slice(0, colonIndex).trim(); qText = quoteLine.slice(colonIndex + 1).trim(); }
+            const mainText = lines.slice(1).join('\n').trim();
+            const quoteClick = origMsgId ? `onclick="event.stopPropagation(); scrollToMsg('${origMsgId}')"` : '';
+            content += `<div class="reply-quote" ${quoteClick}><div class="rq-name">@${esc(qName)}</div><div class="rq-text">${esc(qText)}</div></div>`;
+            if (mainText) content += `<div class="msg-content" style="white-space: pre-wrap;">${formatMessageText(mainText)}</div>`;
+        } else if (rawText) {
+            content += `<div class="msg-content" style="white-space: pre-wrap;">${formatMessageText(rawText)}</div>`;
+        }
     }
-  }
-  setInterval(() => { if (visualSettings.weather !== 'none' && particles.length === 0) initParticles(); if (visualSettings.weather === 'none' && particles.length > 0) particles = []; }, 1000);
-  initParticles();
-  function tick() {
-    ctx.clearRect(0, 0, w, h);
-    if (visualSettings.weather === 'rain') {
-      ctx.strokeStyle = 'rgba(150, 200, 255, 0.4)'; ctx.lineWidth = 1;
-      particles.forEach(p => { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.vx, p.y + p.vy); ctx.stroke(); p.x += p.vx; p.y += p.vy; if (p.y > h) { p.y = -10; p.x = Math.random() * w; } });
-    } else if (visualSettings.weather === 'snow') {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      particles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); p.x += Math.sin(p.y * 0.02) * 1; p.y += p.vy; if (p.y > h) { p.y = -10; p.x = Math.random() * w; } });
-    }
-    if (visualSettings.ghosts) {
-      const time = Date.now() * 0.001;
-      for (let i = 0; i < 5; i++) {
-        const px = w / 2 + Math.sin(time + i * 2) * (w / 2); const py = h / 2 + Math.cos(time * 0.8 + i * 3) * (h / 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.03)'; ctx.beginPath(); ctx.arc(px, py, 60 + Math.sin(time * 2 + i) * 20, 0, Math.PI * 2); ctx.fill();
-      }
-    }
-    requestAnimationFrame(tick);
-  }
-  tick();
-})();
 
-setTimeout(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission();
-    }
-}, 3000);
+    // Вложения
+    if (Array.isArray(msg.attachments) && msg.attachments.length) {
+        window._attStore = window._attStore || {};
+        const attachmentsWithToken = msg.attachments.map(a => ({ ...a, url: a.url + (a.url.includes('?') ? '&' : '?') + 'token=' + state.token }));
+        window._attStore[msg.id] = { attachments: attachmentsWithToken, chatName: state.currentChat ? state.currentChat.name : '', senderName: msg.sender.displayName || msg.sender.username };
 
-(async () => {
-  if (state.token) {
-    try { state.me = await api('/me'); state.read_deleted = state.me.read_deleted || false; enterChat(); }
-    catch (e) { if (e.message !== 'Banned') { localStorage.removeItem('scp_token'); state.token = null; } }
-  }
-})();
+        const images = msg.attachments.filter(a => a.mime && a.mime.startsWith('image/'));
+        const otherFiles = msg.attachments.filter(a => !a.mime || !a.mime.startsWith('image/'));
+
+        images.forEach((img) => {
+          const fullUrl = attachmentsWithToken[msg.attachments.indexOf(img)].url;
+          const imageUrls = images.map(i => attachmentsWithToken[msg.attachments.indexOf(i)].url);
+          content += `<img src="${escAttr(fullUrl)}" onclick="event.stopPropagation(); openLightbox(${JSON.stringify(imageUrls).replace(/"/g, '&quot;')}, ${images.indexOf(img)})" style="max-width: 100%; max-height: 300px; border-radius: 6px; margin-top: 8px; display: block; border: 1px solid var(--border); cursor: zoom-in;" />`;
+        });
+
+        if (otherFiles.length) {
+          content += `<div class="att-grid">`;
+          otherFiles.forEach((a) => {
+            content += `<div class="att-chip" onclick="event.stopPropagation(); openAttViewer('${escAttr(msg.id)}', ${msg.attachments.indexOf(a)})"><span class="att-chip-icon">${getAttIcon(a)}</span><span class="att-chip-name">${esc(a.name || 'file')}</span></div>`;
+          });
+          content += `</div>`;
+        }
+    }
+
+    const timeStr = new Date(msg.createdAt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let statusHtml = '';
+    if (mine && !msg.isSelfChat) {
+      if (msg.read) statusHtml = `<span class="msg-status read"><span class="tick">✓</span><span class="tick">✓</span></span>`;
+      else if (msg.delivered) statusHtml = `<span class="msg-status delivered"><span class="tick">✓</span><span class="tick">✓</span></span>`;
+      else statusHtml = `<span class="msg-status"><span class="tick">✓</span></span>`;
+    }
+    
+    const footerHtml = `<div class="msg-footer"><span>${timeStr}</span>${statusHtml}</div>`;
+    
+    let whoHtml = '';
+    if (!mine) {
+      let roleBadge = ''; const r = msg.sender.role;
+      if (r && r !== 'user') roleBadge = `<span class="rotating-badge badge-${r}">${ROLE_LABEL[r]}</span>`;
+      const cl = msg.sender.clearance_level || 1;
+      let clBadge = `<span class="clearance-badge cl-${cl}">L${cl}</span>`;
+      whoHtml = `<div class="who">@${esc(msg.sender.displayName || msg.sender.username)} ${clBadge} ${roleBadge}</div>`;
+    }
+    const editedHtml = msg.is_edited ? `<span class="edited-label">(изменено)</span>` : '';
+
+    row.innerHTML = `
+      <div class="msg-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(msg.sender.id)}')">${esc((msg.sender.displayName || msg.sender.username || '?')[0].toUpperCase())}</div>
+      <div class="msg ${msg.is_deleted ? 'deleted-msg' : ''}">${whoHtml}${content}${editedHtml}${footerHtml}</div>
+    `;
+
+    const msgDiv = row.querySelector('.msg');
+    let pressTimer = null;
+    const startPress = (e) => {
+      if (msg.is_deleted) return;
+      if (['IMG', 'VIDEO', 'AUDIO', 'A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip, .reply-quote')) return;
+      pressTimer = setTimeout(() => { openMsgActions(msg); if (navigator.vibrate) navigator.vibrate(50); }, 800); 
+    };
+    const cancelPress = () => { if (pressTimer) clearTimeout(pressTimer); };
+
+    msgDiv.addEventListener('mousedown', startPress); msgDiv.addEventListener('mouseup', cancelPress); msgDiv.addEventListener('mouseleave', cancelPress);
+    msgDiv.addEventListener('touchstart', startPress, { passive: true }); msgDiv.addEventListener('touchend', cancelPress); msgDiv.addEventListener('touchmove', cancelPress, { passive: true });
+
+    msgsEl.appendChild(row);
+    if (scroll) msgsEl.scrollTop = msgsEl.scrollHeight;
+};
+
+// Обновление окна действий с сообщением
+const originalOpenMsgActions = openMsgActions;
+openMsgActions = function(msg) {
+    if (msg.is_deleted) return;
+    state.activeMsgId = msg.id; state.activeMsg = msg;
+    const isOwn = msg.sender.id === state.me.id;
+    const canDeleteAll = isOwn || ['sysadmin', 'admin', 'moderator'].includes(state.me.role);
+    
+    document.getElementById('msg-edit-btn').style.display = isOwn ? 'block' : 'none';
+    document.getElementById('msg-del-all-btn').style.display = canDeleteAll ? 'block' : 'none';
+    document.getElementById('msg-report-btn').style.display = isOwn ? 'none' : 'block'; 
+    document.getElementById('msg-download-btn').style.display = (msg.attachments && msg.attachments.length > 0) ? 'block' : 'none';
+    
+    document.getElementById('msg-actions-modal').classList.add('visible');
+};
+
+// Обновление профиля
+const originalOpenProfile = openProfile;
+openProfile = async function(userId) {
+    if (!userId) return;
+    try {
+        const u = await api('/users/' + userId);
+        originalOpenProfile(userId); // Вызываем базовую функцию
+        
+        document.getElementById('profile-status').textContent = u.status_text || 'Нет статуса';
+        document.getElementById('profile-clearance').innerHTML = `<span class="clearance-badge cl-${u.clearance_level || 1}">LEVEL ${u.clearance_level || 1}</span>`;
+    } catch(e) {}
+};
+
+// Настройки статуса
+document.getElementById('update-status-btn').addEventListener('click', async () => {
+    const status = document.getElementById('settings-status-input').value.trim();
+    try {
+        await api('/users/profile', { method: 'PUT', body: JSON.stringify({ status_text: status }) });
+        state.me.status_text = status;
+        alert('Статус обновлен');
+    } catch(e) { alert(e.message); }
+});
+
+// Админка - Новые вкладки
+document.querySelectorAll('.admin-tab[data-tab="audit"]').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.getElementById('audit-log-box').innerHTML = '[System] Логи загружены.<br>';
+    });
+});
+
+// Быстрый фикс для кнопки микрофона на телефоне (чтобы не было перезагрузки)
+document.getElementById('poll-btn').addEventListener('click', (e) => e.preventDefault());
+document.getElementById('sticker-btn').addEventListener('click', (e) => e.preventDefault());
+document.getElementById('mic-btn').addEventListener('click', (e) => e.preventDefault());
+
+// Переопределяем отправку формы, чтобы избежать двойного срабатывания
+document.getElementById('composer').onsubmit = null;
+
 </script>
 </body>
 </html>
