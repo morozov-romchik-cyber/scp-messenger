@@ -56,17 +56,11 @@ const ALLOWED_EXT = new Set([
   '.wma', '.wmv', '.xls', '.xlsx', '.xml', '.xpi', '.xz', '.yaml', '.yml', '.zip', '.zst', '.torrent', '.blend'
 ]);
 
-// ================= УРОВНИ ДОПУСКА (Clearance Levels) =================
-const CLEARANCE_RANK = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
-const CLEARANCE_LABEL = {
-  1: 'Level 1 — Пользователь',
-  2: 'Level 2 — Хелпер',
-  3: 'Level 3 — Модератор',
-  4: 'Level 4 — Админ',
-  5: 'Level 5 — SysAdmin'
-};
+const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
+const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
 const ROLE_TO_CLEARANCE = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
 const CLEARANCE_TO_ROLE = { 1: 'user', 2: 'helper', 3: 'moderator', 4: 'admin', 5: 'sysadmin' };
+const CLEARANCE_RANK = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
 
 const HELPER_ID = 'system_scp_helper_id';
 
@@ -109,7 +103,6 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 const genId = () => crypto.randomBytes(12).toString('hex');
 const signToken = (userId) => jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: '30d' });
 
-// ================= PUBLIC USER С CLEARANCE =================
 const publicUser = (u) => ({
   id: u.id, username: u.username, displayName: u.display_name, avatarUrl: u.avatar_url,
   status: u.status, level: u.level || 1, read_deleted: u.read_deleted || false,
@@ -217,110 +210,56 @@ const chatIsBlocked = (chatId, myId) => {
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
-// ================= SCP API INTEGRATION =================
-const SCP_API_BASE = 'https://scp-data.tedivm.com/data/scp/items';
-let scpItemsIndex = null;
-
-async function loadScpIndex() {
-  if (scpItemsIndex) return scpItemsIndex;
-  try {
-    const res = await fetch(`${SCP_API_BASE}/index.json`);
-    if (!res.ok) throw new Error('SCP API index not found');
-    scpItemsIndex = await res.json();
-    serverLog('info', 'SCP Data API index loaded');
-    return scpItemsIndex;
-  } catch (e) {
-    serverLog('error', 'SCP API index load error: ' + e.message);
-    return null;
-  }
-}
-
-async function fetchScpItem(scpNumber) {
-  const idx = await loadScpIndex();
-  if (!idx) return null;
-  const key = `scp-${String(scpNumber).padStart(3, '0')}`;
-  const item = idx[key];
-  if (!item) return null;
-
-  let content = null;
-  if (item.content_file) {
-    try {
-      const url = `${SCP_API_BASE}/${item.content_file}`;
-      const res = await fetch(url);
-      if (res.ok) content = await res.json();
-    } catch (e) { /* ignore */ }
-  }
-
-  return {
-    id: item.scp || key.toUpperCase(),
-    title: item.title || key,
-    object_class: content?.object_class || item.object_class || 'Unknown',
-    description: content?.description || item.raw_content?.slice(0, 500) || 'Описание отсутствует.',
-    containment: content?.containment || 'Процедуры содержания не указаны.',
-    image: content?.image || null,
-    url: item.url || `https://scp-wiki.wikidot.com/${key}`
-  };
-}
-
+// ================= SCP API (Wiki Scraper) =================
 async function handleScpCommand(chatId, userId, args) {
   const text = (args || '').trim();
-  if (!text) {
+  const sendBotMsg = (txt) => {
     const msg = {
-      id: genId(), chat_id: chatId, sender_id: HELPER_ID,
-      text: '📖 **Команда /scp**\nИспользование: `/scp <номер>`\nПример: `/scp 173` — карточка SCP-173.',
+      id: genId(), chat_id: chatId, sender_id: HELPER_ID, text: txt,
       created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
     };
     db.messages.push(msg);
     saveDb();
     emitToChatMembers(chatId, 'newMessage', buildMessagePayload(msg));
-    return;
-  }
-
-  const number = text.replace(/[^0-9]/g, '');
-  if (!number) {
-    const msg = {
-      id: genId(), chat_id: chatId, sender_id: HELPER_ID,
-      text: '❌ **Ошибка**\nУкажите номер объекта, например: `/scp 173`',
-      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
-    };
-    db.messages.push(msg);
-    saveDb();
-    emitToChatMembers(chatId, 'newMessage', buildMessagePayload(msg));
-    return;
-  }
-
-  const item = await fetchScpItem(number);
-  if (!item) {
-    const msg = {
-      id: genId(), chat_id: chatId, sender_id: HELPER_ID,
-      text: `❌ **SCP-${number} не найден**\nПроверьте номер и попробуйте снова.`,
-      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
-    };
-    db.messages.push(msg);
-    saveDb();
-    emitToChatMembers(chatId, 'newMessage', buildMessagePayload(msg));
-    return;
-  }
-
-  const cardText = [
-    `📄 **${item.id} — ${item.title}**`,
-    `**Класс объекта:** ${item.object_class}`,
-    `**Процедуры содержания:** ${item.containment.slice(0, 300)}${item.containment.length > 300 ? '…' : ''}`,
-    `**Описание:** ${item.description.slice(0, 400)}${item.description.length > 400 ? '…' : ''}`,
-    `🔗 [Открыть на SCP Wiki](${item.url})`
-  ].join('\n\n');
-
-  const msg = {
-    id: genId(), chat_id: chatId, sender_id: HELPER_ID,
-    text: cardText,
-    created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
   };
-  db.messages.push(msg);
-  saveDb();
-  emitToChatMembers(chatId, 'newMessage', buildMessagePayload(msg));
+
+  if (!text) return sendBotMsg('📖 **Команда /scp**\nИспользование: `/scp <номер>`\nПример: `/scp 173` — карточка SCP-173.');
+  const number = text.replace(/[^0-9]/g, '');
+  if (!number) return sendBotMsg('❌ **Ошибка**\nУкажите номер объекта, например: `/scp 173`');
+
+  try {
+    // Парсим страницу с официальной Wiki (самый надежный способ)
+    const res = await fetch(`https://scp-wiki.wikidot.com/scp-${number}`, { headers: { 'User-Agent': 'Mozilla/5.0 (SCP-Messenger-Bot)' } });
+    if (!res.ok) throw new Error('Not found');
+    const html = await res.text();
+    
+    const titleMatch = html.match(/<div id="page-title">\s*(.*?)\s*<\/div>/);
+    const title = titleMatch ? titleMatch[1].trim() : `SCP-${number}`;
+    
+    const classMatch = html.match(/<strong>Object Class:<\/strong>\s*(.*?)\s*<br/);
+    const objClass = classMatch ? classMatch[1].replace(/<.*?>/g, '').trim() : 'Unknown';
+    
+    const descMatch = html.match(/<p>(.*?)<\/p>/s);
+    let desc = 'Описание не найдено.';
+    if (descMatch) {
+        desc = descMatch[1].replace(/<.*?>/g, '').trim();
+        if (desc.length > 400) desc = desc.substring(0, 400) + '...';
+    }
+
+    const cardText = [
+      `📄 **${title}**`,
+      `**Класс объекта:** ${objClass}`,
+      `**Описание:** ${desc}`,
+      `🔗 [Открыть на SCP Wiki](https://scp-wiki.wikidot.com/scp-${number})`
+    ].join('\n\n');
+
+    sendBotMsg(cardText);
+  } catch (err) {
+    sendBotMsg(`❌ **SCP-${number} не найден**\nПроверьте номер или попробуйте позже.`);
+  }
 }
 
-// ================= SELF-DESTRUCT (Исчезающие сообщения) =================
+// ================= SELF-DESTRUCT =================
 function scheduleMessageExpiry(msgId, expiresAt) {
   const delay = expiresAt - Date.now();
   if (delay <= 0) return;
@@ -333,6 +272,11 @@ function scheduleMessageExpiry(msgId, expiresAt) {
     }
   }, delay);
 }
+
+// ================= GLOBAL JSON 404 HANDLER =================
+app.use((req, res, next) => {
+  res.status(404).json({ error: 'API route not found' });
+});
 
 // ================= REPORTS =================
 app.post('/api/reports', authMiddleware, (req, res) => {
@@ -431,8 +375,8 @@ app.get('/api/admin/all-chats', authMiddleware, (req, res) => {
     return {
       id: c.id, name: c.name, isChannel: !!c.is_channel, username: c.username || null,
       creatorId: c.creator_id, creatorName: creator ? creator.username : 'Unknown',
-      memberCount: members.length,
-      required_clearance: c.required_clearance || 1
+      memberCount: members.length, required_clearance: c.required_clearance || 1,
+      min_write_clearance: c.min_write_clearance || 1
     };
   }).sort((a, b) => b.memberCount - a.memberCount);
   
@@ -497,7 +441,7 @@ app.post('/api/admin/generate-invite', authMiddleware, (req, res) => {
   const { role } = req.body;
   if (!role || !ROLE_TO_CLEARANCE[role]) return res.status(400).json({ error: 'Неверная роль' });
   const roleClearance = ROLE_TO_CLEARANCE[role];
-  if (roleClearance >= myRank) return res.status(403).json({ error: `Вы (${CLEARANCE_LABEL[myRank]}) можете выдавать инвайты только для ролей ниже вашей.` });
+  if (roleClearance >= myRank) return res.status(403).json({ error: `Вы (Level ${myRank}) можете выдавать инвайты только для ролей ниже вашей.` });
   const code = 'INV-' + crypto.randomBytes(3).toString('hex').toUpperCase() + '-' + String(role).toUpperCase();
   db.invite_codes.push({ code, role, created_by: me.username, created_by_role: me.role, created_at: Math.floor(Date.now() / 1000), used: false });
   saveDb();
@@ -525,7 +469,6 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-// ================= SET CLEARANCE =================
 app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
@@ -828,26 +771,24 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     return {
       id: c.id, name: chatName, avatarUrl: chatAvatar,
       otherUserId: c.is_group ? null : (other ? other.id : null),
-      role: otherRole,
-      otherClearance,
+      role: otherRole, otherClearance,
       isBlocked: blockedByMe || blockedByThem,
-      blockedByMe: blockedByMe,
-      blockedByThem: blockedByThem,
+      blockedByMe, blockedByThem,
       ban_expires: banExpires, createdAt: c.created_at, isSelf: isSelf,
       isGroup: !!c.is_group, creatorId: c.creator_id,
       isChannel: !!c.is_channel, username: c.username || null,
       isHelper: !c.is_group && !isSelf && otherId === HELPER_ID,
       otherStatus: other && !c.is_group ? (other.custom_status || '') : '',
       required_clearance: requiredClearance,
+      min_write_clearance: c.min_write_clearance || 1,
       canAccess: canAccess
     };
   });
   res.json(chats);
 });
 
-// ================= СОЗДАНИЕ ГРУППЫ/КАНАЛА С УРОВНЕМ ДОПУСКА =================
 app.post('/api/chats/group', authMiddleware, (req, res) => {
-  const { name, memberIds, is_channel, username, required_clearance } = req.body;
+  const { name, memberIds, is_channel, username, required_clearance, min_write_clearance } = req.body;
   if (!name || !memberIds || !Array.isArray(memberIds)) {
     return res.status(400).json({ error: 'Неверные данные группы' });
   }
@@ -855,6 +796,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   const reqClearance = Math.max(1, Math.min(5, Number(required_clearance) || 1));
+  const writeClearance = Math.max(1, Math.min(5, Number(min_write_clearance) || 1));
 
   if (reqClearance > myClearance && me.role !== 'sysadmin') {
     return res.status(403).json({ error: `Вы не можете создать чат с уровнем допуска выше вашего (${myClearance})` });
@@ -879,7 +821,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     db.chats.push({
       id: channelId, created_at: Math.floor(Date.now() / 1000),
       is_group: true, is_channel: true, username: cleanUsername, name, creator_id: req.userId,
-      required_clearance: reqClearance
+      required_clearance: reqClearance, min_write_clearance: writeClearance
     });
 
     const groupId = genId();
@@ -887,7 +829,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
       id: groupId, created_at: Math.floor(Date.now() / 1000),
       is_group: true, is_channel: false, username: cleanUsername,
       name: `${name} (Обсуждение)`, creator_id: req.userId,
-      required_clearance: reqClearance
+      required_clearance: reqClearance, min_write_clearance: writeClearance
     });
 
     uniqueMembers.forEach(uid => {
@@ -915,7 +857,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   db.chats.push({
     id: groupId, created_at: Math.floor(Date.now() / 1000),
     is_group: true, is_channel: false, username: null, name, creator_id: req.userId,
-    required_clearance: reqClearance
+    required_clearance: reqClearance, min_write_clearance: writeClearance
   });
   uniqueMembers.forEach(uid => {
     db.chat_members.push({ id: genId(), chat_id: groupId, user_id: uid });
@@ -1073,23 +1015,29 @@ app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   res.json(messages);
 });
 
-// ================= ОТПРАВКА СООБЩЕНИЙ + /scp + ИСЧЕЗАЮЩИЕ =================
 app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
+  
   const chatForCheck = db.chats.find(c => c.id === chatId);
+  if (!chatForCheck) return res.status(404).json({ error: 'Chat not found' });
   const me = db.users.find(u => u.id === req.userId);
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
-  if (chatForCheck && (chatForCheck.required_clearance || 1) > myClearance) {
-    return res.status(403).json({ error: `Доступ запрещён. Требуется уровень допуска ${chatForCheck.required_clearance}` });
+
+  if (chatForCheck.is_group) {
+    if (chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
+      return res.status(403).json({ error: 'Только создатель канала может писать сообщения' });
+    }
+    const minWrite = chatForCheck.min_write_clearance || 1;
+    if (myClearance < minWrite) {
+      return res.status(403).json({ error: `Требуется уровень допуска ${minWrite} для отправки сообщений` });
+    }
   }
-  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может писать сообщения' });
 
   const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
-  // Обработка команды /scp
   if (text.trim().toLowerCase().startsWith('/scp')) {
     const args = text.trim().slice(4).trim();
     handleScpCommand(chatId, req.userId, args);
@@ -1124,8 +1072,12 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   const chatForCheck = db.chats.find(c => c.id === chatId);
   const me = db.users.find(u => u.id === req.userId);
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
-  if (chatForCheck && (chatForCheck.required_clearance || 1) > myClearance) return res.status(403).json({ error: 'Доступ запрещён' });
-  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может загружать файлы' });
+  
+  if (chatForCheck && chatForCheck.is_group) {
+    if (chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может загружать файлы' });
+    if (myClearance < (chatForCheck.min_write_clearance || 1)) return res.status(403).json({ error: 'Недостаточный уровень допуска для отправки файлов' });
+  }
+  
   if (!S3_ENABLED) return res.status(503).json({ error: 'S3 отключён на сервере' });
 
   const { fileName, fileType } = req.body;
@@ -1143,8 +1095,11 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const chatForCheck = db.chats.find(c => c.id === chatId);
   const me = db.users.find(u => u.id === req.userId);
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
-  if (chatForCheck && (chatForCheck.required_clearance || 1) > myClearance) return res.status(403).json({ error: 'Доступ запрещён' });
-  if (chatForCheck && chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может отправлять файлы' });
+  
+  if (chatForCheck && chatForCheck.is_group) {
+    if (chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может отправлять файлы' });
+    if (myClearance < (chatForCheck.min_write_clearance || 1)) return res.status(403).json({ error: 'Недостаточный уровень допуска' });
+  }
 
   const { files, caption, expires_in } = req.body;
   if (!files || !files.length) return res.status(400).json({ error: 'Нет файлов' });
@@ -1255,11 +1210,15 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   const { chatId } = req.body;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
+  
   const targetChat = db.chats.find(c => c.id === chatId);
   const me = db.users.find(u => u.id === req.userId);
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
-  if (targetChat && (targetChat.required_clearance || 1) > myClearance) return res.status(403).json({ error: 'Доступ запрещён' });
-  if (targetChat && targetChat.is_channel && targetChat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может пересылать' });
+  
+  if (targetChat && targetChat.is_group) {
+    if (targetChat.is_channel && targetChat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может пересылать' });
+    if (myClearance < (targetChat.min_write_clearance || 1)) return res.status(403).json({ error: 'Недостаточный уровень допуска' });
+  }
 
   const newMsg = { id: genId(), chat_id: chatId, sender_id: req.userId, text: src.text, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], expires_at: null };
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
@@ -1272,7 +1231,6 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   res.json(payload);
 });
 
-// ================= РЕАКЦИИ =================
 app.post('/api/messages/:messageId/react', authMiddleware, (req, res) => {
   const msg = db.messages.find(m => m.id === req.params.messageId);
   if (!msg) return res.status(404).json({ error: 'Message not found' });
@@ -1287,7 +1245,6 @@ app.post('/api/messages/:messageId/react', authMiddleware, (req, res) => {
   res.json({ ok: true, reactions: msg.reactions });
 });
 
-// ================= РЕДАКТИРОВАНИЕ =================
 app.put('/api/messages/:messageId', authMiddleware, (req, res) => {
   const msg = db.messages.find(m => m.id === req.params.messageId);
   if (!msg) return res.status(404).json({ error: 'Message not found' });
@@ -1434,7 +1391,7 @@ io.on('connection', (socket) => {
   } catch (e) {}
 });
 
-// ================= ИНИЦИАЛИЗАЦИЯ И ЗАПУСК СЕРВЕРА =================
+// ================= ИНИЦИАЛИЗАЦИЯ =================
 (async () => {
   if (S3_ENABLED) {
     let retries = 3;
@@ -1455,7 +1412,6 @@ io.on('connection', (socket) => {
         } else {
           serverLog('error', `Ошибка БД S3 (попытка ${4 - retries}/3): ${err.message}`);
           if (retries === 0) {
-            serverLog('error', 'Все попытки исчерпаны, локальная БД');
             if (fs.existsSync(DB_FILE)) {
               try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e) { serverLog('error', 'Локальная БД повреждена!'); }
             }
@@ -1479,14 +1435,10 @@ io.on('connection', (socket) => {
     if (!u.role) u.role = 'user';
     if (!u.ban_reason) u.ban_reason = '';
     if (u.custom_status === undefined) u.custom_status = '';
-    if (u.clearance_level === undefined) {
-      u.clearance_level = ROLE_TO_CLEARANCE[u.role] || 1;
-      migrated = true;
-    }
+    if (u.clearance_level === undefined) { u.clearance_level = ROLE_TO_CLEARANCE[u.role] || 1; migrated = true; }
   });
   if (migrated) saveDb();
 
-  // Восстановление таймеров для ещё не истёкших исчезающих сообщений
   db.messages.forEach(m => {
     if (m.expires_at && !m.is_deleted) {
       const delay = m.expires_at - Date.now();
@@ -1502,9 +1454,6 @@ io.on('connection', (socket) => {
   } else {
     helperUser.role = 'sysadmin'; helperUser.clearance_level = 5; saveDb();
   }
-
-  // Предзагрузка SCP API
-  loadScpIndex().catch(() => {});
 
   server.listen(PORT, '0.0.0.0', () => { console.log(`\n⬛ SCP Foundation Messenger запущен: http://localhost:${PORT}\n`); });
 })();
