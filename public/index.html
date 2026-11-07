@@ -61,7 +61,7 @@
   .clearance-5 { background: #000; color: #fff; border: 1px solid #fff; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
 
   /* ================= EXPIRING MESSAGES ================= */
-  .msg-expiring { border-color: #ff3333 !important; box-shadow: 0 0 10px rgba(255, 51, 51, 0.2); }
+  .msg-expiring { border-color: #ff3333 !important; box-shadow: 0 0 10px rgba(255, 51, 51, 0.2) !important; }
   .expiry-timer { font-size: 10px; color: #ff3333; font-family: 'Fira Code', monospace; font-weight: 700; margin-left: 6px; animation: pulseRed 1.5s infinite; }
   @keyframes pulseRed { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
   .expiry-picker { display: flex; gap: 6px; padding: 8px 16px; background: var(--panel); border-top: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
@@ -261,7 +261,7 @@
   .close-reply { background: transparent; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 0 10px; }
 
   #composer { flex-shrink: 0; display: flex; gap: 12px; padding: 16px 24px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); background: rgba(22, 27, 34, 0.9); backdrop-filter: blur(10px); border-top: 1px solid var(--border); align-items: flex-end; position: relative; z-index: 2; }
-  #composer textarea { flex: 1; background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 8px; font-family: inherit; font-size: 16px; resize: none; max-height: 140px; min-height: 44px; }
+  #composer textarea { flex: 1; background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 8px; font-family: inherit; font-size: 16px; resize: none; max-height: 140px; min-height: 44px; outline: none; transition: border-color 0.2s; }
   #composer button { background: var(--card); color: var(--text); border: 1px solid var(--border); width: 44px; height: 44px; border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   #composer button#send-btn { background: var(--accent); color: #000; border: none; }
   #composer button#send-btn:hover { opacity: 0.8; }
@@ -742,8 +742,9 @@
       <input type="text" id="channel-username-input" placeholder="юзернейм (my_channel)" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; outline: none;" />
       <div style="font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'Fira Code';">Ссылка: scp.me/...</div>
     </div>
+    
     <div id="clearance-required-container" style="display: none; margin-bottom: 10px; flex-shrink: 0;">
-      <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">🔒 Требуемый уровень допуска:</label>
+      <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">🔒 Требуемый уровень допуска (для входа):</label>
       <select id="channel-required-clearance" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; font-family: inherit; outline: none;">
         <option value="1">Level 1 — Все пользователи</option>
         <option value="2">Level 2 — Хелпер и выше</option>
@@ -752,6 +753,18 @@
         <option value="5">Level 5 — Только SysAdmin</option>
       </select>
     </div>
+
+    <div id="min-write-clearance-container" style="display: none; margin-bottom: 10px; flex-shrink: 0;">
+      <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">✍️ Мин. уровень для отправки сообщений:</label>
+      <select id="channel-min-write-clearance" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; font-family: inherit; outline: none;">
+        <option value="1">Level 1 — Все пользователи</option>
+        <option value="2">Level 2 — Хелпер и выше</option>
+        <option value="3">Level 3 — Модератор и выше</option>
+        <option value="4">Level 4 — Админ и выше</option>
+        <option value="5">Level 5 — Только SysAdmin</option>
+      </select>
+    </div>
+
     <div id="group-user-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
     <button class="modal-btn" onclick="createGroup()" style="background: var(--accent); color: #000; margin-bottom: 10px; flex-shrink: 0;">Создать</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('create-group-modal').classList.remove('visible')">Отмена</button>
@@ -1041,6 +1054,14 @@ window.setExpiry = function(seconds) {
   document.querySelectorAll('.expiry-btn').forEach(b => {
     b.classList.toggle('active', Number(b.dataset.expiry) === seconds);
   });
+  const input = document.getElementById('msg-input');
+  if (seconds > 0) {
+     input.style.borderColor = '#ff3333';
+     input.placeholder = `🔥 Исчезнет через ${seconds >= 3600 ? '1 час' : seconds/60 + ' мин'}...`;
+  } else {
+     input.style.borderColor = 'var(--border)';
+     input.placeholder = 'Введите сообщение... (или /scp 173)';
+  }
 };
 
 const EMOJIS = "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 🤡 💩 👻 💀 ☠️ 👽 👾 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😾 😿 👋 🤚 🖐️ ✋ 🖖 👌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🦷 🦴 👀 👁️ 👅 👄 💋 🩸 👶 👧 🧒 🧑 👱 👨 🧔 👩 🧓 👴 👵 👮 🕵️ 💂 👷 🤴 👸 👳 👲 🧕 🤵 👰 🤰 🤱 👼 🎅 🤶 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧟 🧞 💆 💇 🚶 🧍 🧎 🏃 🕺 💃 🕴️ 👯 🧘 ❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 💌 👥 👤 🗣️ 👣 🐵 🐒 🦍 🦧 🐶 🐕 🦮 🐩 🐺 🦊 🦝 🐱 🐈 🦁 🐯 🐅 🐆 🐴 🐎 🦄 🦓 🦌 🐮 🐂 🐃 🐄 🐷 🐖 🐗 🐽 🐏 🐑 🐐 🐪 🦙 🦒 🐘 🦏 🦛 🐭 🐁 🐀 🐹 🐰 🐇 🐿️ 🦔 🦇 🐻 🐨 🐼 🦥 🦦 🦨 🦘 🦡 🦅 🦆 🦢 🦉 🦩 🦚 🦜 🐸 🐊 🐢 🦎 🐍 🐲 🐉 🦕 🦖 🐳 🐋 🐬 🐟 🐠 🐡 🦈 🐙 🐚 🦀 🦞 🦐 🦑 🦋 🐌 🐛 🐜 🐝 🐞 🦗 🕷️ 🕸️ 🦂 🦟 🦠 💐 🌸 💮 🌹 🥀 🌺 🌻 🌼 🌷 🌱 🌲 🌳 🌴 🌵 🌾 🌿 ☘️ 🍀 🍁 🍂 🍃 🍄 🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥬 🥒 🌶️ 🧄 🥕 🌽 🥔 🍠 🥐 🥯 🍞 🥖 🥨 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🥪 🌮 🌯 🥙 🧆 🥘 🍲 🥣 🥗 🍿 🧂 🥫 🍱 🍘 🍙 🍚 🍛 🍜 🍝 🍢 🍣 🍤 🍥 🥮 🍡 🥟 🥠 🥡 🦪 🍦 🍧 🍨 🍩 🍪 🎂 🍰 🧁 🥧 🍫 🍬 🍭 🍮 🍯 🍼 🥛 ☕ 🍵 🍶 🍾 🍷 🍸 🍹 🍺 🍻 🥂 🥃 🥤 🧊 🥢 🍽️ 🍴 🥄 🔪 🌍 🌎 🌏 🌐 🗺️ 🗾 🧭 🏔️ ⛰️ 🌋 🗻 🏕️ 🏖️ 🏜️ 🏝️ 🏞️ 🏟️ 🏛️ 🏗️ 🧱 🏘️ 🏚️ 🏠 🏡 🏢 🏣 🏤 🏥 🏦 🏨 🏪 🏫 🏬 🏭 🏯 🏰 💒 🗼 🗽 ⛪ 🕌 🛕 🕍 ⛩️ 🕋 ⛲ ⛺ 🌁 🌃 🏙️ 🌅 🌄 🌆 🌇 🌉 🎠 🎡 🎢 🚂 🚃 🚄 🚅 🚆 🚇 🚈 🚉 🚊 🚝 🚞 🚋 🚌 🚍 🚎 🚐 🚑 🚒 🚓 🚔 🚕 🚖 🚗 🚘 🚙 🚚 🚛 🚜 🏎️ 🏍️ 🛵 🦽 🦼 🚲 🛴 🛹 🚏 🛣️ 🛤️ 🛢️ ⛽ 🚨 🚥 🚦 🛑 🚧 ⚓ ⛵ 🛶 🚤 🛳️ ⛴️ 🚢 ✈️ 🛩️ 🛫 🛬 💺 🚁 🚟 🚠 🚡 🚀 🛸 🛰️ 🛎️ 🧳 ⌛ ⏳ ⌚ ⏰ ⏱️ ⏲️ 🕰️ 🌙 🌡️ ☀️ 🌟 ⭐️ 🌌 ☁️ ⛅ ⛈️ 🌤️ 🌥️ 🌦️ 🌧️ 🌨️ 🌩️ 🌪️ 🌫️ 🌬️ 🌀 🌈 ☂️ ☔ ⚡ ❄️ ☃️ ⛄ ☄️ 🔥 💧 🌊 🎃 🎄 🎆 🎇 🧨 ✨ 🎈 🎉 🎊 🎋 🎍 🎎 🎏 🎐 🎑 🧧 🎀 🎁 🎗️ 🎟️ 🎫 🎖️ 🏆 🏅 🥇 🥈 🥉 ⚽ ⚾ 🥎 🏀 🏐 🏈 🏉 🎾 🥏 🎳 🏏 🏑 🏒 🥍 🏓 🏸 🥊 🥋 🥅 ⛳ ⛸️ 🎣 🤿 🎽 🎿 🛷 🥌 🎯 🔮 🎮 🕹️ 🎰 🎲 🧩 🧸 ♟️ 🎨 🧵 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🎻 🎭 📱 📲 💻 ⌨️ 🖥️ 🖨️ 🖱️ 🖲️ 🗜️ 💽 💾 💿 📀 📼 📷 📸 📹 🎥 📽️ 🎞️ 📞 ☎️ 📟 📠 📺 📻 🎙️ 🎚️ 🎛️ 🧭 🏮 💡 🔦 🧯 💸 💵 💴 💶 💷 💰 💳 💎 ⚖️ 🧰 🔧 🔨 ⚒️ 🛠️ ⛏️ 🔩 ⚙️ ⛓️ 🧲 🔫 💣 🔪 🗡️ ⚔️ 🛡️ 🚬 ⚰️ ⚱️ 🏺 📿 🧿 💈 🧪 🧫 🧬 🔭 🔬 🕳️ 💊 💉 🩸 🩹 🩺 🌡️ 🏷️ 🔖 🚽 🚿 🛁 🧼 🧻 🧴 🧺 🧹 🧽 🔑 🗝️ 🛋️ 🛌 🖼️ 🛍️ 🛒 📩 📨 📧 💌 📥 📤 📦 📯 📮 📭 📬 📫 📜 📄 📑 📊 📈 📉 🗒️ 🗓️ 📆 📅 🗑️ 📇 🗃️ 🗄️ 📋 📁 📂 🗂️ 🗞️ 📰 📓 📔 📒 📕 📗 📘 📙 📚 📖 🔗 📎 🖇️ 📐 📏 📌 📍 ✂️ 🖊️ 🖋️ ✒️ 📝 ✏️ 🔍 🔎 🔏 🔐 🔒 🔓 💘 ❤️ 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉️ ☸️ ✡️ 🔯 🕎 ☯️ ☦️ 🛐 ⛎ ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓ 🆔 ⚛️ 🉑 ☢️ ☣️ 📴 📳 ✴️ 🆚 💮 🅰️ 🆎 🆑 🅾️ 🆘 ❌ ⭕ 🛑 ⛔ 📛 🚫 💢 ♨️ 🚷 🚯 🚳 🚱 🚭 🚸 ⚠️ 🔱 ⚜️ 🔰 ♻️ ✅ 🈯 🛄 🛅 🛃 🛂 🚾 🅿️ ♿ 🏧 🚼 🚻 🚹 🚺 🚮 🎦 📶 ℹ️ 🔤 🔡 🔠 🆖 🆗 🆙 🆒 🆕 🆓 0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟 🔢 ▶️ ⏸️ ⏯️ ⏹️ ⏺️ ⏏️ ⏭️ ⏮️ ⏩ ⏪ ⏫ ⏬ ◀️ 🔼 🔽 ➡️ ⬅️ ⬆️ ⬇️ ↗️ ↘️ ↙️ ↖️ ↕️ ↔️ ↪️ ↩️ ⤴️ ⤵️ 🔀 🔁 🔂 🔄 🔃 🎵 🎶 ➕ ➖ ➗ ✖️ ♾️ 💲 💱 ™️ ©️ ®️ 〰️ ➰ ➿ 🔚 🔙 🔛 🔝 🔜 ☑️ 🔘 ⚪ ⚫ 🔴 🔵 🟣 🟢 🟡 🟤 🔺 🔻 🔸 🔹 🔶 🔷 🔳 🔲 ▪️ ▫️ ◾ ◽ ◼️ ◻️ 🟪 🟫 🟥 🟦 🟧 🟨 🟩 🏁 🚩 🎌 🏴 🏳️ 🏳️‍🌈 🏴‍☠️ 🇷🇺 🇧🇾 🇰🇿 🇺🇦 🇺🇿 🇦🇲 🇦🇿 🇰🇬 🇹🇯 🇹🇲 🇲🇩 🇪🇺 🇺🇸 🇬🇧 🇨🇳 🇯🇵 🇩🇪 🇫🇷 🇮🇹 🇪🇸 🇰🇷 🇨🇦 🇦🇺 🇧🇷 🇮🇳 🇪🇬 🇹🇷 🇸🇦 🇦🇪".split(' ');
@@ -1860,7 +1881,7 @@ window.loadAllChats = async function() {
     box.innerHTML = chats.map(c => `
       <div style="background: #0d0404; border: 1px solid #4a1515; border-radius: 6px; padding: 12px;">
         <div style="font-weight: bold; color: #fff;">${esc(c.name)} ${c.isChannel ? '📢' : '👥'}</div>
-        <div style="font-size: 11px; color: #884444; font-family: 'Fira Code'; margin-top: 4px;">Создатель: @${esc(c.creatorName || 'Unknown')} • Участников: ${c.memberCount} • L${c.required_clearance}</div>
+        <div style="font-size: 11px; color: #884444; font-family: 'Fira Code'; margin-top: 4px;">Создатель: @${esc(c.creatorName || 'Unknown')} • Участников: ${c.memberCount} • Вход: L${c.required_clearance} • Писать: L${c.min_write_clearance || 1}</div>
       </div>
     `).join('');
   } catch (e) { box.innerHTML = `Ошибка: ${e.message}`; }
@@ -2080,8 +2101,10 @@ window.openCreateGroupModal = function(isChannel) {
   document.getElementById('group-name-input').value = '';
   document.getElementById('channel-username-container').style.display = isChannel ? 'block' : 'none';
   document.getElementById('channel-username-input').value = '';
-  document.getElementById('clearance-required-container').style.display = isChannel ? 'block' : 'none';
+  document.getElementById('clearance-required-container').style.display = 'block';
+  document.getElementById('min-write-clearance-container').style.display = 'block';
   document.getElementById('channel-required-clearance').value = '1';
+  document.getElementById('channel-min-write-clearance').value = '1';
 
   const list = document.getElementById('group-user-list');
   list.innerHTML = 'Загрузка...';
@@ -2112,11 +2135,12 @@ window.createGroup = async function() {
     username = document.getElementById('channel-username-input').value.trim();
     if (!username) return alert('Укажите юзернейм для канала');
   }
-  const requiredClearance = isCreatingChannel ? Number(document.getElementById('channel-required-clearance').value) : 1;
+  const requiredClearance = Number(document.getElementById('channel-required-clearance').value);
+  const minWriteClearance = Number(document.getElementById('channel-min-write-clearance').value);
   const checkboxes = document.querySelectorAll('.group-user-checkbox:checked');
   const memberIds = Array.from(checkboxes).map(cb => cb.value);
   try {
-    const res = await api('/chats/group', { method: 'POST', body: JSON.stringify({ name, memberIds, is_channel: isCreatingChannel, username, required_clearance: requiredClearance }) });
+    const res = await api('/chats/group', { method: 'POST', body: JSON.stringify({ name, memberIds, is_channel: isCreatingChannel, username, required_clearance: requiredClearance, min_write_clearance: minWriteClearance }) });
     document.getElementById('create-group-modal').classList.remove('visible');
     await loadChats();
     openChat(res.chatId, name, null, false, null, 0, true, state.me.id, isCreatingChannel, res.username, false, false, false, res.required_clearance, true);
@@ -2267,7 +2291,17 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   } else headerBadge.innerHTML = '';
   
   const isCreator = !isGroup || (creatorId === state.me.id);
-  const showComposer = !isBlocked && (!isChannel || isCreator);
+  let showComposer = !isBlocked && (!isChannel || isCreator);
+  
+  // Проверка на право писать в группу
+  const chatObj = state.chats.find(c => c.id === chatId);
+  if (chatObj && chatObj.isGroup) {
+     const minWrite = chatObj.min_write_clearance || 1;
+     if (myClearance < minWrite && !isCreator) {
+         showComposer = false;
+     }
+  }
+
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
   document.getElementById('expiry-picker').style.display = showComposer ? 'flex' : 'none';
   
@@ -2428,7 +2462,6 @@ function appendMessage(msg, scroll = true) {
   if (msg.is_deleted && !canReadDeleted) {
     content += `<div><i>Сообщение удалено</i></div>`;
   } else {
-    // SCP card?
     const scpCard = renderScpCard(rawText);
     if (scpCard) {
       content += scpCard;
@@ -2767,7 +2800,9 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   e.preventDefault();
   const input = document.getElementById('msg-input');
   const text = input.value.trim();
-  if (!text || !state.currentChat) return;
+  if (!text) return;
+  if (!state.currentChat || !state.currentChat.id) return alert('Ошибка: Чат не выбран');
+  
   const targetChatId = state.currentChat.id;
   input.value = ''; input.style.height = 'auto';
   delete chatDrafts[targetChatId];
