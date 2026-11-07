@@ -228,7 +228,6 @@ async function handleScpCommand(chatId, userId, args) {
   if (!number) return sendBotMsg('❌ **Ошибка**\nУкажите номер объекта, например: `/scp 173`');
 
   try {
-    // Парсим страницу с официальной Wiki (самый надежный способ)
     const res = await fetch(`https://scp-wiki.wikidot.com/scp-${number}`, { headers: { 'User-Agent': 'Mozilla/5.0 (SCP-Messenger-Bot)' } });
     if (!res.ok) throw new Error('Not found');
     const html = await res.text();
@@ -272,11 +271,6 @@ function scheduleMessageExpiry(msgId, expiresAt) {
     }
   }, delay);
 }
-
-// ================= GLOBAL JSON 404 HANDLER =================
-app.use((req, res, next) => {
-  res.status(404).json({ error: 'API route not found' });
-});
 
 // ================= REPORTS =================
 app.post('/api/reports', authMiddleware, (req, res) => {
@@ -779,6 +773,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       isChannel: !!c.is_channel, username: c.username || null,
       isHelper: !c.is_group && !isSelf && otherId === HELPER_ID,
       otherStatus: other && !c.is_group ? (other.custom_status || '') : '',
+      status: other ? (other.status || 'offline') : 'offline', // <--- ДОБАВЛЕНО ДЛЯ СТАТУСА
       required_clearance: requiredClearance,
       min_write_clearance: c.min_write_clearance || 1,
       canAccess: canAccess
@@ -1389,6 +1384,14 @@ io.on('connection', (socket) => {
       if (u) { u.status = 'offline'; saveDb(); io.emit('refreshData'); }
     });
   } catch (e) {}
+});
+
+// ================= ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК (ТОЛЬКО В САМОМ КОНЦЕ) =================
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'API route not found' });
+  }
+  next();
 });
 
 // ================= ИНИЦИАЛИЗАЦИЯ =================
