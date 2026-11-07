@@ -197,7 +197,7 @@
   .att-viewer-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
   .att-viewer-nav button:not(:disabled):hover { border-color: var(--border-hover); }
 
-  /* УЛУЧШЕННЫЙ ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (ZOOM & SWIPE) */
+  /* УЛУЧШЕННЫЙ ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (ZOOM & PAN) */
   #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 999999; cursor: grab; overflow: hidden; }
   #lightbox:active { cursor: grabbing; }
   #lightbox.visible { display: block; }
@@ -319,6 +319,15 @@
   #wb-canvas, #wb-preview-canvas { background: #121212; display: block; box-shadow: 0 0 20px rgba(0,0,0,0.8); touch-action: none; cursor: crosshair; }
   #wb-preview-canvas { position: absolute; top: 0; left: 0; pointer-events: none; background: transparent; }
   
+  .wb-text-layer { position: absolute; inset: 0; pointer-events: none; z-index: 10; overflow: visible; }
+  .wb-text-box { position: absolute; pointer-events: auto; border: 1px dashed rgba(255,255,255,0.4); padding: 4px; transform-origin: center; cursor: move; user-select: none; }
+  .wb-text-box.active { border-color: #1d9bf0; box-shadow: 0 0 0 1px rgba(29,155,240,0.3); }
+  .wb-text-content { outline: none; min-width: 20px; min-height: 20px; white-space: pre-wrap; word-wrap: break-word; cursor: text; color: #fff; font-family: Inter, sans-serif; line-height: 1.2; }
+  .wb-text-content:empty:before { content: attr(data-placeholder); color: rgba(255,255,255,0.3); pointer-events: none; }
+  
+  .wb-rotate-handle { position: absolute; top: -24px; left: 50%; width: 12px; height: 12px; background: #1d9bf0; border: 2px solid #fff; border-radius: 50%; transform: translateX(-50%); cursor: grab; pointer-events: auto; }
+  .wb-rotate-handle:active { cursor: grabbing; }
+  
   .wb-send-btn { background: #00ff9d !important; color: #000 !important; font-weight: bold !important; border-color: #00ff9d !important; min-width: 90px; }
   .wb-send-btn:hover { opacity: 0.8; }
   .wb-close-btn { color: #ff4d4d !important; border-color: transparent !important; }
@@ -371,7 +380,7 @@
   <circle cx="1200" cy="80" r="45" fill="rgba(255, 255, 255, 0.05)" /><circle cx="1200" cy="80" r="35" fill="rgba(255, 255, 255, 0.08)" /><path class="hill" d="M0,240 L100,160 L200,240 L350,130 L500,240 L650,150 L800,240 L950,170 L1100,240 L1250,120 L1440,240 L1440,320 L0,320 Z" fill="var(--hill-color)"></path><g class="trees" fill="var(--tree-color)"><polygon points="150,230 170,150 190,230" /><polygon points="450,230 480,120 510,230" /><polygon points="850,230 870,140 890,230" /><polygon points="1200,230 1220,150 1240,230" /><circle cx="250" cy="215" r="25" /><circle cx="270" cy="220" r="20" /><circle cx="600" cy="210" r="30" /><circle cx="980" cy="225" r="22" /><circle cx="1000" cy="215" r="18" /></g><path class="ground" d="M0,280 Q360,260 720,280 T1440,270 L1440,320 L0,320 Z" fill="var(--ground-color)"></path><g class="fg-trees" fill="var(--tree-color)"><polygon points="100,280 150,140 200,280" /><circle cx="400" cy="230" r="55" /><rect x="385" y="250" width="30" height="40" fill="var(--tree-color)" /><circle cx="550" cy="275" r="20" /><circle cx="580" cy="280" r="15" /><circle cx="620" cy="278" r="18" /><polygon points="1100,280 1130,180 1160,280" /><circle cx="1300" cy="250" r="40" /><rect x="1290" y="270" width="20" height="30" fill="var(--tree-color)" /><circle cx="1350" cy="260" r="30" /><rect x="1340" y="275" width="20" height="30" fill="var(--tree-color)" /></g>
 </svg>
 
-<!-- УЛУЧШЕННЫЙ ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (ZOOM & SWIPE) -->
+<!-- УЛУЧШЕННЫЙ ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (ZOOM & PAN) -->
 <div id="lightbox">
   <div class="lightbox-close" onclick="closeLightbox()">×</div>
   <div class="lightbox-controls" id="lightbox-nav" style="display: none;">
@@ -1167,7 +1176,7 @@ let wbLastX = 0;
 let wbLastY = 0;
 let wbHistory = [];
 
-// Настройки текста (стандартные)
+// Настройки текста
 let wbFontSize = 24;
 let wbFontBold = false;
 let wbFontItalic = false;
@@ -1323,7 +1332,6 @@ function createTextBox(x, y) {
   content.contentEditable = 'true';
   content.setAttribute('data-placeholder', 'Введите текст...');
   
-  // Применяем текущие настройки (24px по умолчанию)
   content.style.fontSize = wbFontSize + 'px';
   content.style.fontWeight = wbFontBold ? 'bold' : 'normal';
   content.style.fontStyle = wbFontItalic ? 'italic' : 'normal';
@@ -1335,7 +1343,8 @@ function createTextBox(x, y) {
 
   wbTextObj = { x, y, rotation: 0, element: box, contentEl: content };
 
-  setTimeout(() => content.focus(), 10);
+  // ИСПРАВЛЕНИЕ: preventScroll не дает странице прыгнуть вниз
+  setTimeout(() => content.focus({ preventScroll: true }), 10);
 
   content.addEventListener('input', () => {});
   content.addEventListener('keydown', (e) => { if (e.key === 'Escape') finalizeText(); });
@@ -1562,7 +1571,7 @@ async function sendWhiteboard() {
   }, 'image/png');
 }
 
-// ================= ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (ZOOM & SWIPE) =================
+// ================= ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (ZOOM & PAN) =================
 let lbScale = 1;
 let lbTranslateX = 0;
 let lbTranslateY = 0;
@@ -1651,21 +1660,17 @@ lightbox.addEventListener('pointermove', (e) => {
 lightbox.addEventListener('pointerup', (e) => {
     lbIsDragging = false;
     lightbox.releasePointerCapture(e.pointerId);
-    if (lbScale === 1 && Math.abs(lbTranslateX) > 100 && lbImages.length > 1) {
+    
+    // ИСПРАВЛЕНИЕ: Убрано принудительное центрирование и закрытие
+    // Свайп работает только если картинка не увеличена и сдвинута далеко (> 150px)
+    if (lbScale === 1 && Math.abs(lbTranslateX) > 150 && lbImages.length > 1) {
         if (lbTranslateX > 0) navLightbox(-1);
         else navLightbox(1);
-    } else {
-        if (Math.abs(lbTranslateX) < 100) {
-            lbTranslateX = 0;
-            lbTranslateY = 0;
-            updateLightboxTransform();
-        }
     }
 });
 
-lightbox.addEventListener('click', (e) => {
-    if (e.target === lightbox) closeLightbox();
-});
+// УДАЛЕНО: lightbox.addEventListener('click', ...) чтобы не закрывалось при клике
+// Вместо этого используется только крестик (.lightbox-close)
 
 // =========================================================
 document.getElementById('tab-login').addEventListener('click', () => {
