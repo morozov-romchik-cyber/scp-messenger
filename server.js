@@ -59,15 +59,18 @@ const ALLOWED_EXT = new Set([
 const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
 const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
 const ROLE_TO_CLEARANCE = { user: 1, helper: 5, moderator: 5, admin: 5, sysadmin: 5 };
+const CLEARANCE_TO_ROLE = { 1: 'user', 2: 'user', 3: 'user', 4: 'user', 5: 'user' };
 const CLEARANCE_RANK = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
 
 const FILE_SIZE_LIMITS = {
-  1: 10 * 1024 * 1024, 2: 50 * 1024 * 1024, 3: 200 * 1024 * 1024,
-  4: 1024 * 1024 * 1024, 5: 10 * 1024 * 1024 * 1024
+  1: 10 * 1024 * 1024,
+  2: 50 * 1024 * 1024,
+  3: 200 * 1024 * 1024,
+  4: 1024 * 1024 * 1024,
+  5: 10 * 1024 * 1024 * 1024
 };
 
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
-const MESSAGE_COOLDOWNS = { 1: 7000, 2: 5000, 3: 3000, 4: 1000, 5: 0 };
 
 const HELPER_ID = 'system_scp_helper_id';
 
@@ -219,60 +222,32 @@ const chatIsBlocked = (chatId, myId) => {
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
-// ФУНКЦИЯ УДАЛЕНИЯ ИСЧЕЗАЮЩИХ СООБЩЕНИЙ
-function scheduleMessageExpiry(msgId, expiresAt) {
-  const delay = expiresAt - Date.now();
-  const expireAction = () => {
-    const msg = db.messages.find(m => m.id === msgId);
-    if (msg && !msg.is_deleted) {
-      msg.is_deleted = true;
-      saveDb();
-      emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: 'system' });
-    }
-  };
-
-  if (delay > 0) {
-    setTimeout(expireAction, delay);
+// ================= ИСЧЕЗАЮЩИЕ СООБЩЕНИЯ =================
+function scheduleMessageExpiry(messageId, expiresAt) {
+  const now = Date.now();
+  const delay = expiresAt - now;
+  if (delay <= 0) {
+    markMessageExpired(messageId);
   } else {
-    expireAction();
+    setTimeout(() => {
+      markMessageExpired(messageId);
+    }, delay);
   }
 }
 
-const getWelcomeMessageText = () => {
-    return `[ДОСТУП РАЗРЕШЕН] ОБРАТНЫЙ ОТСЧЕТ ТЕРМИНАЛА... ГОТОВО.
-ДОБРО ПОЖАЛОВАТЬ В SCP FOUNDATION.
-Вы подключены к защищенному каналу связи локальной сети Фонда.
-• Ваш текущий статус: Персонал класса D
-• Ваш текущий уровень допуска: L1 (0 XP)
-
-📈 РЕГЛАМЕНТ ПОВЫШЕНИЯ ДОПУСКА (СИСТЕМА XP)
-
-Для получения доступа к более засекреченным материалам выполняйте протоколы активности. Начисление опыта происходит мгновенно в режиме реального времени (Live-Update) — обновление страницы терминала не требуется.
-• Ежедневная авторизация: +50 XP (один раз в сутки).
-• Текстовые рапорты: +2 XP за сообщение. Суточный лимит: 200 XP (первые 100 сообщений).
-• Одобрение коллег: +5 XP за каждую реакцию на ваши сообщения.
-• Вербовка полевых агентов: +200 XP за реферальный код. Суточный лимит: 2 активации.
-
-🎯 ИЕРАРХИЯ ДОПУСКА, ПРИВИЛЕГИИ И ТАЙМАУТЫ
-
-• L1 [0 XP]: Базовый доступ сотрудника класса D. Задержка отправки сообщений: 1 раз в 7 секунд.
-• L2 [500 XP]: Разрешено формирование оперативных групп. Лимит передачи данных: до 50 МБ. Задержка отправки сообщений: 1 раз в 5 секунд.
-• L3 [2 000 XP]: Открыт доступ к публичным информационным каналам. Лимит данных: до 200 МБ. Задержка отправки сообщений: 1 раз в 3 секунды.
-• L4 [10 000 XP]: Допуск к засекреченным каналам и спец-архивам. Лимит данных: до 1 ГБ. Задержка отправки сообщений: 1 раз в 1 секунду (режим Трекли).
-• L5 [50 000 XP]: Максимальный уровень сингулярного контроля. Лимит данных: до 10 ГБ. Отправка сообщений без ограничений.
-
-⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА СБ)
-
-Категорически запрещена регистрация нескольких учетных записей с одного IP-адреса. Система классифицирует это как саботаж внутренней сети и дюп опыта.
-• При обнаружении повторного подключения система выдает системное уведомление.
-• Внимание: С данного IP-адреса зафиксирована регистрация учетной записи. Вынесено предупреждение 1 из 2. Осталось 2 предупреждения.
-• После фиксации 3-го аккаунта на одном сетевом узле автоматическая система безопасности Фонда инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.`;
-};
+function markMessageExpired(messageId) {
+  const msg = db.messages.find(m => m.id === messageId);
+  if (msg && !msg.is_deleted) {
+    msg.is_deleted = true;
+    saveDb();
+    emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: 'system' });
+  }
+}
 
 // ================= XP SYSTEM =================
 function addXp(userId, amount) {
   const user = db.users.find(u => u.id === userId);
-  if (!user || user.role !== 'user') return; 
+  if (!user || user.role !== 'user') return;
   user.xp = (user.xp || 0) + amount;
   
   let newLevel = 1;
@@ -306,8 +281,6 @@ function addXp(userId, amount) {
     db.messages.push(sysMsg);
     emitToChatMembers(helperChat.id, 'newMessage', buildMessagePayload(sysMsg));
   }
-  
-  io.to(`user:${user.id}`).emit('xpUpdated', { xp: user.xp, clearance_level: user.clearance_level });
   saveDb();
 }
 
@@ -416,6 +389,18 @@ app.get('/api/admin/all-chats', authMiddleware, (req, res) => {
   res.json(chats);
 });
 
+// НОВЫЙ ЭНДПОИНТ ДЛЯ ПРОСМОТРА УЧАСТНИКОВ АДМИНОМ
+app.get('/api/admin/chats/:chatId/members', authMiddleware, (req, res) => {
+  const me = db.users.find(u => u.id === req.userId);
+  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  const chatId = req.params.chatId;
+  const members = db.chat_members.filter(m => m.chat_id === chatId).map(m => {
+    const u = db.users.find(user => user.id === m.user_id);
+    return u ? publicUserSafe(u) : null;
+  }).filter(Boolean);
+  res.json(members);
+});
+
 app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
@@ -485,7 +470,7 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const { username, role } = req.body;
-  if (!ROLE_TO_CLEARANCE[role]) return res.status(400).json({ error: 'Неизвестная роль' });
+  if (!CLEARANCE_TO_ROLE[ROLE_TO_CLEARANCE[role]]) return res.status(400).json({ error: 'Неизвестная роль' });
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить роль SCP_Helper' });
@@ -496,7 +481,7 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   if (target.role === 'sysadmin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может менять роль SysAdmin' });
   
   target.role = role;
-  target.clearance_level = ROLE_TO_CLEARANCE[role] || 1; 
+  target.clearance_level = ROLE_TO_CLEARANCE[role] || 1;
   
   saveDb();
   io.to(`user:${target.id}`).emit('roleChanged', { newRole: role, clearance_level: target.clearance_level });
@@ -518,6 +503,9 @@ app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   if (level === 5 && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может назначать Level 5' });
   
   target.clearance_level = level;
+  if (level === 5 && ['helper', 'moderator', 'admin', 'sysadmin'].includes(target.role)) {
+      target.role = CLEARANCE_TO_ROLE[level] || 'user';
+  }
   
   saveDb();
   io.to(`user:${target.id}`).emit('roleChanged', { newRole: target.role, clearance_level: level });
@@ -767,6 +755,15 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     db.chats.push(helperChat);
     db.chat_members.push({ id: genId(), chat_id: helperChatId, user_id: req.userId });
     db.chat_members.push({ id: genId(), chat_id: helperChatId, user_id: HELPER_ID });
+
+    // ДОБАВЛЯЕМ ПРИВЕТСТВЕННОЕ СООБЩЕНИЕ ОТ БОТА
+    const welcomeText = `[ДОСТУП РАЗРЕШЕН] ОБРАТНЫЙ ОТСЧЕТ ТЕРМИНАЛА... ГОТОВО.\nДОБРО ПОЖАЛОВАТЬ В SCP FOUNDATION.\nВы подключены к защищенному каналу связи локальной сети Фонда.\n• Ваш текущий статус: Персонал класса D\n• Ваш текущий уровень допуска: L1 (0 XP)\n\n📈 РЕГЛАМЕНТ ПОВЫШЕНИЯ ДОПУСКА (СИСТЕМА XP)\n\nДля получения доступа к более засекреченным материалам выполняйте протоколы активности. Начисление опыта происходит мгновенно в режиме реального времени (Live-Update) — обновление страницы терминала не требуется.\n• Ежедневная авторизация: +50 XP (один раз в сутки).\n• Текстовые рапорты: +2 XP за сообщение. Суточный лимит: 200 XP (первые 100 сообщений).\n• Одобрение коллег: +5 XP за каждую реакцию на ваши сообщения.\n• Вербовка полевых агентов: +200 XP за реферальный код. Суточный лимит: 2 активации.\n\n🎯 ИЕРАРХИЯ ДОПУСКА, ПРИВИЛЕГИИ И ТАЙМАУТЫ\n\n• L1 [0 XP]: Базовый доступ сотрудника класса D. Задержка отправки сообщений: 1 раз в 7 секунд.\n• L2 [500 XP]: Разрешено формирование оперативных групп. Лимит передачи данных: до 50 МБ. Задержка отправки сообщений: 1 раз в 5 секунд.\n• L3 [2 000 XP]: Открыт доступ к публичным информационным каналам. Лимит данных: до 200 МБ. Задержка отправки сообщений: 1 раз в 3 секунды.\n• L4 [10 000 XP]: Допуск к засекреченным каналам и спец-архивам. Лимит данных: до 1 ГБ. Задержка отправки сообщений: 1 раз в 1 секунду (режим Трекли).\n• L5 [50 000 XP]: Максимальный уровень сингулярного контроля. Лимит данных: до 10 ГБ. Отправка сообщений без ограничений.\n\n⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА СБ)\n\nКатегорически запрещена регистрация нескольких учетных записей с одного IP-адреса. Система классифицирует это как саботаж внутренней сети и дюп опыта.\n• При обнаружении повторного подключения система выдает системное уведомление.\n• Внимание: С данного IP-адреса зафиксирована регистрация учетной записи. Вынесено предупреждение 1 из 2. Осталось 2 предупреждения.\n• После фиксации 3-го аккаунта на одном сетевом узле автоматическая система безопасности Фонда инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.`;
+
+    db.messages.push({
+        id: genId(), chat_id: helperChatId, sender_id: HELPER_ID,
+        text: welcomeText, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+    });
+
     saveDb();
     myChatIds.push(helperChatId);
   } else {
@@ -911,26 +908,6 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   res.json({ ok: true, chatId: groupId, username: null, required_clearance: reqClearance });
 });
 
-app.post('/api/chats/:chatId/add-members', authMiddleware, (req, res) => {
-    const chatId = req.params.chatId;
-    const { userIds } = req.body;
-    const chat = db.chats.find(c => c.id === chatId);
-    
-    if (!chat || !chat.is_group) return res.status(400).json({ error: 'Это не группа' });
-    if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может добавлять участников' });
-    if (!userIds || !Array.isArray(userIds)) return res.status(400).json({ error: 'Неверный список участников' });
-
-    userIds.forEach(uid => {
-        if (!db.chat_members.some(m => m.chat_id === chatId && m.user_id === uid)) {
-            db.chat_members.push({ id: genId(), chat_id: chatId, user_id: uid });
-        }
-    });
-
-    saveDb();
-    io.emit('refreshData');
-    res.json({ ok: true });
-});
-
 app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   const chat = db.chats.find(c => c.id === chatId);
@@ -952,13 +929,7 @@ app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
 
 app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
-  const me = db.users.find(u => u.id === req.userId);
-  const isAdmin = ['sysadmin', 'admin', 'moderator', 'helper'].includes(me.role);
-  
-  if (!isAdmin && !db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) {
-      return res.status(403).json({ error: 'Not a member' });
-  }
-
+  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   const members = db.chat_members.filter(m => m.chat_id === chatId).map(m => {
     const u = db.users.find(user => user.id === m.user_id);
     return u ? publicUserSafe(u) : null;
@@ -1080,11 +1051,7 @@ app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   if (chat && (chat.required_clearance || 1) > myClearance) {
     return res.status(403).json({ error: `Доступ запрещён. Требуется уровень допуска ${chat.required_clearance}` });
   }
-  const messages = db.messages
-    .filter(m => m.chat_id === req.params.chatId)
-    .filter(m => !(m.deleted_for && m.deleted_for.includes(req.userId))) 
-    .sort((a, b) => a.created_at - b.created_at)
-    .map(buildMessagePayload);
+  const messages = db.messages.filter(m => m.chat_id === req.params.chatId).sort((a, b) => a.created_at - b.created_at).map(buildMessagePayload);
   res.json(messages);
 });
 
@@ -1111,52 +1078,25 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
-  const members = db.chat_members.filter(cm => cm.chat_id === chatId);
-  const otherId = members.find(m => m.user_id !== req.userId)?.user_id;
-  
-  if (!chatForCheck.is_group && otherId === HELPER_ID && text.trim().toLowerCase() === '/start') {
-      const sysMsg = {
-        id: genId(), chat_id: chatId, sender_id: HELPER_ID,
-        text: getWelcomeMessageText(),
-        created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
-      };
-      db.messages.push(sysMsg);
-      saveDb();
-      const payload = buildMessagePayload(sysMsg);
-      emitToChatMembers(chatId, 'newMessage', payload);
-      return res.json(payload);
-  }
-
-  const cooldownMs = MESSAGE_COOLDOWNS[myClearance] || 0;
-  const now = Date.now();
-  if (cooldownMs > 0 && me.last_message_time) {
-      const timePassed = now - me.last_message_time;
-      if (timePassed < cooldownMs) {
-          const waitSec = Math.ceil((cooldownMs - timePassed) / 1000);
-          return res.status(429).json({ error: `⛔ Слишком часто. Подождите ${waitSec} сек. (Кулдаун L${myClearance})` });
-      }
-  }
-  me.last_message_time = now;
-
   if (me.role === 'user') {
       const today = new Date().toDateString();
       if (!me.last_msg_xp_date || me.last_msg_xp_date !== today) {
           me.last_msg_xp_date = today;
           me.daily_msg_xp = 0;
       }
-      if (me.daily_msg_xp < 200) { 
+      if (me.daily_msg_xp < 100) {
           me.daily_msg_xp += 2;
           addXp(me.id, 2);
       }
   }
 
   const msgId = genId();
-  const nowSec = Math.floor(Date.now() / 1000);
+  const now = Math.floor(Date.now() / 1000);
   const expiresAt = expires_in && Number(expires_in) > 0 ? Date.now() + Number(expires_in) * 1000 : null;
 
   const msg = {
     id: msgId, chat_id: chatId, sender_id: req.userId, text: text.slice(0, 4000),
-    created_at: nowSec, is_deleted: false, delivered_to: [], read_by: [],
+    created_at: now, is_deleted: false, delivered_to: [], read_by: [],
     expires_at: expiresAt
   };
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
@@ -1217,11 +1157,11 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const { files, caption, expires_in } = req.body;
   if (!files || !files.length) return res.status(400).json({ error: 'Нет файлов' });
   const msgId = genId();
-  const nowSec = Math.floor(Date.now() / 1000);
+  const now = Math.floor(Date.now() / 1000);
   const expiresAt = expires_in && Number(expires_in) > 0 ? Date.now() + Number(expires_in) * 1000 : null;
   const msg = {
     id: msgId, chat_id: chatId, sender_id: req.userId, text: (caption || '').slice(0, 4000),
-    created_at: nowSec, is_deleted: false, delivered_to: [], read_by: [],
+    created_at: now, is_deleted: false, delivered_to: [], read_by: [],
     expires_at: expiresAt
   };
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
@@ -1309,18 +1249,10 @@ app.delete('/api/messages/:messageId', authMiddleware, (req, res) => {
   const isAdmin = me && ['sysadmin', 'admin', 'moderator'].includes(me.role);
   const isOwn = msg.sender_id === req.userId;
   const scope = (req.body && req.body.scope) || 'me';
-  
   if (scope === 'all') {
     if (!isOwn && !isAdmin) return res.status(403).json({ error: 'Недостаточно прав' });
     msg.is_deleted = true;
-    saveDb(); 
-    emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
-  } else {
-    if (!msg.deleted_for) msg.deleted_for = [];
-    if (!msg.deleted_for.includes(req.userId)) {
-      msg.deleted_for.push(req.userId);
-      saveDb();
-    }
+    saveDb(); emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
   }
   res.json({ ok: true });
 });
@@ -1412,18 +1344,6 @@ app.post('/api/register', async (req, res) => {
     const ip = getRealIp(req);
     if (db.banned_ips.includes(ip)) return res.status(403).json({ error: 'Ваш IP заблокирован' });
 
-    const existingIps = db.users.filter(u => u.ip === ip);
-    let ipWarnMsg = '';
-    
-    if (existingIps.length >= 3) {
-        db.users.filter(u => u.ip === ip).forEach(u => { u.xp = 0; u.clearance_level = 1; });
-        ipWarnMsg = `⛔ **СРАБОТАЛ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА СБ)**\n\nЗафиксировано 4+ аккаунта на одном IP.\nВсе профили на этом сетевом узле принудительно обнулены до L1 и 0 XP.`;
-    } else if (existingIps.length === 2) {
-        ipWarnMsg = `⚠️ **ПРЕДУПРЕЖДЕНИЕ СИСТЕМЫ БЕЗОПАСНОСТИ (2/2)**\n\nЗафиксирована регистрация третьего аккаунта с вашего IP-адреса.\nОсталось предупреждений до полного обнуления: **1**.\nСледующая регистрация приведет к сбросу ВСЕХ аккаунтов.`;
-    } else if (existingIps.length === 1) {
-        ipWarnMsg = `⚠️ **ПРЕДУПРЕЖДЕНИЕ СИСТЕМЫ БЕЗОПАСНОСТИ (1/2)**\n\nЗафиксирована регистрация второго аккаунта с вашего IP-адреса.\nОсталось предупреждений до полного обнуления: **2**.\nПри регистрации 3-го аккаунта все профили будут обнулены до L1.`;
-    }
-
     let userRole = 'user';
     let clearance_level = 1;
     let inviter = null;
@@ -1440,10 +1360,6 @@ app.post('/api/register', async (req, res) => {
       } else {
           const refUser = db.users.find(u => u.invite_code === invited_by);
           if (refUser) {
-              const today = new Date().toDateString();
-              if (refUser.last_invite_date === today && (refUser.daily_invite_count || 0) >= 2) {
-                  return res.status(400).json({ error: 'Лимит приглашений этого пользователя на сегодня исчерпан (2/2). Попросите его использовать другой способ или завтра.' });
-              }
               inviter = refUser.username;
               isRefInvite = true;
           } else {
@@ -1467,56 +1383,14 @@ app.post('/api/register', async (req, res) => {
       clearance_level,
       custom_status: '',
       xp: 0,
-      invite_code: `REF-${cleanUsername.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
-      last_daily_login: 0,
-      last_invite_date: null,
-      daily_invite_count: 0,
-      last_message_time: 0
+      invite_code: `REF-${cleanUsername.toUpperCase()}`,
+      last_daily_login: 0
     };
     db.users.push(newUser);
 
     if (isRefInvite && inviter) {
         const inv = findUserByUsername(inviter);
-        if (inv) {
-            const today = new Date().toDateString();
-            if (inv.last_invite_date !== today) {
-                inv.last_invite_date = today;
-                inv.daily_invite_count = 0;
-            }
-            inv.daily_invite_count = (inv.daily_invite_count || 0) + 1;
-            addXp(inv.id, 200); 
-        }
-    }
-
-    let helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
-    db.chats.push(helperChat);
-    db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: id });
-    db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: HELPER_ID });
-
-    const welcomeMsg = {
-      id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID,
-      text: getWelcomeMessageText(), created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
-    };
-    db.messages.push(welcomeMsg);
-
-    if (ipWarnMsg) {
-        const m = { id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID, text: ipWarnMsg, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [] };
-        db.messages.push(m);
-        
-        if (existingIps.length >= 3) {
-            existingIps.forEach(u => {
-                let hc = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === u.id) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
-                if (!hc) {
-                    hc = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
-                    db.chats.push(hc);
-                    db.chat_members.push({ id: genId(), chat_id: hc.id, user_id: u.id });
-                    db.chat_members.push({ id: genId(), chat_id: hc.id, user_id: HELPER_ID });
-                }
-                const resetMsg = { id: genId(), chat_id: hc.id, sender_id: HELPER_ID, text: ipWarnMsg, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [] };
-                db.messages.push(resetMsg);
-                io.to(`user:${u.id}`).emit('refreshData');
-            });
-        }
+        if (inv) addXp(inv.id, 200);
     }
 
     const plainCodes = [];
@@ -1610,7 +1484,7 @@ io.on('connection', (socket) => {
   } catch (e) {}
 });
 
-// ================= ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК =================
+// ================= ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК (ТОЛЬКО В САМОМ КОНЦЕ) =================
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'API route not found' });
@@ -1664,14 +1538,7 @@ app.use((req, res, next) => {
     if (u.custom_status === undefined) u.custom_status = '';
     if (u.clearance_level === undefined) { u.clearance_level = ROLE_TO_CLEARANCE[u.role] || 1; migrated = true; }
     if (u.xp === undefined) { u.xp = 0; migrated = true; }
-    if (u.last_invite_date === undefined) { u.last_invite_date = null; migrated = true; }
-    if (u.daily_invite_count === undefined) { u.daily_invite_count = 0; migrated = true; }
-    if (u.last_message_time === undefined) { u.last_message_time = 0; migrated = true; }
-    
-    if (!u.invite_code || !/^REF-.*-\d{4}$/.test(u.invite_code)) {
-        u.invite_code = `REF-${u.username.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-        migrated = true;
-    }
+    if (!u.invite_code) { u.invite_code = `REF-${u.username.toUpperCase()}`; migrated = true; }
   });
   if (migrated) saveDb();
 
