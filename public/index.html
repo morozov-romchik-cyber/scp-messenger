@@ -591,7 +591,17 @@
   <div class="modal-content" style="height: 80vh; display: flex; flex-direction: column;">
     <h3>УЧАСТНИКИ ГРУППЫ</h3>
     <div id="group-members-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
+    <button class="modal-btn" id="add-member-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); flex-shrink: 0; display: none; margin-bottom: 10px;">➕ Добавить участника</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('group-members-modal').classList.remove('visible')">Закрыть</button>
+  </div>
+</div>
+
+<div class="modal" id="add-member-modal">
+  <div class="modal-content" style="height: 70vh; display: flex; flex-direction: column;">
+    <h3>ДОБАВИТЬ В ГРУППУ</h3>
+    <div id="add-member-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
+    <button class="modal-btn" onclick="submitAddMembers()" style="background: var(--accent); color: #000; margin-bottom: 10px; flex-shrink: 0;">Добавить выбранных</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('add-member-modal').classList.remove('visible')">Отмена</button>
   </div>
 </div>
 
@@ -1887,6 +1897,51 @@ window.createGroup = async function() {
   } catch (e) { alert(e.message); }
 };
 
+// ================= ADD MEMBERS =================
+window.openAddMemberModal = async function() {
+    if (!state.currentChat?.isGroup || state.currentChat.creatorId !== state.me.id) return;
+    const list = document.getElementById('add-member-list');
+    list.innerHTML = 'Загрузка...';
+    document.getElementById('add-member-modal').classList.add('visible');
+    try {
+        const allUsers = await api('/users/all');
+        const currentMembers = await api('/chats/' + state.currentChat.id + '/members');
+        const currentIds = currentMembers.map(m => m.id);
+        const available = allUsers.filter(u => !currentIds.includes(u.id));
+
+        if (!available.length) { list.innerHTML = '<div class="empty">Некого добавлять</div>'; return; }
+
+        list.innerHTML = available.map(u => {
+            const initial = esc((u.displayName || u.username || '?')[0].toUpperCase());
+            const av = u.avatarUrl 
+              ? `<img src="${escAttr(u.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerText='${initial}'">`
+              : initial;
+            return `
+              <label style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px; cursor:pointer;">
+                <input type="checkbox" class="add-member-checkbox" value="${u.id}" style="width:18px; height:18px; accent-color:var(--accent);">
+                <div class="chat-avatar" style="width:28px; height:28px; font-size:11px;">${av}</div>
+                <div style="font-size:14px; font-weight:600;">${esc(u.displayName || u.username)}</div>
+              </label>
+            `;
+        }).join('');
+    } catch (e) { list.innerHTML = `<div style="color:#ff4d4d; text-align:center; padding: 20px;">Ошибка: ${e.message}</div>`; }
+};
+
+window.submitAddMembers = async function() {
+    const checkboxes = document.querySelectorAll('.add-member-checkbox:checked');
+    const userIds = Array.from(checkboxes).map(cb => cb.value);
+    if (!userIds.length) return alert('Выберите участников');
+    try {
+        await api('/chats/' + state.currentChat.id + '/add-members', { method: 'POST', body: JSON.stringify({ userIds }) });
+        document.getElementById('add-member-modal').classList.remove('visible');
+        alert('Участники добавлены');
+        document.getElementById('group-members-btn').click(); // обновить список
+        loadChats();
+    } catch (e) { alert(e.message); }
+};
+
+document.getElementById('add-member-btn').addEventListener('click', openAddMemberModal);
+
 window.toggleFavorite = function(chatId, event) {
   if (event) event.stopPropagation();
   if (favoriteChats.includes(chatId)) favoriteChats = favoriteChats.filter(id => id !== chatId);
@@ -2591,11 +2646,15 @@ document.getElementById('group-members-btn').addEventListener('click', async () 
   if (!state.currentChat?.isGroup) return;
   const modal = document.getElementById('group-members-modal');
   const list = document.getElementById('group-members-list');
+  const addBtn = document.getElementById('add-member-btn');
   list.innerHTML = 'Загрузка...';
   modal.classList.add('visible');
+  
+  const isCreator = state.currentChat.creatorId === state.me.id;
+  addBtn.style.display = isCreator ? 'block' : 'none';
+
   try {
     const members = await api('/chats/' + state.currentChat.id + '/members');
-    const isCreator = state.currentChat.creatorId === state.me.id;
     list.innerHTML = members.map(u => {
       const init = esc((u.displayName || u.username || '?')[0].toUpperCase());
       const av = u.avatarUrl ? `<img src="${escAttr(u.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : init;
