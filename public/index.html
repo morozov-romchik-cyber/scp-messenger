@@ -306,6 +306,110 @@
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ========================================================= */
+  /* СТИЛИ ДЛЯ ПРОСМОТРЩИКА ФАЙЛОВ (ИСПРАВЛЕНИЕ КРЕСТИКА)       */
+  /* ========================================================= */
+  .att-viewer-modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 100000;
+    align-items: center;
+    justify-content: center;
+  }
+  .att-viewer-modal.visible {
+    display: flex;
+  }
+  .att-viewer-content {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+  }
+  .att-viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    font-family: 'Fira Code', monospace;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .att-viewer-close {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+  .att-viewer-close:hover {
+    color: #ff4d4d;
+  }
+  .att-viewer-meta {
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid var(--border);
+    font-family: 'Fira Code', monospace;
+  }
+  .att-viewer-body {
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    background: var(--bg);
+  }
+  .att-viewer-body img,
+  .att-viewer-body video {
+    max-width: 100%;
+    max-height: 60vh;
+    border-radius: 6px;
+    object-fit: contain;
+  }
+  .att-viewer-nav {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 12px;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    font-family: 'Fira Code', monospace;
+    font-size: 13px;
+  }
+  .att-viewer-nav button {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .att-viewer-nav button:hover:not(:disabled) {
+    background: var(--border);
+  }
+  .att-viewer-nav button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
 </style>
 </head>
 <body>
