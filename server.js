@@ -58,18 +58,12 @@ const ALLOWED_EXT = new Set([
 
 const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
 const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
-// Служебные роли всегда получают L5
 const ROLE_TO_CLEARANCE = { user: 1, helper: 5, moderator: 5, admin: 5, sysadmin: 5 };
-const CLEARANCE_TO_ROLE = { 1: 'user', 2: 'user', 3: 'user', 4: 'user', 5: 'user' };
 const CLEARANCE_RANK = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
 
-// Лимиты файлов в байтах
 const FILE_SIZE_LIMITS = {
-  1: 10 * 1024 * 1024,      // 10 МБ
-  2: 50 * 1024 * 1024,      // 50 МБ
-  3: 200 * 1024 * 1024,     // 200 МБ
-  4: 1024 * 1024 * 1024,    // 1 ГБ
-  5: 10 * 1024 * 1024 * 1024 // 10 ГБ
+  1: 10 * 1024 * 1024, 2: 50 * 1024 * 1024, 3: 200 * 1024 * 1024,
+  4: 1024 * 1024 * 1024, 5: 10 * 1024 * 1024 * 1024
 };
 
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
@@ -438,7 +432,7 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const { username, role } = req.body;
-  if (!CLEARANCE_TO_ROLE[ROLE_TO_CLEARANCE[role]]) return res.status(400).json({ error: 'Неизвестная роль' });
+  if (!ROLE_TO_CLEARANCE[role]) return res.status(400).json({ error: 'Неизвестная роль' });
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить роль SCP_Helper' });
@@ -471,9 +465,7 @@ app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   if (level === 5 && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может назначать Level 5' });
   
   target.clearance_level = level;
-  if (level === 5 && ['helper', 'moderator', 'admin', 'sysadmin'].includes(target.role)) {
-      target.role = CLEARANCE_TO_ROLE[level] || 'user';
-  }
+  // ФИКС: Не сбрасываем роль (админку) при выдаче 5-го уровня
   
   saveDb();
   io.to(`user:${target.id}`).emit('roleChanged', { newRole: target.role, clearance_level: level });
@@ -1012,7 +1004,7 @@ app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   }
   const messages = db.messages
     .filter(m => m.chat_id === req.params.chatId)
-    .filter(m => !(m.deleted_for && m.deleted_for.includes(req.userId))) // УДАЛЕНО У СЕБЯ
+    .filter(m => !(m.deleted_for && m.deleted_for.includes(req.userId))) 
     .sort((a, b) => a.created_at - b.created_at)
     .map(buildMessagePayload);
   res.json(messages);
@@ -1041,13 +1033,14 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
+  // Лимит: 200 XP за 100 сообщений в день
   if (me.role === 'user') {
       const today = new Date().toDateString();
       if (!me.last_msg_xp_date || me.last_msg_xp_date !== today) {
           me.last_msg_xp_date = today;
           me.daily_msg_xp = 0;
       }
-      if (me.daily_msg_xp < 100) {
+      if (me.daily_msg_xp < 200) { 
           me.daily_msg_xp += 2;
           addXp(me.id, 2);
       }
@@ -1315,6 +1308,18 @@ app.post('/api/register', async (req, res) => {
     const ip = getRealIp(req);
     if (db.banned_ips.includes(ip)) return res.status(403).json({ error: 'Ваш IP заблокирован' });
 
+    // --- ПРОВЕРКА IP НА ДЮП (РЕГИСТРАЦИЯ 2-ГО ИЛИ 3-ГО АККАУНТА) ---
+    const existingIps = db.users.filter(u => u.ip === ip);
+    let isDuplicateWarning = false;
+    let isDuplicateReset = false;
+
+    if (existingIps.length >= 2) {
+        isDuplicateReset = true;
+    } else if (existingIps.length === 1) {
+        isDuplicateWarning = true;
+    }
+    // -------------------------------------------------------------
+
     let userRole = 'user';
     let clearance_level = 1;
     let inviter = null;
@@ -1331,6 +1336,11 @@ app.post('/api/register', async (req, res) => {
       } else {
           const refUser = db.users.find(u => u.invite_code === invited_by);
           if (refUser) {
+              const today = new Date().toDateString();
+              // ОГРАНИЧЕНИЕ 2 ПРИГЛАШЕНИЯ В ДЕНЬ
+              if (refUser.last_invite_date === today && (refUser.daily_invite_count || 0) >= 2) {
+                  return res.status(400).json({ error: 'Лимит приглашений этого пользователя на сегодня исчерпан (2/2). Попросите его использовать другой способ или завтра.' });
+              }
               inviter = refUser.username;
               isRefInvite = true;
           } else {
@@ -1355,14 +1365,99 @@ app.post('/api/register', async (req, res) => {
       custom_status: '',
       xp: 0,
       invite_code: `REF-${cleanUsername.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
-      last_daily_login: 0
+      last_daily_login: 0,
+      last_invite_date: null,
+      daily_invite_count: 0
     };
     db.users.push(newUser);
 
     if (isRefInvite && inviter) {
         const inv = findUserByUsername(inviter);
-        if (inv) addXp(inv.id, 200); 
+        if (inv) {
+            const today = new Date().toDateString();
+            if (inv.last_invite_date !== today) {
+                inv.last_invite_date = today;
+                inv.daily_invite_count = 0;
+            }
+            inv.daily_invite_count = (inv.daily_invite_count || 0) + 1;
+            addXp(inv.id, 200); 
+        }
     }
+
+    // --- ПРИВЕТСТВЕННОЕ СООБЩЕНИЕ ОТ SCP_HELPER ---
+    let helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
+    db.chats.push(helperChat);
+    db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: id });
+    db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: HELPER_ID });
+
+    const welcomeText = `🎉 [ДОСТУП РАЗРЕШЕН]
+ОБРАТНЫЙ ОТСЧЕТ ТЕРМИНАЛА... ГОТОВО.
+ДОБРО ПОЖАЛОВАТЬ В SCP FOUNDATION.
+Вы подключены к защищенному каналу связи локальной сети Фонда.
+Ваш текущий статус: Персонал класса D
+Ваш текущий уровень допуска: L1
+
+📈 РЕГЛАМЕНТ ПОВЫШЕНИЯ ДОПУСКА (СИСТЕМА XP)
+
+Для получения доступа к более засекреченным материалам выполняйте протоколы активности:
+• Ежедневная авторизация: +50 XP (один раз в сутки).
+• Текстовые рапорты: +2 XP за сообщение. Суточный лимит: 200 XP (первые 100 сообщений).
+• Одобрение коллег: +5 XP за каждую реакцию на ваши сообщения.
+• Вербовка полевых агентов: +200 XP за реферальный код. Суточный лимит: 2 активации.
+
+🎯 ИЕРАРХИЯ ДОПУСКА И ПРИВИЛЕГИИ
+
+• L2 [500 XP]: Разрешено формирование оперативных групп. Лимит передачи данных: до 50 МБ.
+• L3 [2 000 XP]: Открыт доступ к публичным информационным каналам. Лимит данных: до 200 МБ.
+• L4 [10 000 XP]: Допуск к засекреченным каналам и спец-архивам. Лимит данных: до 1 ГБ.
+• L5 [50 000 XP]: Максимальный уровень сингулярного контроля. Лимит данных: до 10 ГБ.
+
+⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА ИИ СБ)
+
+Категорически запрещена регистрация нескольких учетных записей с одного IP-адреса (саботаж и дюп опыта).
+При фиксации 3 и более аккаунтов на одном сетевом узле, автоматическая система безопасности Фонда инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.
+Оставайтесь бдительны. Фонд наблюдает за вами.';
+
+    const welcomeMsg = {
+      id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID,
+      text: welcomeText, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+    };
+    db.messages.push(welcomeMsg);
+
+    // --- ОТПРАВКА ПРЕДУПРЕЖДЕНИЙ И СБРОС ПРИ ДЮПЕ ---
+    if (isDuplicateWarning || isDuplicateReset) {
+        let warnText = '';
+        if (isDuplicateReset) {
+            warnText = `⛔ **СРАБОТАЛА СИСТЕМА ЗАЩИТЫ (ДЮП УРОВНЕЙ)**\n\nОбнаружено 3+ аккаунта с одного IP-адреса.\nВСЕ аккаунты с этого IP были принудительно обнулены до **L1** и **0 XP**.`;
+            
+            // Сброс всех аккаунтов с этого IP
+            db.users.filter(u => u.ip === ip).forEach(u => {
+                u.clearance_level = 1;
+                u.xp = 0;
+            });
+
+            // Отправка уведомления всем пострадавшим аккаунтам
+            db.users.filter(u => u.ip === ip).forEach(u => {
+                let hChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === u.id) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
+                if (!hChat) {
+                    hChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
+                    db.chats.push(hChat);
+                    db.chat_members.push({ id: genId(), chat_id: hChat.id, user_id: u.id });
+                    db.chat_members.push({ id: genId(), chat_id: hChat.id, user_id: HELPER_ID });
+                }
+                const m = { id: genId(), chat_id: hChat.id, sender_id: HELPER_ID, text: warnText, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [] };
+                db.messages.push(m);
+                emitToChatMembers(hChat.id, 'newMessage', buildMessagePayload(m));
+            });
+        } else {
+            warnText = `⚠️ **ПРЕДУПРЕЖДЕНИЕ СИСТЕМЫ БЕЗОПАСНОСТИ**\n\nОбнаружена регистрация второго аккаунта с вашего IP-адреса.\nЭто считается **дюпом уровней допуска**.\nПри регистрации **3-го аккаунта** все ваши аккаунты с этого IP будут **принудительно обнулены до L1 и 0 XP**.`;
+            
+            const m = { id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID, text: warnText, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [] };
+            db.messages.push(m);
+            emitToChatMembers(helperChat.id, 'newMessage', buildMessagePayload(m));
+        }
+    }
+    // ------------------------------------------------
 
     const plainCodes = [];
     for (let i = 0; i < 12; i++) {
@@ -1509,8 +1604,9 @@ app.use((req, res, next) => {
     if (u.custom_status === undefined) u.custom_status = '';
     if (u.clearance_level === undefined) { u.clearance_level = ROLE_TO_CLEARANCE[u.role] || 1; migrated = true; }
     if (u.xp === undefined) { u.xp = 0; migrated = true; }
+    if (u.last_invite_date === undefined) { u.last_invite_date = null; migrated = true; }
+    if (u.daily_invite_count === undefined) { u.daily_invite_count = 0; migrated = true; }
     
-    // Миграция инвайт-кодов под новый формат с цифрами
     if (!u.invite_code || !/^REF-.*-\d{4}$/.test(u.invite_code)) {
         u.invite_code = `REF-${u.username.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
         migrated = true;
