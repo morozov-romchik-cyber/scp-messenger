@@ -270,8 +270,8 @@
 
   .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 99999; align-items: center; justify-content: center; }
   .modal.visible { display: flex; }
-  .modal-content { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 24px; width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); max-height: 90vh; display: flex; flex-direction: column; overflow-y: auto; }
-  .modal-content h3 { font-family: 'Fira Code', monospace; margin-bottom: 20px; font-size: 16px; color: var(--accent); text-align: center; }
+  .modal-content { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 24px; width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); max-height: 90vh; display: flex; flex-direction: column; overflow-y: auto; resize: both; min-width: 300px; min-height: 300px; position: relative; }
+  .modal-content h3 { font-family: 'Fira Code', monospace; margin-bottom: 20px; font-size: 16px; color: var(--accent); text-align: center; cursor: move; user-select: none; padding-bottom: 10px; border-bottom: 1px dashed var(--border); }
   .setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; font-size: 14px; }
   .setting-row select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 4px; outline: none; font-family: inherit; }
   .setting-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
@@ -282,7 +282,7 @@
   .forward-item { padding: 10px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; gap: 10px; }
   .forward-item:hover { background: var(--card); }
 
-  #admin-dashboard-modal .modal-content { width: 90vw; max-width: 1000px; height: 85vh; padding: 0; overflow: hidden; flex-direction: row; border: 1px solid var(--admin-accent); box-shadow: 0 0 30px rgba(255, 51, 51, 0.15); background: var(--admin-bg); }
+  #admin-dashboard-modal .modal-content { width: 90vw; max-width: 1000px; height: 85vh; padding: 0; overflow: hidden; flex-direction: row; border: 1px solid var(--admin-accent); box-shadow: 0 0 30px rgba(255, 51, 51, 0.15); background: var(--admin-bg); resize: none; }
   .admin-sidebar { width: 240px; background: #0d0404; border-right: 1px solid var(--admin-border); display: flex; flex-direction: column; overflow-y: auto; }
   .admin-tab { padding: 18px 16px; cursor: pointer; color: #884444; font-weight: 600; font-size: 14px; border-left: 3px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 10px; }
   .admin-tab:hover { background: #1a0a0a; color: #ff6666; }
@@ -324,7 +324,7 @@
   .toast-sender { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 2px; }
   .toast-text { font-size: 13px; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  #whiteboard-modal .modal-content { width: 100vw; height: 100vh; max-width: none; border-radius: 0; padding: 0; border: none; background: #0d1117; display: flex; flex-direction: column; }
+  #whiteboard-modal .modal-content { width: 100vw; height: 100vh; max-width: none; border-radius: 0; padding: 0; border: none; background: #0d1117; display: flex; flex-direction: column; resize: none; }
   .wb-toolbar { display: flex; align-items: stretch; padding: 5px 10px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; z-index: 10; gap: 2px; flex-shrink: 0; }
   .wb-group { display: flex; flex-direction: column; padding: 2px 10px; border-right: 1px solid var(--border); }
   .wb-group:last-child { border-right: none; }
@@ -549,6 +549,7 @@
       <div id="profile-online" class="profile-online">⚪ Не в сети</div>
       <div id="profile-custom-status" style="font-size: 12px; color: #00ccff; margin-top: 6px; font-family: 'Fira Code', monospace; display: none;"></div>
       <div id="profile-clearance" style="margin-top: 6px;"></div>
+      <div id="profile-xp-bar" style="width: 100%;"></div>
     </div>
     <div class="profile-info-box">
       <div class="profile-info-row"><span>Роль:</span><span id="profile-role" style="font-weight: 600;">-</span></div>
@@ -635,15 +636,15 @@
         </div>
         <div class="admin-section">
           <h4>🔐 Назначение уровня допуска (Clearance Level)</h4>
-          <p style="font-size: 11px; color: #ccaaaa; margin-bottom: 10px;">1 = Пользователь, 2 = Хелпер, 3 = Модератор, 4 = Админ, 5 = SysAdmin</p>
+          <p style="font-size: 11px; color: #ccaaaa; margin-bottom: 10px;">1 = Класс-D, 2 = Научный сотрудник, 3 = Ст. Исследователь, 4 = Рук. Зоны, 5 = Совет О5</p>
           <div class="admin-input-group">
             <input type="text" placeholder="Username или ID" id="clearance-user-input">
             <select id="clearance-level-select">
-              <option value="1">Level 1 — Пользователь</option>
-              <option value="2">Level 2 — Хелпер</option>
-              <option value="3">Level 3 — Модератор</option>
-              <option value="4">Level 4 — Админ</option>
-              <option value="5">Level 5 — SysAdmin</option>
+              <option value="1">Level 1 — Класс-D</option>
+              <option value="2">Level 2 — Научный сотрудник</option>
+              <option value="3">Level 3 — Старший исследователь</option>
+              <option value="4">Level 4 — Руководитель Зоны</option>
+              <option value="5">Level 5 — Совет О5</option>
             </select>
             <button class="admin-btn" onclick="setClearance()">Назначить</button>
           </div>
@@ -660,7 +661,7 @@
           </div>
         </div>
         <div class="admin-section">
-          <h4>Назначение ролей</h4>
+          <h4>Назначение ролей (Персонал)</h4>
           <div class="admin-input-group">
             <input type="text" placeholder="Username или ID" id="user-role-input">
             <select id="user-role-select">
@@ -733,10 +734,10 @@
       <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">🔒 Требуемый уровень допуска (для входа):</label>
       <select id="channel-required-clearance" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; font-family: inherit; outline: none;">
         <option value="1">Level 1 — Все пользователи</option>
-        <option value="2">Level 2 — Хелпер и выше</option>
-        <option value="3">Level 3 — Модератор и выше</option>
-        <option value="4">Level 4 — Админ и выше</option>
-        <option value="5">Level 5 — Только SysAdmin</option>
+        <option value="2">Level 2 — Научный сотрудник и выше</option>
+        <option value="3">Level 3 — Старший исследователь и выше</option>
+        <option value="4">Level 4 — Руководитель Зоны и выше</option>
+        <option value="5">Level 5 — Только Совет О5</option>
       </select>
     </div>
 
@@ -744,10 +745,10 @@
       <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">✍️ Мин. уровень для отправки сообщений:</label>
       <select id="channel-min-write-clearance" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; font-family: inherit; outline: none;">
         <option value="1">Level 1 — Все пользователи</option>
-        <option value="2">Level 2 — Хелпер и выше</option>
-        <option value="3">Level 3 — Модератор и выше</option>
-        <option value="4">Level 4 — Админ и выше</option>
-        <option value="5">Level 5 — Только SysAdmin</option>
+        <option value="2">Level 2 — Научный сотрудник и выше</option>
+        <option value="3">Level 3 — Старший исследователь и выше</option>
+        <option value="4">Level 4 — Руководитель Зоны и выше</option>
+        <option value="5">Level 5 — Только Совет О5</option>
       </select>
     </div>
 
@@ -833,9 +834,9 @@
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">ID:</span><span id="set-my-id" style="color: #ffd700;">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">IP:</span><span id="set-my-ip" style="color: #00ff9d;">...</span></div>
       </div>
+      <div id="my-xp-bar" style="width: 100%;"></div>
     </div>
 
-    <!-- === ИНВАЙТ-КОД ПОЛЬЗОВАТЕЛЯ (добавлено) === -->
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px; font-weight: bold; color: var(--accent);">🎫 Ваш инвайт-код:</span>
       <div style="display: flex; gap: 10px; width: 100%;">
@@ -846,7 +847,6 @@
         Поделитесь этим кодом с друзьями. При регистрации они вводят его в поле «Код приглашения», а вы получаете <b style="color: #00ff9d;">+200 XP</b> за каждого.
       </div>
     </div>
-    <!-- === /ИНВАЙТ-КОД ПОЛЬЗОВАТЕЛЯ === -->
 
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px;">Отображаемое имя:</span>
@@ -1041,12 +1041,41 @@ const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', m
 const ROLE_ICON = { user: '👤', helper: '🤝', moderator: '🛡️', admin: '🔰', sysadmin: '👑' };
 const ROLE_COLOR = { user: 'var(--muted)', helper: '#00ccff', moderator: '#ffcc00', admin: '#ff9933', sysadmin: '#ffffff' };
 
-const CLEARANCE_LABEL = { 1: 'L1 — Пользователь', 2: 'L2 — Хелпер', 3: 'L3 — Модератор', 4: 'L4 — Админ', 5: 'L5 — SysAdmin' };
+const CLEARANCE_LABEL = { 1: 'L1 — Класс-D', 2: 'L2 — Научный сотрудник', 3: 'L3 — Старший исследователь', 4: 'L4 — Руководитель Зоны', 5: 'L5 — Совет О5' };
+const CLEARANCE_SHORT = { 1: 'D', 2: 'S', 3: 'R', 4: 'Z', 5: 'O5' };
 const CLEARANCE_COLOR = { 1: '#8b949e', 2: '#00ccff', 3: '#ffcc00', 4: '#ff9933', 5: '#ffffff' };
+
+const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
+const FILE_SIZE_LIMITS = { 1: 10 * 1024 * 1024, 2: 50 * 1024 * 1024, 3: 200 * 1024 * 1024, 4: 1024 * 1024 * 1024, 5: 10 * 1024 * 1024 * 1024 };
 
 function clearanceBadge(level) {
   const lvl = level || 1;
-  return `<span class="clearance-badge clearance-${lvl}">${CLEARANCE_LABEL[lvl]}</span>`;
+  return `<span class="clearance-badge clearance-${lvl}">[${CLEARANCE_SHORT[lvl]}] ${CLEARANCE_LABEL[lvl]}</span>`;
+}
+
+function renderXpBar(user) {
+  if (user.role !== 'user') return ''; // Персонал не имеет XP
+  const currentLevel = user.clearance_level || 1;
+  if (currentLevel >= 5) {
+      return `<div style="margin-top: 8px; font-size: 11px; color: #ffcc00; font-family: 'Fira Code'; text-align: center; font-weight: bold;">Максимальный уровень допуска</div>`;
+  }
+  const currentXp = user.xp || 0;
+  const nextLevel = currentLevel + 1;
+  const thresholdStart = XP_THRESHOLDS[currentLevel];
+  const thresholdEnd = XP_THRESHOLDS[nextLevel];
+  const progress = Math.min(100, Math.max(0, ((currentXp - thresholdStart) / (thresholdEnd - thresholdStart)) * 100));
+  const remaining = thresholdEnd - currentXp;
+
+  return `
+  <div style="margin-top: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; width: 100%;">
+      <div style="display: flex; justify-content: space-between; font-size: 10px; font-family: 'Fira Code'; margin-bottom: 4px;">
+          <span style="color: var(--text);">XP: ${currentXp} / ${thresholdEnd}</span>
+          <span style="color: var(--muted);">осталось ${remaining}</span>
+      </div>
+      <div style="height: 6px; background: #30363d; border-radius: 3px; overflow: hidden;">
+          <div style="height: 100%; background: #00ff9d; width: ${progress}%; transition: width 0.3s;"></div>
+      </div>
+  </div>`;
 }
 
 window.setExpiry = function(seconds) {
@@ -1557,6 +1586,8 @@ function enterChat() {
   document.getElementById('set-my-status').textContent = state.me.status === 'online' ? '🟢 В сети' : '⚪ Не в сети';
   document.getElementById('set-my-id').textContent = state.me.id;
   document.getElementById('set-my-ip').textContent = state.me.ip || 'Скрыт';
+  document.getElementById('my-xp-bar').innerHTML = renderXpBar(state.me);
+  
   const roleBadge = document.getElementById('my-role-badge');
   roleBadge.innerHTML = clearanceBadge(state.me.clearance_level || 1);
   
@@ -1621,6 +1652,12 @@ document.getElementById('open-settings').addEventListener('click', () => {
   else { preview.style.display = 'none'; }
   document.getElementById('settings-display-name-input').value = state.me.displayName || '';
   document.getElementById('settings-status-input').value = state.me.custom_status || '';
+  
+  const input = document.getElementById('settings-invite-code');
+  if (input) input.value = state.me.invite_code || ('REF-' + (state.me.username || '').toUpperCase());
+  
+  document.getElementById('my-xp-bar').innerHTML = renderXpBar(state.me);
+  
   document.getElementById('settings-modal').classList.add('visible');
 });
 document.getElementById('update-display-name-btn').addEventListener('click', async () => {
@@ -1643,6 +1680,71 @@ document.getElementById('update-status-btn').addEventListener('click', async () 
   } catch (e) { alert(e.message); }
 });
 
+// === ИНВАЙТ-КОД КОПИРОВАНИЕ ===
+const copyBtn = document.getElementById('copy-invite-code-btn');
+if (copyBtn) {
+  copyBtn.addEventListener('click', () => {
+    const input = document.getElementById('settings-invite-code');
+    if (!input || !input.value) return;
+    const code = input.value;
+    const doCopy = () => {
+      const orig = copyBtn.textContent;
+      const origBg = copyBtn.style.background;
+      const origColor = copyBtn.style.color;
+      copyBtn.textContent = '✓ Скопировано';
+      copyBtn.style.background = '#00ff9d';
+      copyBtn.style.color = '#000';
+      setTimeout(() => {
+        copyBtn.textContent = orig;
+        copyBtn.style.background = origBg;
+        copyBtn.style.color = origColor;
+      }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(doCopy).catch(doCopy);
+    } else {
+      try {
+        input.removeAttribute('readonly');
+        input.select();
+        document.execCommand('copy');
+        input.setAttribute('readonly', 'readonly');
+        doCopy();
+      } catch (e) { alert('Не удалось скопировать: ' + code); }
+    }
+  });
+}
+
+// ================= ПЕРЕТАСКИВАНИЕ МОДАЛОК =================
+let isDraggingModal = false, dragModalOffsetX = 0, dragModalOffsetY = 0, activeModal = null;
+document.addEventListener('mousedown', (e) => {
+    const content = e.target.closest('.modal-content');
+    if (!content) return;
+    // Таскаем только за заголовок
+    if (e.target.tagName === 'H3' || e.target.closest('h3')) {
+        activeModal = content;
+        isDraggingModal = true;
+        const rect = content.getBoundingClientRect();
+        dragModalOffsetX = e.clientX - rect.left;
+        dragModalOffsetY = e.clientY - rect.top;
+        content.style.position = 'fixed';
+        content.style.margin = '0';
+        content.style.transform = 'none';
+        content.style.left = rect.left + 'px';
+        content.style.top = rect.top + 'px';
+        content.style.cursor = 'grabbing';
+    }
+});
+document.addEventListener('mousemove', (e) => {
+    if (!isDraggingModal || !activeModal) return;
+    activeModal.style.left = (e.clientX - dragModalOffsetX) + 'px';
+    activeModal.style.top = (e.clientY - dragModalOffsetY) + 'px';
+});
+document.addEventListener('mouseup', () => {
+    if (activeModal) activeModal.style.cursor = 'default';
+    isDraggingModal = false;
+    activeModal = null;
+});
+
 // ================= PROFILE =================
 window.openProfile = async function(userId) {
   if (!userId) return;
@@ -1658,6 +1760,8 @@ window.openProfile = async function(userId) {
     const csEl = document.getElementById('profile-custom-status');
     if (u.custom_status) { csEl.textContent = '💬 ' + u.custom_status; csEl.style.display = 'block'; } else { csEl.style.display = 'none'; }
     document.getElementById('profile-clearance').innerHTML = clearanceBadge(u.clearance_level || 1);
+    document.getElementById('profile-xp-bar').innerHTML = renderXpBar(u);
+    
     const ipRow = document.getElementById('profile-ip-row');
     if (['moderator', 'admin', 'sysadmin'].includes(state.me.role)) { document.getElementById('profile-ip').textContent = u.ip || 'Скрыт'; ipRow.style.display = 'flex'; }
     else { ipRow.style.display = 'none'; }
@@ -2096,6 +2200,13 @@ document.addEventListener('click', (e) => {
 // ================= CREATE GROUP =================
 window.openCreateGroupModal = function(isChannel) {
   document.getElementById('fab-container').classList.remove('open');
+  
+  if (state.me.role === 'user') {
+      const myClearance = state.me.clearance_level || 1;
+      if (!isChannel && myClearance < 2) return alert('Для создания групп требуется Уровень 2 (Научный сотрудник)');
+      if (isChannel && myClearance < 3) return alert('Для создания каналов требуется Уровень 3 (Старший исследователь)');
+  }
+
   isCreatingChannel = isChannel;
   document.getElementById('create-modal-title').textContent = isChannel ? 'СОЗДАТЬ КАНАЛ' : 'СОЗДАТЬ ГРУППУ';
   document.getElementById('group-name-input').value = '';
@@ -2252,12 +2363,10 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   document.getElementById('emoji-picker').classList.remove('visible');
   document.getElementById('typing-indicator').style.display = 'none';
   
-  // Clearance badge
   const clearanceEl = document.getElementById('chat-clearance-badge');
   if (required_clearance > 1) clearanceEl.innerHTML = clearanceBadge(required_clearance);
   else clearanceEl.innerHTML = '';
   
-  // Статус собеседника
   const statusLine = document.getElementById('chat-status-line');
   if (!isGroup && !isHelper && otherUserId) {
     const chat = state.chats.find(c => c.id === chatId);
@@ -2293,7 +2402,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   const isCreator = !isGroup || (creatorId === state.me.id);
   let showComposer = !isBlocked && (!isChannel || isCreator);
   
-  // Проверка на право писать в группу
   const chatObj = state.chats.find(c => c.id === chatId);
   if (chatObj && chatObj.isGroup) {
      const minWrite = chatObj.min_write_clearance || 1;
@@ -2373,17 +2481,11 @@ window.openChat = openChat;
 function formatMessageText(rawText) {
   let text = esc(rawText);
   
-  // 1. Парсим Markdown-ссылки [Текст](ссылка)
   text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation();">$1</a>');
-
-  // 2. Списки
   text = text.replace(/(^|\n)\s*-\s+(.+)/g, '$1• $2');
-  
-  // 3. Жирный и курсив
   text = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   text = text.replace(/\*(.*?)\*/g, '<i>$1</i>');
   
-  // 4. Обычные ссылки (избегаем двойного парсинга уже готовых тегов <a href="...">)
   const linkRegex = /(?<!href=")((?:https?:\/\/|scp\.me\/|scp\.group\/)[^\s<"]+)/g;
   text = text.replace(linkRegex, function(url) {
     if (url.startsWith('scp.')) {
@@ -2646,10 +2748,13 @@ window.forwardTo = async function(chatId) {
   try { await api('/messages/' + m.id + '/forward', { method: 'POST', body: JSON.stringify({ chatId }) }); document.getElementById('forward-modal').classList.remove('visible'); alert('Переслано'); }
   catch (e) { alert(e.message); }
 };
-document.getElementById('msg-del-me-btn').addEventListener('click', () => {
+document.getElementById('msg-del-me-btn').addEventListener('click', async () => {
   const m = state.activeMsg; if (!m) return;
-  document.getElementById('msg-' + m.id)?.remove();
-  document.getElementById('msg-actions-modal').classList.remove('visible');
+  try {
+    await api('/messages/' + m.id, { method: 'DELETE', body: JSON.stringify({ scope: 'me' }) });
+    document.getElementById('msg-' + m.id)?.remove();
+    document.getElementById('msg-actions-modal').classList.remove('visible');
+  } catch (e) { alert(e.message); }
 });
 document.getElementById('msg-del-all-btn').addEventListener('click', async () => {
   const m = state.activeMsg; if (!m || !confirm('Удалить у всех?')) return;
@@ -2667,6 +2772,15 @@ async function uploadFilesWithProgress(files, caption = '') {
   if (state.currentChat.isBlocked) return alert('Заблокирован');
   if (isUploading) return alert('Подождите');
   if (!files || !files.length) return;
+
+  const limit = FILE_SIZE_LIMITS[state.me.clearance_level || 1] || FILE_SIZE_LIMITS[1];
+  for (const f of files) {
+      if (f.size > limit) {
+          const mb = Math.round(limit / (1024 * 1024));
+          return alert(`⛔ Превышен лимит для вашего уровня допуска. Максимум: ${mb >= 1024 ? (mb/1024) + ' ГБ' : mb + ' МБ'}. Повысьте уровень, чтобы отправлять файлы больше.`);
+      }
+  }
+
   const targetChatId = state.currentChat.id;
   delete chatDrafts[targetChatId];
   localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
@@ -3215,7 +3329,6 @@ const FXEngine = {
         const tick = () => {
             this.ctx.clearRect(0, 0, this.w, this.h);
             
-            // Дождь / Снег
             if (visualSettings.weather === 'rain') {
                 this.ctx.strokeStyle = 'rgba(150, 200, 255, 0.4)';
                 this.ctx.lineWidth = 1;
@@ -3238,7 +3351,6 @@ const FXEngine = {
                 });
             }
 
-            // Призраки (SCP)
             if (visualSettings.ghosts) {
                 const time = Date.now() * 0.001;
                 for (let i = 0; i < 5; i++) {
@@ -3259,54 +3371,6 @@ const FXEngine = {
         tick();
     }
 };
-
-// ================= INVITE CODE IN SETTINGS (добавлено) =================
-(function setupInviteCodeUI() {
-  // Заполняем код при открытии настроек (отдельный listener, существующий не трогаем)
-  const openSettingsBtn = document.getElementById('open-settings');
-  if (openSettingsBtn) {
-    openSettingsBtn.addEventListener('click', () => {
-      const input = document.getElementById('settings-invite-code');
-      if (!input || !state.me) return;
-      input.value = state.me.invite_code || ('REF-' + (state.me.username || '').toUpperCase());
-    });
-  }
-
-  // Кнопка "Копировать"
-  const copyBtn = document.getElementById('copy-invite-code-btn');
-  if (copyBtn) {
-    copyBtn.addEventListener('click', () => {
-      const input = document.getElementById('settings-invite-code');
-      if (!input || !input.value) return;
-      const code = input.value;
-      const doCopy = () => {
-        const orig = copyBtn.textContent;
-        const origBg = copyBtn.style.background;
-        const origColor = copyBtn.style.color;
-        copyBtn.textContent = '✓ Скопировано';
-        copyBtn.style.background = '#00ff9d';
-        copyBtn.style.color = '#000';
-        setTimeout(() => {
-          copyBtn.textContent = orig;
-          copyBtn.style.background = origBg;
-          copyBtn.style.color = origColor;
-        }, 1500);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(code).then(doCopy).catch(doCopy);
-      } else {
-        // fallback для старых браузеров
-        try {
-          input.removeAttribute('readonly');
-          input.select();
-          document.execCommand('copy');
-          input.setAttribute('readonly', 'readonly');
-          doCopy();
-        } catch (e) { alert('Не удалось скопировать: ' + code); }
-      }
-    });
-  }
-})();
 
 // ================= INIT =================
 setTimeout(() => {
