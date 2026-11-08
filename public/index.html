@@ -56,8 +56,11 @@
   .msg-expiring { border-color: #ff3333 !important; box-shadow: 0 0 10px rgba(255, 51, 51, 0.2) !important; }
   .expiry-timer { font-size: 10px; color: #ff3333; font-family: 'Fira Code', monospace; font-weight: 700; margin-left: 6px; animation: pulseRed 1.5s infinite; }
   @keyframes pulseRed { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-  .expiry-picker { display: flex; gap: 6px; padding: 8px 16px; background: var(--panel); border-top: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
-  .expiry-btn { background: var(--card); border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; font-family: 'Fira Code', monospace; transition: all 0.2s; }
+  
+  /* Выпадающее меню с 3 точками */
+  .expiry-popup { display: none; position: absolute; bottom: 60px; right: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; flex-direction: column; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 10; }
+  .expiry-popup.visible { display: flex; }
+  .expiry-btn { background: var(--card); border: 1px solid var(--border); color: var(--muted); padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; font-family: 'Fira Code', monospace; transition: all 0.2s; text-align: left; }
   .expiry-btn.active { background: #ff3333; color: #fff; border-color: #ff3333; }
 
   .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
@@ -887,18 +890,20 @@
       <button class="close-reply" id="close-reply">×</button>
     </div>
 
-    <div class="expiry-picker" id="expiry-picker">
-      <span style="font-size: 11px; color: var(--muted); font-family: 'Fira Code';">🔥 Исчезающее:</span>
-      <button type="button" class="expiry-btn active" data-expiry="0" onclick="setExpiry(0)">Выкл</button>
-      <button type="button" class="expiry-btn" data-expiry="60" onclick="setExpiry(60)">1 мин</button>
-      <button type="button" class="expiry-btn" data-expiry="300" onclick="setExpiry(300)">5 мин</button>
-      <button type="button" class="expiry-btn" data-expiry="3600" onclick="setExpiry(3600)">1 час</button>
+    <!-- Popup для исчезающих сообщений -->
+    <div class="expiry-popup" id="expiry-popup">
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 5px; font-family: 'Fira Code';">Исчезающее сообщение:</div>
+        <button type="button" class="expiry-btn active" data-expiry="0" onclick="setExpiry(0)">Выкл</button>
+        <button type="button" class="expiry-btn" data-expiry="60" onclick="setExpiry(60)">1 мин</button>
+        <button type="button" class="expiry-btn" data-expiry="300" onclick="setExpiry(300)">5 мин</button>
+        <button type="button" class="expiry-btn" data-expiry="3600" onclick="setExpiry(3600)">1 час</button>
     </div>
 
     <div class="emoji-picker" id="emoji-picker"></div>
 
     <form id="composer">
       <textarea id="msg-input" placeholder="Введите сообщение..." rows="1"></textarea>
+      <button type="button" class="file" id="expiry-btn" title="Настройки исчезновения">⋮</button>
       <button type="button" class="file" id="whiteboard-btn" title="Белая доска">🎨</button>
       <button type="button" class="file" id="emoji-btn" title="Emoji">😀</button>
       <button type="button" class="file" id="file-btn" title="Attach">📎</button>
@@ -960,9 +965,10 @@ function renderXpBar(user) {
   </div>`;
 }
 
+// Обработчик для исчезающих сообщений
 window.setExpiry = function(seconds) {
   currentExpiry = seconds;
-  document.querySelectorAll('.expiry-btn').forEach(b => {
+  document.querySelectorAll('.expiry-popup .expiry-btn').forEach(b => {
     b.classList.toggle('active', Number(b.dataset.expiry) === seconds);
   });
   const input = document.getElementById('msg-input');
@@ -973,6 +979,7 @@ window.setExpiry = function(seconds) {
      input.style.borderColor = 'var(--border)';
      input.placeholder = 'Введите сообщение...';
   }
+  document.getElementById('expiry-popup').classList.remove('visible');
 };
 
 const EMOJIS = "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 🤡 💩 👻 💀 ☠️ 👽 👾 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😾 😿 👋 🤚 🖐️ ✋ 🖖 👌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🦷 🦴 👀 👁️ 👅 👄 💋 🩸 👶 👧 🧒 🧑 👱 👨 🧔 👩 🧓 👴 👵 👮 🕵️ 💂 👷 🤴 👸 👳 👲 🧕 🤵 👰 🤰 🤱 👼 🎅 🤶 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧟 🧞 💆 💇 🚶 🧍 🧎 🏃 🕺 💃 🕴️ 👯 🧘 ❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 💌 👥 👤 🗣️ 👣 🐵 🐒 🦍 🦧 🐶 🐕 🦮 🐩 🐺 🦊 🦝 🐱 🐈 🦁 🐯 🐅 🐆 🐴 🐎 🦄 🦓 🦌 🐮 🐂 🐃 🐄 🐷 🐖 🐗 🐽 🐏 🐑 🐐 🐪 🦙 🦒 🐘 🦏 🦛 🐭 🐁 🐀 🐹 🐰 🐇 🐿️ 🦔 🦇 🐻 🐨 🐼 🦥 🦦 🦨 🦘 🦡 🦅 🦆 🦢 🦉 🦩 🦚 🦜 🐸 🐊 🐢 🦎 🐍 🐲 🐉 🦕 🦖 🐳 🐋 🐬 🐟 🐠 🐡 🦈 🐙 🐚 🦀 🦞 🦐 🦑 🦋 🐌 🐛 🐜 🐝 🐞 🦗 🕷️ 🕸️ 🦂 🦟 🦠 💐 🌸 💮 🌹 🥀 🌺 🌻 🌼 🌷 🌱 🌲 🌳 🌴 🌵 🌾 🌿 ☘️ 🍀 🍁 🍂 🍃 🍄 🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥬 🥒 🌶️ 🧄 🥕 🌽 🥔 🍠 🥐 🥯 🍞 🥖 🥨 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🥪 🌮 🌯 🥙 🧆 🥘 🍲 🥣 🥗 🍿 🧂 🥫 🍱 🍘 🍙 🍚 🍛 🍜 🍝 🍢 🍣 🍤 🍥 🥮 🍡 🥟 🥠 🥡 🦪 🍦 🍧 🍨 🍩 🍪 🎂 🍰 🧁 🥧 🍫 🍬 🍭 🍮 🍯 🍼 🥛 ☕ 🍵 🍶 🍾 🍷 🍸 🍹 🍺 🍻 🥂 🥃 🥤 🧊 🥢 🍽️ 🍴 🥄 🔪 🌍 🌎 🌏 🌐 🗺️ 🗾 🧭 🏔️ ⛰️ 🌋 🗻 🏕️ 🏖️ 🏜️ 🏝️ 🏞️ 🏟️ 🏛️ 🏗️ 🧱 🏘️ 🏚️ 🏠 🏡 🏢 🏣 🏤 🏥 🏦 🏨 🏪 🏫 🏬 🏭 🏯 🏰 💒 🗼 🗽 ⛪ 🕌 🛕 🕍 ⛩️ 🕋 ⛲ ⛺ 🌁 🌃 🏙️ 🌅 🌄 🌆 🌇 🌉 🎠 🎡 🎢 🚂 🚃 🚄 🚅 🚆 🚇 🚈 🚉 🚊 🚝 🚞 🚋 🚌 🚍 🚎 🚐 🚑 🚒 🚓 🚔 🚕 🚖 🚗 🚘 🚙 🚚 🚛 🚜 🏎️ 🏍️ 🛵 🦽 🦼 🚲 🛴 🛹 🚏 🛣️ 🛤️ 🛢️ ⛽ 🚨 🚥 🚦 🛑 🚧 ⚓ ⛵ 🛶 🚤 🛳️ ⛴️ 🚢 ✈️ 🛩️ 🛫 🛬 💺 🚁 🚟 🚠 🚡 🚀 🛸 🛰️ 🛎️ 🧳 ⌛ ⏳ ⌚ ⏰ ⏱️ ⏲️ 🕰️ 🌙 🌡️ ☀️ 🌟 ⭐️ 🌌 ☁️ ⛅ ⛈️ 🌤️ 🌥️ 🌦️ 🌧️ 🌨️ 🌩️ 🌪️ 🌫️ 🌬️ 🌀 🌈 ☂️ ☔ ⚡ ❄️ ☃️ ⛄ ☄️ 🔥 💧 🌊 🎃 🎄 🎆 🎇 🧨 ✨ 🎈 🎉 🎊 🎋 🎍 🎎 🎏 🎐 🎑 🧧 🎀 🎁 🎗️ 🎟️ 🎫 🎖️ 🏆 🏅 🥇 🥈 🥉 ⚽ ⚾ 🥎 🏀 🏐 🏈 🏉 🎾 🥏 🎳 🏏 🏑 🏒 🥍 🏓 🏸 🥊 🥋 🥅 ⛳ ⛸️ 🎣 🤿 🎽 🎿 🛷 🥌 🎯 🔮 🎮 🕹️ 🎰 🎲 🧩 🧸 ♟️ 🎨 🧵 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🎻 🎭 📱 📲 💻 ⌨️ 🖥️ 🖨️ 🖱️ 🖲️ 🗜️ 💽 💾 💿 📀 📼 📷 📸 📹 🎥 📽️ 🎞️ 📞 ☎️ 📟 📠 📺 📻 🎙️ 🎚️ 🎛️ 🧭 🏮 💡 🔦 🧯 💸 💵 💴 💶 💷 💰 💳 💎 ⚖️ 🧰 🔧 🔨 ⚒️ 🛠️ ⛏️ 🔩 ⚙️ ⛓️ 🧲 🔫 💣 🔪 🗡️ ⚔️ 🛡️ 🚬 ⚰️ ⚱️ 🏺 📿 🧿 💈 🧪 🧫 🧬 🔭 🔬 🕳️ 💊 💉 🩸 🩹 🩺 🌡️ 🏷️ 🔖 🚽 🚿 🛁 🧼 🧻 🧴 🧺 🧹 🧽 🔑 🗝️ 🛋️ 🛌 🖼️ 🛍️ 🛒 📩 📨 📧 💌 📥 📤 📦 📯 📮 📭 📬 📫 📜 📄 📑 📊 📈 📉 🗒️ 🗓️ 📆 📅 🗑️ 📇 🗃️ 🗄️ 📋 📁 📂 🗂️ 🗞️ 📰 📓 📔 📒 📕 📗 📘 📙 📚 📖 🔗 📎 🖇️ 📐 📏 📌 📍 ✂️ 🖊️ 🖋️ ✒️ 📝 ✏️ 🔍 🔎 🔏 🔐 🔒 🔓 💘 ❤️ 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉️ ☸️ ✡️ 🔯 🕎 ☯️ ☦️ 🛐 ⛎ ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓ 🆔 ⚛️ 🉑 ☢️ ☣️ 📴 📳 ✴️ 🆚 💮 🅰️ 🆎 🆑 🅾️ 🆘 ❌ ⭕ 🛑 ⛔ 📛 🚫 💢 ♨️ 🚷 🚯 🚳 🚱 🚭 🚸 ⚠️ 🔱 ⚜️ 🔰 ♻️ ✅ 🈯 🛄 🛅 🛃 🛂 🚾 🅿️ ♿ 🏧 🚼 🚻 🚹 🚺 🚮 🎦 📶 ℹ️ 🔤 🔡 🔠 🆖 🆗 🆙 🆒 🆕 🆓 0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟 🔢 ▶️ ⏸️ ⏯️ ⏹️ ⏺️ ⏏️ ⏭️ ⏮️ ⏩ ⏪ ⏫ ⏬ ◀️ 🔼 🔽 ➡️ ⬅️ ⬆️ ⬇️ ↗️ ↘️ ↙️ ↖️ ↕️ ↔️ ↪️ ↩️ ⤴️ ⤵️ 🔀 🔁 🔂 🔄 🔃 🎵 🎶 ➕ ➖ ➗ ✖️ ♾️ 💲 💱 ™️ ©️ ®️ 〰️ ➰ ➿ 🔚 🔙 🔛 🔝 🔜 ☑️ 🔘 ⚪ ⚫ 🔴 🔵 🟣 🟢 🟡 🟤 🔺 🔻 🔸 🔹 🔶 🔷 🔳 🔲 ▪️ ▫️ ◾ ◽ ◼️ ◻️ 🟪 🟫 🟥 🟦 🟧 🟨 🟩 🏁 🚩 🎌 🏴 🏳️ 🏳️‍🌈 🏴‍☠️ 🇷🇺 🇧🇾 🇰🇿 🇺🇦 🇺🇿 🇦🇲 🇦🇿 🇰🇬 🇹🇯 🇹🇲 🇲🇩 🇪🇺 🇺🇸 🇬🇧 🇨🇳 🇯🇵 🇩🇪 🇫🇷 🇮🇹 🇪🇸 🇰🇷 🇨🇦 🇦🇺 🇧🇷 🇮🇳 🇪🇬 🇹🇷 🇸🇦 🇦🇪".split(' ');
@@ -1482,6 +1489,37 @@ document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
   });
 });
 
+// Функция просмотра участников админом
+window.openAdminMembers = async function(chatId) {
+  const modal = document.getElementById('group-members-modal');
+  const list = document.getElementById('group-members-list');
+  const addBtn = document.getElementById('add-member-btn');
+  if (!modal || !list) return;
+  list.innerHTML = 'Загрузка...';
+  addBtn.style.display = 'none'; // Скрываем кнопку добавления
+  modal.classList.add('visible');
+  try {
+    const members = await api('/admin/chats/' + chatId + '/members');
+    if (!members || members.length === 0) {
+      list.innerHTML = '<div class="empty">Нет участников</div>';
+      return;
+    }
+    list.innerHTML = members.map(u => {
+      const init = esc((u.displayName || u.username || '?')[0].toUpperCase());
+      const av = u.avatarUrl ? `<img src="${escAttr(u.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : init;
+      return `<div style="display:flex; align-items:center; gap:10px; padding:10px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
+          <div class="chat-avatar" style="width:32px; height:32px; font-size:14px;" onclick="document.getElementById('group-members-modal').classList.remove('visible'); openProfile('${u.id}')">${av}</div>
+          <div style="flex:1;">
+              <div style="font-weight:600; font-size:14px;">${esc(u.displayName || u.username)}</div>
+              <div style="font-size:11px;">${clearanceBadge(u.clearance_level || 1)}</div>
+          </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = `<div style="color:#ff4d4d;">Ошибка: ${e.message}</div>`;
+  }
+};
+
 window.setClearance = async function() {
   const username = document.getElementById('clearance-user-input').value.trim().replace(/^@/, '');
   const level = Number(document.getElementById('clearance-level-select').value);
@@ -1623,8 +1661,13 @@ window.loadAllChats = async function() {
     if (!chats.length) { box.innerHTML = '<div class="empty">Нет групп</div>'; return; }
     box.innerHTML = chats.map(c => `
       <div style="background: #0d0404; border: 1px solid #4a1515; border-radius: 6px; padding: 12px;">
-        <div style="font-weight: bold; color: #fff;">${esc(c.name)} ${c.isChannel ? '📢' : '👥'}</div>
-        <div style="font-size: 11px; color: #884444; font-family: 'Fira Code'; margin-top: 4px;">Создатель: @${esc(c.creatorName || 'Unknown')} • Участников: ${c.memberCount} • Вход: L${c.required_clearance} • Писать: L${c.min_write_clearance || 1}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <div style="font-weight: bold; color: #fff;">${esc(c.name)} ${c.isChannel ? '📢' : '👥'}</div>
+                <div style="font-size: 11px; color: #884444; font-family: 'Fira Code'; margin-top: 4px;">Создатель: @${esc(c.creatorName || 'Unknown')} • Участников: ${c.memberCount} • Вход: L${c.required_clearance} • Писать: L${c.min_write_clearance || 1}</div>
+            </div>
+            <button class="admin-btn" onclick="openAdminMembers('${c.id}')" style="padding: 6px 12px; font-size: 12px;">👥 Участники</button>
+        </div>
       </div>
     `).join('');
   } catch (e) { box.innerHTML = `Ошибка: ${e.message}`; }
@@ -2095,7 +2138,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   }
 
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
-  document.getElementById('expiry-picker').style.display = showComposer ? 'flex' : 'none';
   
   const blockedBanner = document.getElementById('blocked-banner');
   if (blockedByMe) { blockedBanner.style.display = 'block'; blockedBanner.style.background = '#ff4d4d'; blockedBanner.textContent = 'Пользователь заблокирован вами'; }
@@ -2186,7 +2228,7 @@ function formatMessageText(rawText) {
 function renderExpiryBadge(msg) {
   if (!msg.expires_at) return '';
   const remaining = Math.max(0, Math.floor((msg.expires_at - Date.now()) / 1000));
-  if (remaining <= 0) return '<span class="expiry-timer">⌛ Истекло</span>';
+  if (remaining <= 0) return '<span class="expiry-timer" style="opacity: 0.3;">⌛ Истекло</span>';
   const m = Math.floor(remaining / 60);
   const s = remaining % 60;
   return `<span class="expiry-timer" data-expires-at="${msg.expires_at}">🔥 ${m > 0 ? m + 'м ' : ''}${s}с</span>`;
@@ -2198,7 +2240,13 @@ function startExpiryTimers() {
       const exp = Number(el.dataset.expiresAt);
       if (!exp) return;
       const rem = Math.max(0, Math.floor((exp - Date.now()) / 1000));
-      if (rem <= 0) { el.textContent = '⌛ Истекло'; el.style.opacity = '0.3'; return; }
+      if (rem <= 0) { 
+          el.textContent = '⌛ Истекло'; 
+          el.style.opacity = '0.3'; 
+          // Мы не удаляем сообщение здесь, так как ждем событие от сокета, 
+          // но если оно почему-то не пришло, можно сделать принудительную очистку
+          return; 
+      }
       const m = Math.floor(rem / 60), s = rem % 60;
       el.textContent = `🔥 ${m > 0 ? m + 'м ' : ''}${s}с`;
     });
@@ -2779,7 +2827,6 @@ function connectSocket() {
     } catch (e) {}
   });
 
-  // Мгновенное обновление опыта (XP)
   state.socket.on('xpUpdated', (data) => {
       if (state.me) {
           state.me.xp = data.xp;
@@ -2825,6 +2872,8 @@ function connectSocket() {
       if (s) { s.dataset.state = 'read'; s.classList.remove('delivered'); s.classList.add('read'); s.innerHTML = `<span class="tick">✓</span><span class="tick">✓</span>`; }
     });
   });
+  
+  // Обработка удаления исчезающих сообщений
   state.socket.on('messageDeleted', ({ messageId, type }) => {
     const el = document.getElementById('msg-' + messageId);
     if (!el) return;
@@ -2835,8 +2884,11 @@ function connectSocket() {
         m.classList.add('deleted-msg');
         m.innerHTML = '<div><i>Сообщение удалено</i></div><div class="deleted-label" style="display:flex">🗑️ Удалено</div>';
       }
-    } else el.remove();
+    } else {
+        el.remove(); // Именно удаляем сообщение из DOM
+    }
   });
+  
   state.socket.on('chatCleared', ({ chatId }) => { if (state.currentChat && state.currentChat.id === chatId) document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕНО</div>'; });
   state.socket.on('allMessagesWiped', () => {
     if (state.currentChat) document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕНО СИСТЕМОЙ</div>';
@@ -3091,6 +3143,19 @@ setInterval(() => {
     if (visualSettings.weather !== 'none' && FXEngine.particles.length === 0) FXEngine.initParticles();
     if (visualSettings.weather === 'none' && FXEngine.particles.length > 0) FXEngine.particles = [];
 }, 1000);
+
+// Обработчик меню 3 точек
+document.getElementById('expiry-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('expiry-popup').classList.toggle('visible');
+});
+document.addEventListener('click', (e) => {
+    const popup = document.getElementById('expiry-popup');
+    const btn = document.getElementById('expiry-btn');
+    if (popup && !popup.contains(e.target) && e.target !== btn) {
+        popup.classList.remove('visible');
+    }
+});
 
 (async () => {
   if (state.token) {
