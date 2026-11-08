@@ -1048,21 +1048,17 @@ let favoriteChats = JSON.parse(localStorage.getItem('scp_fav_chats') || '[]');
 let chatDrafts = JSON.parse(localStorage.getItem('scp_drafts') || '{}');
 const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false };
 let currentExpiry = 0;
-
-const authScreen = document.getElementById('auth');
-const chatScreen = document.getElementById('chat');
 let authMode = 'login';
-let isCreatingChannel = false;
 
 const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
 const ROLE_ICON = { user: '👤', helper: '🤝', moderator: '🛡️', admin: '🔰', sysadmin: '👑' };
 const ROLE_COLOR = { user: 'var(--muted)', helper: '#00ccff', moderator: '#ffcc00', admin: '#ff9933', sysadmin: '#ffffff' };
+
 const CLEARANCE_LABEL = { 1: 'L1 — Класс-D', 2: 'L2 — Научный сотрудник', 3: 'L3 — Старший исследователь', 4: 'L4 — Руководитель Зоны', 5: 'L5 — Совет О5' };
 const CLEARANCE_SHORT = { 1: 'D', 2: 'S', 3: 'R', 4: 'Z', 5: 'O5' };
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
 const FILE_SIZE_LIMITS = { 1: 10 * 1024 * 1024, 2: 50 * 1024 * 1024, 3: 200 * 1024 * 1024, 4: 1024 * 1024 * 1024, 5: 10 * 1024 * 1024 * 1024 };
 
-// ================== МЕНЮ ИСЧЕЗАЮЩИХ СООБЩЕНИЙ ==================
 document.getElementById('composer-menu-btn').addEventListener('click', (e) => {
   e.stopPropagation();
   document.getElementById('composer-dropdown').classList.toggle('visible');
@@ -1879,6 +1875,126 @@ window.setClearance = async function() {
   } catch (e) { alert(e.message); }
 };
 
+// ================= REPORTS =================
+window.toggleCustomReason = function(val) {
+  const el = document.getElementById('report-custom-text');
+  el.style.display = val === 'other' ? 'block' : 'none';
+  if (val === 'other') el.focus();
+};
+window.openReportModal = async function() {
+  document.getElementById('msg-actions-modal').classList.remove('visible');
+  document.getElementById('report-modal').classList.add('visible');
+  const container = document.getElementById('report-msgs-container');
+  container.innerHTML = 'Загрузка...';
+  try {
+    const msgs = await api('/chats/' + state.currentChat.id + '/messages');
+    const targetUserMsgs = msgs.filter(m => m.sender.id === state.activeMsg.sender.id && !m.is_deleted).slice(-10);
+    if (!targetUserMsgs.length) {
+      document.getElementById('report-modal').classList.remove('visible');
+      return alert('Нет доступных сообщений');
+    }
+    container.innerHTML = targetUserMsgs.map(m => `
+      <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 12px; padding: 4px; border-bottom: 1px solid #222; color: var(--text);">
+        <input type="checkbox" class="report-msg-checkbox" value="${m.id}" ${m.id === state.activeMsg.id ? 'checked' : ''} style="margin-top: 2px; accent-color: #ff9933;">
+        <span style="word-break: break-word;">${esc(m.text || '(вложение)')}</span>
+      </label>
+    `).join('');
+  } catch (e) { container.innerHTML = `<div style="color: #ff4d4d;">Ошибка: ${esc(e.message)}</div>`; }
+};
+window.submitReport = async function() {
+  let reason = document.getElementById('report-reason').value;
+  if (reason === 'other') {
+    const custom = document.getElementById('report-custom-text').value.trim();
+    if (!custom) return alert('Опишите причину');
+    reason = 'Другое: ' + custom;
+  }
+  const checked = document.querySelectorAll('.report-msg-checkbox:checked');
+  const ids = Array.from(checked).map(cb => cb.value);
+  if (!ids.length) return alert('Выберите сообщение');
+  try {
+    await api('/reports', { method: 'POST', body: JSON.stringify({ target_user_id: state.activeMsg.sender.id, target_message_ids: ids, reason }) });
+    document.getElementById('report-modal').classList.remove('visible');
+    alert('Жалоба отправлена');
+  } catch (e) { alert(e.message); }
+};
+window.updatePendingReportsCount = async function() {
+  if (!state.me || !['sysadmin', 'admin', 'moderator'].includes(state.me.role)) return;
+  try {
+    const reports = await api('/admin/reports');
+    const badge = document.getElementById('report-badge');
+    if (reports.length > 0) { badge.textContent = reports.length; badge.style.display = 'inline-block'; }
+    else { badge.style.display = 'none'; }
+  } catch (e) { }
+};
+window.loadReports = async function() {
+  const box = document.getElementById('reports-list');
+  box.innerHTML = 'Загрузка...';
+  try {
+    const reports = await api('/admin/reports');
+    const badge = document.getElementById('report-badge');
+    if (reports.length > 0) { badge.textContent = reports.length; badge.style.display = 'inline-block'; }
+    else { badge.style.display = 'none'; }
+    if (!reports.length) { box.innerHTML = '<div class="empty">Нет активных жалоб</div>'; return; }
+    box.innerHTML = reports.map(r => {
+      const date = new Date(r.created_at * 1000).toLocaleString();
+      const targetName = r.targetUser ? `@${r.targetUser.username}` : 'Неизвестный';
+      const msgsHtml = (r.targetMessages || []).map(m => `
+        <label style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; cursor: pointer;">
+          <input type="checkbox" class="report-del-checkbox-${r.id}" value="${m.id}" style="margin-top: 3px; accent-color: #ff3333;">
+          <span style="color: #ccc; font-style: italic; font-size: 12px;">"${esc((m.text || '(вложение)').slice(0, 100))}"</span>
+        </label>
+      `).join('');
+      return `
+        <div style="background: #0d0404; border: 1px solid #ff3333; border-radius: 8px; padding: 15px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #331111; padding-bottom: 10px;">
+            <span style="color: #ff9999; font-size: 12px; font-family: 'Fira Code';">От: @${esc(r.reporter)}</span>
+            <span style="color: #ff9999; font-size: 12px;">${date}</span>
+          </div>
+          <div style="font-size: 14px; margin-bottom: 10px;"><span style="color: #fff;">Нарушитель:</span> <a href="#" onclick="event.preventDefault(); openProfile('${r.targetUser?.id || ''}');" style="color: #ff3333; text-decoration: underline;">${targetName}</a></div>
+          <div style="font-size: 14px; margin-bottom: 15px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px;">
+            <span style="color: #ff9999; font-size: 11px; display: block; margin-bottom: 6px;">Причина: ${esc(r.reason.toUpperCase())}</span>
+            ${msgsHtml}
+          </div>
+          <div style="display: flex; gap: 10px;">
+            ${r.targetUser ? `<button class="admin-btn admin-btn-danger" style="flex: 1; padding: 8px; font-size: 12px;" onclick="banFromReport('${r.targetUser.id}', '${r.id}', '${escAttr(r.reason)}')">🚫 Забанить</button>` : ''}
+            ${r.targetMessages && r.targetMessages.length > 0 ? `<button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px;" onclick="deleteSelectedFromReport('${r.id}')">🗑️ Удалить</button>` : ''}
+            <button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px;" onclick="resolveReport('${r.id}', 'ignored')">❌ Отклонить</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) { box.innerHTML = `<div style="color: #ff4d4d;">Ошибка: ${esc(e.message)}</div>`; }
+};
+window.resolveReport = async function(id, action, extra = {}) {
+  try { await api(`/admin/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ action, ...extra }) }); loadReports(); updatePendingReportsCount(); }
+  catch (e) { alert(e.message); }
+};
+window.deleteSelectedFromReport = async function(id) {
+  const checkboxes = document.querySelectorAll(`.report-del-checkbox-${id}:checked`);
+  if (!checkboxes.length) return alert('Выберите сообщения');
+  if (!confirm(`Удалить ${checkboxes.length} сообщений?`)) return;
+  try {
+    for (const cb of checkboxes) await api('/messages/' + cb.value, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
+    await resolveReport(id, 'deleted');
+  } catch (e) { alert(e.message); }
+};
+window.banFromReport = async function(userId, reportId, reason) {
+  const checkboxes = document.querySelectorAll(`.report-del-checkbox-${reportId}:checked`);
+  const ids = Array.from(checkboxes).map(cb => cb.value);
+  if (!confirm(`Забанить?${ids.length ? ` и удалить ${ids.length} сообщений?` : ''}`)) return;
+  const duration = prompt('Время бана (мин, -1 = навсегда):', '1440');
+  if (duration === null) return;
+  const rsn = prompt('Причина:', reason);
+  if (rsn === null) return;
+  try {
+    for (const id of ids) await api('/messages/' + id, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
+    const user = await api('/users/' + userId);
+    await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username: user.username, duration: Number(duration), reason: rsn }) });
+    await resolveReport(reportId, 'banned', { duration: Number(duration) });
+    alert('Готово');
+  } catch (e) { alert(e.message); }
+};
+
 // ================= CHATS ADMIN =================
 window.loadAllChats = async function() {
   const box = document.getElementById('all-chats-list');
@@ -1892,7 +2008,7 @@ window.loadAllChats = async function() {
             <div style="font-weight: bold; color: #fff;">${esc(c.name)} ${c.isChannel ? '📢' : '👥'}</div>
             <div style="font-size: 11px; color: #884444; font-family: 'Fira Code'; margin-top: 4px;">Создатель: @${esc(c.creatorName || 'Unknown')} • Участников: ${c.memberCount}</div>
         </div>
-        <button class="admin-btn" onclick="adminViewMembers('${c.id}')" style="background: #331111; border: 1px solid var(--admin-accent); color: #ff9999; padding: 6px 12px; border-radius: 6px; cursor: pointer;">👥 Участники</button>
+        <button class="admin-btn" onclick="adminViewMembers('${c.id}')">👥 Участники</button>
       </div>
     `).join('');
   } catch (e) { box.innerHTML = `Ошибка: ${e.message}`; }
