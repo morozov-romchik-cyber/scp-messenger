@@ -213,46 +213,66 @@ const chatIsBlocked = (chatId, myId) => {
 // ================= SCP API (Wiki Scraper) =================
 async function handleScpCommand(chatId, userId, args) {
   const text = (args || '').trim();
-  const sendBotMsg = (txt) => {
+  const sendBotMsg = (txt, imgUrl = null) => {
     const msg = {
       id: genId(), chat_id: chatId, sender_id: HELPER_ID, text: txt,
-      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [],
+      scp_image: imgUrl 
     };
     db.messages.push(msg);
     saveDb();
     emitToChatMembers(chatId, 'newMessage', buildMessagePayload(msg));
   };
 
-  if (!text) return sendBotMsg('📖 **Команда /scp**\nИспользование: `/scp <номер>`\nПример: `/scp 173` — карточка SCP-173.');
+  if (!text) return sendBotMsg('📖 **Команда /scp**\nИспользование: `/scp <номер>`\nПример: `/scp 049`');
   const number = text.replace(/[^0-9]/g, '');
-  if (!number) return sendBotMsg('❌ **Ошибка**\nУкажите номер объекта, например: `/scp 173`');
+  if (!number) return sendBotMsg('❌ **Ошибка**\nУкажите номер объекта, например: `/scp 049`');
 
   try {
     const res = await fetch(`https://scp-wiki.wikidot.com/scp-${number}`, { headers: { 'User-Agent': 'Mozilla/5.0 (SCP-Messenger-Bot)' } });
     if (!res.ok) throw new Error('Not found');
     const html = await res.text();
     
+    // 1. Название
     const titleMatch = html.match(/<div id="page-title">\s*(.*?)\s*<\/div>/);
     const title = titleMatch ? titleMatch[1].trim() : `SCP-${number}`;
     
+    // 2. Класс объекта
     const classMatch = html.match(/<strong>Object Class:<\/strong>\s*(.*?)\s*<br/);
     const objClass = classMatch ? classMatch[1].replace(/<.*?>/g, '').trim() : 'Unknown';
     
-    const descMatch = html.match(/<p>(.*?)<\/p>/s);
+    // 3. Условия содержания
+    const containmentMatch = html.match(/<strong>Special Containment Procedures:<\/strong>(.*?)(?=<strong>|$)/is);
+    let containment = 'Процедуры содержания не найдены.';
+    if (containmentMatch) {
+        containment = containmentMatch[1].replace(/<.*?>/g, '').trim();
+        if (containment.length > 300) containment = containment.substring(0, 300) + '...';
+    }
+
+    // 4. Описание
+    const descMatch = html.match(/<strong>Description:<\/strong>(.*?)(?=<strong>|<div|$)/is);
     let desc = 'Описание не найдено.';
     if (descMatch) {
         desc = descMatch[1].replace(/<.*?>/g, '').trim();
         if (desc.length > 400) desc = desc.substring(0, 400) + '...';
     }
 
+    // 5. Изображение
+    let imgUrl = null;
+    const imgMatch = html.match(/<div class="scp-image-block.*?">.*?<img src="(.*?)"/is);
+    if (imgMatch && imgMatch[1]) {
+        imgUrl = imgMatch[1].startsWith('http') ? imgMatch[1] : `https://scp-wiki.wikidot.com${imgMatch[1]}`;
+    }
+
     const cardText = [
       `📄 **${title}**`,
-      `**Класс объекта:** ${objClass}`,
-      `**Описание:** ${desc}`,
-      `🔗 [Открыть на SCP Wiki](https://scp-wiki.wikidot.com/scp-${number})`
-    ].join('\n\n');
+      `🔹 **Класс объекта:** ${objClass}`,
+      `\n🛡️ **Условия содержания:**\n${containment}`,
+      `\n📝 **Описание:**\n${desc}`,
+      `\n🔗 [Открыть на SCP Wiki](https://scp-wiki.wikidot.com/scp-${number})`
+    ].join('\n');
 
-    sendBotMsg(cardText);
+    sendBotMsg(cardText, imgUrl);
   } catch (err) {
     sendBotMsg(`❌ **SCP-${number} не найден**\nПроверьте номер или попробуйте позже.`);
   }
@@ -773,7 +793,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       isChannel: !!c.is_channel, username: c.username || null,
       isHelper: !c.is_group && !isSelf && otherId === HELPER_ID,
       otherStatus: other && !c.is_group ? (other.custom_status || '') : '',
-      status: other ? (other.status || 'offline') : 'offline', // <--- ДОБАВЛЕНО ДЛЯ СТАТУСА
+      status: other ? (other.status || 'offline') : 'offline', // ФИКС СТАТУСА
       required_clearance: requiredClearance,
       min_write_clearance: c.min_write_clearance || 1,
       canAccess: canAccess
@@ -994,6 +1014,7 @@ function buildMessagePayload(m) {
     reactions: m.reactions || [],
     edited: m.edited || false,
     expires_at: m.expires_at || null,
+    scp_image: m.scp_image || null,
     attachments: atts.map(a => ({ url: a.url, mime: a.mime_type, name: a.original_name, size: a.size }))
   };
 }
