@@ -834,6 +834,20 @@
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">IP:</span><span id="set-my-ip" style="color: #00ff9d;">...</span></div>
       </div>
     </div>
+
+    <!-- === ИНВАЙТ-КОД ПОЛЬЗОВАТЕЛЯ (добавлено) === -->
+    <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
+      <span style="margin-bottom: 10px; font-weight: bold; color: var(--accent);">🎫 Ваш инвайт-код:</span>
+      <div style="display: flex; gap: 10px; width: 100%;">
+        <input type="text" id="settings-invite-code" readonly value="..." style="flex: 1; background: var(--bg); border: 1px solid var(--border); color: #00ff9d; padding: 10px; border-radius: 6px; font-family: 'Fira Code'; font-weight: bold; outline: none; cursor: pointer; user-select: all;" onclick="this.select()" title="Нажмите, чтобы выделить">
+        <button class="modal-btn" id="copy-invite-code-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;">📋 Копировать</button>
+      </div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 6px; font-family: 'Fira Code'; line-height: 1.4;">
+        Поделитесь этим кодом с друзьями. При регистрации они вводят его в поле «Код приглашения», а вы получаете <b style="color: #00ff9d;">+200 XP</b> за каждого.
+      </div>
+    </div>
+    <!-- === /ИНВАЙТ-КОД ПОЛЬЗОВАТЕЛЯ === -->
+
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px;">Отображаемое имя:</span>
       <div style="display: flex; gap: 10px; width: 100%;">
@@ -2669,7 +2683,7 @@ async function uploadFilesWithProgress(files, caption = '') {
       const label = total === 1 ? f.name : `Файл ${i+1}/${total}`;
       progText.textContent = `⏳ Подготовка ${label}...`;
       const { uploadUrl, key } = await api(`/chats/${targetChatId}/get-upload-url`, {
-        method: 'POST', body: JSON.stringify({ fileName: f.name, fileType: f.type || 'application/octet-stream' })
+        method: 'POST', body: JSON.stringify({ fileName: f.name, fileType: f.type || 'application/octet-stream', fileSize: f.size })
       });
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -3245,6 +3259,54 @@ const FXEngine = {
         tick();
     }
 };
+
+// ================= INVITE CODE IN SETTINGS (добавлено) =================
+(function setupInviteCodeUI() {
+  // Заполняем код при открытии настроек (отдельный listener, существующий не трогаем)
+  const openSettingsBtn = document.getElementById('open-settings');
+  if (openSettingsBtn) {
+    openSettingsBtn.addEventListener('click', () => {
+      const input = document.getElementById('settings-invite-code');
+      if (!input || !state.me) return;
+      input.value = state.me.invite_code || ('REF-' + (state.me.username || '').toUpperCase());
+    });
+  }
+
+  // Кнопка "Копировать"
+  const copyBtn = document.getElementById('copy-invite-code-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const input = document.getElementById('settings-invite-code');
+      if (!input || !input.value) return;
+      const code = input.value;
+      const doCopy = () => {
+        const orig = copyBtn.textContent;
+        const origBg = copyBtn.style.background;
+        const origColor = copyBtn.style.color;
+        copyBtn.textContent = '✓ Скопировано';
+        copyBtn.style.background = '#00ff9d';
+        copyBtn.style.color = '#000';
+        setTimeout(() => {
+          copyBtn.textContent = orig;
+          copyBtn.style.background = origBg;
+          copyBtn.style.color = origColor;
+        }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(doCopy).catch(doCopy);
+      } else {
+        // fallback для старых браузеров
+        try {
+          input.removeAttribute('readonly');
+          input.select();
+          document.execCommand('copy');
+          input.setAttribute('readonly', 'readonly');
+          doCopy();
+        } catch (e) { alert('Не удалось скопировать: ' + code); }
+      }
+    });
+  }
+})();
 
 // ================= INIT =================
 setTimeout(() => {
