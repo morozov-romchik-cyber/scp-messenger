@@ -71,16 +71,20 @@
 
   /* ================= SCP CARD ================= */
   .scp-card {
-    background: rgba(0, 0, 0, 0.6); border: 1px solid #ff3333;
-    border-radius: 8px; padding: 12px; margin-top: 8px;
-    font-family: 'Fira Code', monospace;
+    background: rgba(0, 0, 0, 0.4); 
+    border: 1px solid #ff3333;
+    border-radius: 8px; 
+    padding: 16px; 
+    margin-top: 8px;
+    font-family: 'Inter', sans-serif;
+    max-width: 480px;
   }
-  .scp-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
-  .scp-card-title { font-size: 15px; font-weight: 700; color: #ff3333; }
-  .scp-card-class { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #ff3333; color: #000; font-weight: bold; }
-  .scp-card-body { font-size: 12px; color: #ccc; line-height: 1.5; }
-  .scp-card-body b { color: #fff; }
-  .scp-card-footer { margin-top: 8px; font-size: 11px; }
+  .scp-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; border-bottom: 1px solid rgba(255,51,51,0.3); padding-bottom: 8px; }
+  .scp-card-title { font-size: 16px; font-weight: 700; color: #ff3333; }
+  .scp-card-class { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #ff3333; color: #000; font-weight: bold; text-transform: uppercase; }
+  .scp-card-body { font-size: 13px; color: #ddd; line-height: 1.5; }
+  .scp-card-body b { color: #fff; font-family: 'Fira Code', monospace; }
+  .scp-card-footer { margin-top: 12px; font-size: 12px; }
   .scp-card-footer a { color: #1d9bf0; text-decoration: underline; }
 
   /* ================= STATUS DOT ================= */
@@ -2257,7 +2261,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   if (required_clearance > 1) clearanceEl.innerHTML = clearanceBadge(required_clearance);
   else clearanceEl.innerHTML = '';
   
-   // Статус собеседника
+  // Статус собеседника
   const statusLine = document.getElementById('chat-status-line');
   if (!isGroup && !isHelper && otherUserId) {
     const chat = state.chats.find(c => c.id === chatId);
@@ -2462,7 +2466,7 @@ function appendMessage(msg, scroll = true) {
   if (msg.is_deleted && !canReadDeleted) {
     content += `<div><i>Сообщение удалено</i></div>`;
   } else {
-    const scpCard = renderScpCard(rawText);
+    const scpCard = renderScpCard(rawText, msg.scp_image); // Передаем картинку
     if (scpCard) {
       content += scpCard;
     } else if (rawText.startsWith('> ')) {
@@ -2560,31 +2564,37 @@ function appendMessage(msg, scroll = true) {
   if (scroll) msgsEl.scrollTop = msgsEl.scrollHeight;
 }
 
-function renderScpCard(text) {
+// ================= SCP CARD RENDERER =================
+function renderScpCard(text, imageUrl) {
   if (!text || !text.startsWith('📄 **SCP-')) return null;
-  const lines = text.split('\n\n');
-  if (lines.length < 3) return null;
   
-  const titleLine = lines[0].replace('📄 ', '').replace(/\*\*/g, '');
-  const classLine = lines[1] || '';
-  const containmentLine = (lines[2] || '').replace('**Процедуры содержания:** ', '');
-  const descLine = (lines[3] || '').replace('**Описание:** ', '');
-  const linkLine = lines[4] || '';
-  
-  const cm = classLine.match(/Класс объекта:\s*(.+)/);
-  const objectClass = cm ? cm[1].trim() : 'Unknown';
-  
+  // Парсим блоки по спецсимволам
+  const titleMatch = text.match(/📄 \*\*(.*?)\*\*/);
+  const classMatch = text.match(/🔹 \*\*Класс объекта:\*\* (.*)/);
+  const containmentMatch = text.match(/🛡️ \*\*Условия содержания:\*\*\n(.*?)(?=\n\n|📝|🔗|$)/s);
+  const descMatch = text.match(/📝 \*\*Описание:\*\*\n(.*?)(?=\n\n|🔗|$)/s);
+  const linkMatch = text.match(/🔗 (.*)/);
+
+  const title = titleMatch ? titleMatch[1] : 'SCP Object';
+  const objClass = classMatch ? classMatch[1] : 'Unknown';
+  const containment = containmentMatch ? containmentMatch[1].trim() : 'Не указаны.';
+  const desc = descMatch ? descMatch[1].trim() : 'Не указано.';
+  const link = linkMatch ? linkMatch[1] : '';
+
+  const imgHtml = imageUrl ? `<img src="${escAttr(imageUrl)}" style="max-width: 100%; border-radius: 6px; margin-bottom: 12px; display: block; border: 1px solid #444;" onerror="this.style.display='none'">` : '';
+
   return `
     <div class="scp-card">
       <div class="scp-card-header">
-        <span class="scp-card-title">${esc(titleLine)}</span>
-        <span class="scp-card-class">${esc(objectClass)}</span>
+        <span class="scp-card-title">${esc(title)}</span>
+        <span class="scp-card-class">${esc(objClass)}</span>
       </div>
       <div class="scp-card-body">
-        <div><b>Процедуры содержания:</b> ${esc(containmentLine)}</div>
-        <div style="margin-top:4px;"><b>Описание:</b> ${esc(descLine)}</div>
+        ${imgHtml}
+        <div style="margin-bottom: 8px;"><b>Условия содержания:</b><br>${formatMessageText(containment)}</div>
+        <div><b>Описание:</b><br>${formatMessageText(desc)}</div>
       </div>
-      <div class="scp-card-footer">${formatMessageText(linkLine)}</div>
+      <div class="scp-card-footer">${formatMessageText(link)}</div>
     </div>
   `;
 }
