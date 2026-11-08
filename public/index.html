@@ -2225,7 +2225,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   }
 
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
-  document.getElementById('expiry-picker').style.display = showComposer ? 'flex' : 'none';
   
   const blockedBanner = document.getElementById('blocked-banner');
   if (blockedByMe) { blockedBanner.style.display = 'block'; blockedBanner.style.background = '#ff4d4d'; blockedBanner.textContent = 'Пользователь заблокирован вами'; }
