@@ -67,8 +67,6 @@ const FILE_SIZE_LIMITS = {
 };
 
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
-
-// КУЛДАУНЫ НА ОТПРАВКУ СООБЩЕНИЙ (в миллисекундах)
 const MESSAGE_COOLDOWNS = { 1: 7000, 2: 5000, 3: 3000, 4: 1000, 5: 0 };
 
 const HELPER_ID = 'system_scp_helper_id';
@@ -221,34 +219,54 @@ const chatIsBlocked = (chatId, myId) => {
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
+// ФУНКЦИЯ УДАЛЕНИЯ ИСЧЕЗАЮЩИХ СООБЩЕНИЙ
+function scheduleMessageExpiry(msgId, expiresAt) {
+  const delay = expiresAt - Date.now();
+  const expireAction = () => {
+    const msg = db.messages.find(m => m.id === msgId);
+    if (msg && !msg.is_deleted) {
+      msg.is_deleted = true;
+      saveDb();
+      emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: 'system' });
+    }
+  };
+
+  if (delay > 0) {
+    setTimeout(expireAction, delay);
+  } else {
+    expireAction();
+  }
+}
+
 const getWelcomeMessageText = () => {
-    return `[ДОСТУП РАЗРЕШЕН]
-ОБРАТНЫЙ ОТСЧЕТ ТЕРМИНАЛА... ГОТОВО.
+    return `[ДОСТУП РАЗРЕШЕН] ОБРАТНЫЙ ОТСЧЕТ ТЕРМИНАЛА... ГОТОВО.
 ДОБРО ПОЖАЛОВАТЬ В SCP FOUNDATION.
 Вы подключены к защищенному каналу связи локальной сети Фонда.
-Ваш текущий статус: Персонал класса D
-Ваш текущий уровень допуска: L1
+• Ваш текущий статус: Персонал класса D
+• Ваш текущий уровень допуска: L1 (0 XP)
 
 📈 РЕГЛАМЕНТ ПОВЫШЕНИЯ ДОПУСКА (СИСТЕМА XP)
 
-Для получения доступа к более засекреченным материалам выполняйте протоколы активности:
+Для получения доступа к более засекреченным материалам выполняйте протоколы активности. Начисление опыта происходит мгновенно в режиме реального времени (Live-Update) — обновление страницы терминала не требуется.
 • Ежедневная авторизация: +50 XP (один раз в сутки).
 • Текстовые рапорты: +2 XP за сообщение. Суточный лимит: 200 XP (первые 100 сообщений).
 • Одобрение коллег: +5 XP за каждую реакцию на ваши сообщения.
 • Вербовка полевых агентов: +200 XP за реферальный код. Суточный лимит: 2 активации.
 
-🎯 ИЕРАРХИЯ ДОПУСКА И ПРИВИЛЕГИИ
+🎯 ИЕРАРХИЯ ДОПУСКА, ПРИВИЛЕГИИ И ТАЙМАУТЫ
 
-• L2 [500 XP]: Разрешено формирование оперативных групп. Лимит передачи данных: до 50 МБ.
-• L3 [2 000 XP]: Открыт доступ к публичным информационным каналам. Лимит данных: до 200 МБ.
-• L4 [10 000 XP]: Допуск к засекреченным каналам и спец-архивам. Лимит данных: до 1 ГБ.
-• L5 [50 000 XP]: Максимальный уровень сингулярного контроля. Лимит данных: до 10 ГБ.
+• L1 [0 XP]: Базовый доступ сотрудника класса D. Задержка отправки сообщений: 1 раз в 7 секунд.
+• L2 [500 XP]: Разрешено формирование оперативных групп. Лимит передачи данных: до 50 МБ. Задержка отправки сообщений: 1 раз в 5 секунд.
+• L3 [2 000 XP]: Открыт доступ к публичным информационным каналам. Лимит данных: до 200 МБ. Задержка отправки сообщений: 1 раз в 3 секунды.
+• L4 [10 000 XP]: Допуск к засекреченным каналам и спец-архивам. Лимит данных: до 1 ГБ. Задержка отправки сообщений: 1 раз в 1 секунду (режим Трекли).
+• L5 [50 000 XP]: Максимальный уровень сингулярного контроля. Лимит данных: до 10 ГБ. Отправка сообщений без ограничений.
 
-⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА ИИ СБ)
+⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА СБ)
 
-Категорически запрещена регистрация нескольких учетных записей с одного IP-адреса (саботаж и дюп опыта).
-При фиксации 3 и более аккаунтов на одном сетевом узле, автоматическая система безопасности Фонда инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.
-Оставайтесь бдительны. Фонд наблюдает за вами.`;
+Категорически запрещена регистрация нескольких учетных записей с одного IP-адреса. Система классифицирует это как саботаж внутренней сети и дюп опыта.
+• При обнаружении повторного подключения система выдает системное уведомление.
+• Внимание: С данного IP-адреса зафиксирована регистрация учетной записи. Вынесено предупреждение 1 из 2. Осталось 2 предупреждения.
+• После фиксации 3-го аккаунта на одном сетевом узле автоматическая система безопасности Фонда инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.`;
 };
 
 // ================= XP SYSTEM =================
@@ -934,7 +952,13 @@ app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
 
 app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
-  if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
+  const me = db.users.find(u => u.id === req.userId);
+  const isAdmin = ['sysadmin', 'admin', 'moderator', 'helper'].includes(me.role);
+  
+  if (!isAdmin && !db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) {
+      return res.status(403).json({ error: 'Not a member' });
+  }
+
   const members = db.chat_members.filter(m => m.chat_id === chatId).map(m => {
     const u = db.users.find(user => user.id === m.user_id);
     return u ? publicUserSafe(u) : null;
@@ -1087,7 +1111,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
-  // Проверка на команду /start в чате с хелпером
+  // Проверка на команду /start
   const members = db.chat_members.filter(cm => cm.chat_id === chatId);
   const otherId = members.find(m => m.user_id !== req.userId)?.user_id;
   
@@ -1101,10 +1125,10 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       saveDb();
       const payload = buildMessagePayload(sysMsg);
       emitToChatMembers(chatId, 'newMessage', payload);
-      return res.json(payload); // Возвращаем ответ бота, само сообщение "/start" не сохраняем
+      return res.json(payload);
   }
 
-  // КУЛДАУН
+  // КУЛДАУН НА ОТПРАВКУ
   const cooldownMs = MESSAGE_COOLDOWNS[myClearance] || 0;
   const now = Date.now();
   if (cooldownMs > 0 && me.last_message_time) {
@@ -1116,7 +1140,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   }
   me.last_message_time = now;
 
-  // Лимит: 200 XP за 100 сообщений в день
   if (me.role === 'user') {
       const today = new Date().toDateString();
       if (!me.last_msg_xp_date || me.last_msg_xp_date !== today) {
