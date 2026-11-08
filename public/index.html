@@ -19,8 +19,11 @@
     --admin-accent: #ff3333; --admin-text: #ffcccc; --admin-green: #00ff9d;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; height: 100dvh; overflow: hidden; }
+  html, body { height: 100%; height: 100dvh; overflow: hidden; -webkit-app-region: drag; } /* Делает окно перетаскиваемым */
   body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  
+  /* Исключаем кликабельные элементы из зоны перетаскивания */
+  button, input, textarea, a, .chat-item, .msg-row, .modal, .admin-btn { -webkit-app-region: no-drag; }
 
   #fx-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
   #landscape { position: fixed; bottom: 0; left: 0; width: 100%; height: 250px; pointer-events: none; z-index: 0; opacity: 0.8; transition: opacity 0.5s; }
@@ -135,15 +138,22 @@
   #user-banned-banner { display: none; background: #ff3333; color: #ffffff; padding: 10px 16px; font-size: 13px; font-weight: bold; font-family: 'Fira Code', monospace; text-align: center; border-bottom: 1px solid #4a1515; z-index: 10; }
 
   #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; position: relative; z-index: 2; }
-  .msg-row { display: flex; gap: 12px; align-items: flex-end; max-width: 85%; position: relative; }
+  .msg-row { display: flex; gap: 12px; align-items: flex-end; max-width: 85%; position: relative; cursor: pointer; border-radius: 8px; transition: background 0.2s; }
   .msg-row.mine { align-self: flex-end; flex-direction: row-reverse; }
   .msg-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 1px solid var(--border); cursor: pointer; transition: transform 0.2s, border-color 0.2s; overflow: hidden; }
   .msg-avatar:hover { transform: scale(1.1); border-color: var(--accent); }
 
-  .msg { padding: 12px 16px; background: rgba(28, 33, 40, 0.95); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; word-wrap: break-word; position: relative; animation: slideUp 0.2s ease-out; backdrop-filter: blur(5px); width: fit-content; max-width: 100%; cursor: pointer; user-select: none; -webkit-touch-callout: none; }
+  .msg { padding: 12px 16px; background: rgba(28, 33, 40, 0.95); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; word-wrap: break-word; position: relative; animation: slideUp 0.2s ease-out; backdrop-filter: blur(5px); width: fit-content; max-width: 100%; user-select: none; -webkit-touch-callout: none; }
   @keyframes slideUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   .msg-row.mine .msg { background: rgba(48, 54, 61, 0.95); border-color: var(--border-hover); border-bottom-right-radius: 2px; }
   .msg-row:not(.mine) .msg { border-bottom-left-radius: 2px; }
+
+  /* Визуализация выделенного сообщения */
+  .msg-row.selected .msg {
+    border: 2px solid #1d9bf0 !important;
+    background: rgba(29, 155, 240, 0.1) !important;
+    box-shadow: 0 0 10px rgba(29, 155, 240, 0.3) !important;
+  }
 
   .msg.deleted-msg { background: rgba(30, 30, 30, 0.5) !important; border-color: #444 !important; color: #884444; font-style: italic; }
   .msg .deleted-label { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #ff4d4d; margin-top: 6px; font-weight: bold; }
@@ -262,6 +272,25 @@
   .reaction-picker-row button { background: var(--card); border: 1px solid var(--border); border-radius: 8px; font-size: 20px; cursor: pointer; padding: 4px 8px; transition: transform 0.1s, border-color 0.1s; }
   #typing-indicator { display: none; font-size: 11px; color: #00ff9d; font-family: 'Fira Code', monospace; font-weight: 600; padding-left: 2px; margin-top: 2px; animation: typingPulse 1.4s ease-in-out infinite; }
 
+  /* Панель мультивыбора */
+  #multi-select-bar {
+    display: none;
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 20px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    pointer-events: auto;
+  }
+
   @media (max-width: 720px) {
     aside { display: none; width: 100%; position: absolute; inset: 0; z-index: 20; }
     aside.mobile-open { display: flex; }
@@ -274,6 +303,7 @@
     #chat-clearance-badge { display: none !important; }
     #messages { padding: 16px; }
     #composer { padding: 12px 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+    #multi-select-bar { flex-direction: column; width: 90%; bottom: 20px; }
   }
   .back-btn { display: none; }
   .empty { text-align: center; color: var(--muted); font-family: 'Fira Code', monospace; font-size: 13px; padding: 60px 20px; letter-spacing: 1px; }
@@ -666,6 +696,7 @@
       <button onclick="reactToActiveMsg('😢')">😢</button>
       <button onclick="reactToActiveMsg('🔥')">🔥</button>
     </div>
+    <button class="modal-btn" id="msg-select-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">☑️ Выбрать</button>
     <button class="modal-btn" id="msg-edit-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">✏️ Редактировать</button>
     <button class="modal-btn" id="msg-copy-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">📋 Копировать</button>
     <button class="modal-btn" id="msg-download-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">📥 Скачать вложения</button>
@@ -890,6 +921,15 @@
       <button class="close-reply" id="close-reply">×</button>
     </div>
 
+    <!-- Панель мультивыбора -->
+    <div id="multi-select-bar">
+        <button onclick="cancelSelectionMode()" style="background: transparent; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 5px;">✖</button>
+        <span id="selection-count" style="color: #fff; font-family: 'Fira Code'; font-size: 14px; min-width: 80px;">0 выбрано</span>
+        <button onclick="forwardSelectedMessages()" class="admin-btn" style="background: var(--card); color: #fff; border-color: var(--border); margin: 0; padding: 6px 12px;">➡️ Переслать</button>
+        <button onclick="deleteSelectedMessages()" class="admin-btn" style="background: #ff4d4d; color: #fff; border: none; margin: 0; padding: 6px 12px;">🗑️ Удалить</button>
+        <button onclick="reportSelectedMessages()" class="admin-btn" style="background: #ff9933; color: #000; border: none; margin: 0; padding: 6px 12px;">🚩 Пожаловаться</button>
+    </div>
+
     <!-- Popup для исчезающих сообщений -->
     <div class="expiry-popup" id="expiry-popup">
         <div style="font-size: 11px; color: var(--muted); margin-bottom: 5px; font-family: 'Fira Code';">Исчезающее сообщение:</div>
@@ -918,6 +958,12 @@
 let favoriteChats = JSON.parse(localStorage.getItem('scp_fav_chats') || '[]');
 let chatDrafts = JSON.parse(localStorage.getItem('scp_drafts') || '{}');
 const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false };
+
+// === ПЕРЕМЕННЫЕ ДЛЯ МУЛЬТИВЫБОРА ===
+let isSelectionMode = false;
+let selectedMsgIds = new Set();
+let multiSelectReportTargetId = null;
+let isForwardingMultiple = false;
 
 const authScreen = document.getElementById('auth');
 const chatScreen = document.getElementById('chat');
@@ -1075,6 +1121,91 @@ function showNotification(sender, text, avatarUrl, chatId) {
         }
     }, 5000);
 }
+
+// ================= МУЛЬТИВЫБОР =================
+window.enterSelectionMode = function(initialMsgId) {
+    isSelectionMode = true;
+    selectedMsgIds.clear();
+    if (initialMsgId) selectedMsgIds.add(initialMsgId);
+    
+    document.querySelectorAll('.msg-row').forEach(row => {
+        row.classList.remove('selected');
+    });
+    
+    if (initialMsgId) {
+        const row = document.getElementById('msg-' + initialMsgId);
+        if (row) row.classList.add('selected');
+    }
+    
+    document.getElementById('multi-select-bar').style.display = 'flex';
+    updateSelectionUI();
+    document.getElementById('msg-actions-modal').classList.remove('visible');
+};
+
+window.cancelSelectionMode = function() {
+    isSelectionMode = false;
+    selectedMsgIds.clear();
+    document.querySelectorAll('.msg-row').forEach(row => row.classList.remove('selected'));
+    document.getElementById('multi-select-bar').style.display = 'none';
+    if (isForwardingMultiple) {
+        isForwardingMultiple = false;
+        document.getElementById('forward-modal').classList.remove('visible');
+    }
+};
+
+window.toggleMsgSelection = function(msgId, rowElement) {
+    if (selectedMsgIds.has(msgId)) {
+        selectedMsgIds.delete(msgId);
+        rowElement.classList.remove('selected');
+    } else {
+        selectedMsgIds.add(msgId);
+        rowElement.classList.add('selected');
+    }
+    updateSelectionUI();
+};
+
+function updateSelectionUI() {
+    document.getElementById('selection-count').textContent = `${selectedMsgIds.size} выбрано`;
+    if (selectedMsgIds.size === 0) {
+        cancelSelectionMode();
+    }
+}
+
+window.forwardSelectedMessages = function() {
+    if (selectedMsgIds.size === 0) return;
+    isForwardingMultiple = true;
+    const list = document.getElementById('forward-list');
+    list.innerHTML = state.chats.map(c => `<div class="forward-item" onclick="forwardTo('${escAttr(c.id)}')"><div class="chat-avatar">${c.isGroup ? (c.isChannel ? '📢' : '👥') : esc((c.name || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(c.name)}</div></div></div>`).join('') || '<div class="empty">Нет чатов</div>';
+    document.getElementById('forward-modal').classList.add('visible');
+};
+
+window.deleteSelectedMessages = async function() {
+    if (selectedMsgIds.size === 0) return;
+    if (!confirm(`Удалить ${selectedMsgIds.size} сообщений?`)) return;
+    let success = 0;
+    for (const msgId of selectedMsgIds) {
+        try {
+            await api('/messages/' + msgId, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
+            success++;
+        } catch(e) { console.error(e); }
+    }
+    alert(`Удалено ${success} сообщений`);
+    cancelSelectionMode();
+};
+
+window.reportSelectedMessages = function() {
+    if (selectedMsgIds.size === 0) return;
+    const firstMsgId = Array.from(selectedMsgIds)[0];
+    const firstMsgRow = document.getElementById('msg-' + firstMsgId);
+    if (!firstMsgRow) return alert('Ошибка выбора сообщений');
+    
+    const senderId = firstMsgRow.dataset.senderId;
+    multiSelectReportTargetId = senderId;
+    
+    document.getElementById('report-modal').classList.add('visible');
+    const container = document.getElementById('report-msgs-container');
+    container.innerHTML = `<div style="color: #fff; font-size: 13px; padding: 10px; font-family: 'Fira Code';">Выбрано <b>${selectedMsgIds.size}</b> сообщений для жалобы. Пожалуйста, выберите причину ниже.</div>`;
+};
 
 // ================= LIGHTBOX =================
 let lbScale = 1, lbTranslateX = 0, lbTranslateY = 0, lbIsDragging = false, lbStartX = 0, lbStartY = 0, lbImages = [], lbCurrentIndex = 0;
@@ -1565,12 +1696,25 @@ window.submitReport = async function() {
     if (!custom) return alert('Опишите причину');
     reason = 'Другое: ' + custom;
   }
-  const checked = document.querySelectorAll('.report-msg-checkbox:checked');
-  const ids = Array.from(checked).map(cb => cb.value);
-  if (!ids.length) return alert('Выберите сообщение');
+  
+  let ids = [];
+  let targetUserId = null;
+
+  if (isSelectionMode && selectedMsgIds.size > 0) {
+      ids = Array.from(selectedMsgIds);
+      targetUserId = multiSelectReportTargetId;
+  } else {
+      const checked = document.querySelectorAll('.report-msg-checkbox:checked');
+      ids = Array.from(checked).map(cb => cb.value);
+      if (state.activeMsg) targetUserId = state.activeMsg.sender.id;
+  }
+
+  if (!ids.length || !targetUserId) return alert('Ошибка выбора сообщений');
+
   try {
-    await api('/reports', { method: 'POST', body: JSON.stringify({ target_user_id: state.activeMsg.sender.id, target_message_ids: ids, reason }) });
+    await api('/reports', { method: 'POST', body: JSON.stringify({ target_user_id: targetUserId, target_message_ids: ids, reason }) });
     document.getElementById('report-modal').classList.remove('visible');
+    if (isSelectionMode) cancelSelectionMode();
     alert('Жалоба отправлена');
   } catch (e) { alert(e.message); }
 };
@@ -2298,6 +2442,8 @@ function appendMessage(msg, scroll = true) {
   const row = document.createElement('div');
   row.className = 'msg-row' + (mine ? ' mine' : '');
   row.id = 'msg-' + msg.id;
+  row.dataset.senderId = msg.sender.id; // Для мультижалобы
+  
   const isAdmin = state.me && ['sysadmin', 'admin'].includes(state.me.role);
   const canReadDeleted = isAdmin && state.read_deleted;
   let content = '';
@@ -2385,8 +2531,19 @@ function appendMessage(msg, scroll = true) {
   
   const msgDiv = row.querySelector('.msg');
   let pressTimer = null;
+  
+  // Обработчик обычного клика для мультивыбора
+  msgDiv.addEventListener('click', (e) => {
+      if (isSelectionMode) {
+          e.stopPropagation();
+          toggleMsgSelection(msg.id, row);
+      }
+  });
+
   const startPress = (e) => {
     if (msg.is_deleted) return;
+    // Если в режиме выбора, не открываем меню действий
+    if (isSelectionMode) return;
     if (['IMG','VIDEO','AUDIO','A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip, .reply-quote, .msg-reaction, .scp-card')) return;
     pressTimer = setTimeout(() => { pressTimer = null; openMsgActions(msg); if (navigator.vibrate) navigator.vibrate(50); }, 1000);
   };
@@ -2445,6 +2602,13 @@ function openMsgActions(msg) {
       document.getElementById('msg-actions-modal').classList.remove('visible');
     };
   } else dl.style.display = 'none';
+  
+  // Добавляем обработчик на кнопку "Выбрать"
+  const selBtn = document.getElementById('msg-select-btn');
+  selBtn.onclick = () => {
+      enterSelectionMode(msg.id);
+  };
+  
   document.getElementById('msg-actions-modal').classList.add('visible');
 }
 
@@ -2468,16 +2632,34 @@ document.getElementById('msg-reply-btn').addEventListener('click', () => {
 document.getElementById('close-reply').addEventListener('click', () => { state.replyTo = null; document.getElementById('reply-bar').classList.remove('visible'); });
 document.getElementById('msg-forward-btn').addEventListener('click', () => {
   const m = state.activeMsg; if (!m) return;
+  isForwardingMultiple = false; // Сбрасываем флаг
   const list = document.getElementById('forward-list');
   list.innerHTML = state.chats.map(c => `<div class="forward-item" onclick="forwardTo('${escAttr(c.id)}')"><div class="chat-avatar">${c.isGroup ? (c.isChannel ? '📢' : '👥') : esc((c.name || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(c.name)}</div></div></div>`).join('') || '<div class="empty">Нет чатов</div>';
   document.getElementById('msg-actions-modal').classList.remove('visible');
   document.getElementById('forward-modal').classList.add('visible');
 });
+
+// Обновленный forwardTo для поддержки мультивыбора
 window.forwardTo = async function(chatId) {
-  const m = state.activeMsg; if (!m) return;
-  try { await api('/messages/' + m.id + '/forward', { method: 'POST', body: JSON.stringify({ chatId }) }); document.getElementById('forward-modal').classList.remove('visible'); alert('Переслано'); }
-  catch (e) { alert(e.message); }
+  if (isForwardingMultiple) {
+      let success = 0;
+      for (const msgId of selectedMsgIds) {
+          try {
+              await api('/messages/' + msgId + '/forward', { method: 'POST', body: JSON.stringify({ chatId }) });
+              success++;
+          } catch(e) { console.error(e); }
+      }
+      alert(`Переслано ${success} сообщений`);
+      document.getElementById('forward-modal').classList.remove('visible');
+      isForwardingMultiple = false;
+      cancelSelectionMode();
+  } else {
+      const m = state.activeMsg; if (!m) return;
+      try { await api('/messages/' + m.id + '/forward', { method: 'POST', body: JSON.stringify({ chatId }) }); document.getElementById('forward-modal').classList.remove('visible'); alert('Переслано'); }
+      catch (e) { alert(e.message); }
+  }
 };
+
 document.getElementById('msg-del-me-btn').addEventListener('click', async () => {
   const m = state.activeMsg; if (!m) return;
   try {
