@@ -211,7 +211,7 @@ const chatIsBlocked = (chatId, myId) => {
 };
 
 // ================= SCP API (Wiki Scraper) =================
-async function handleScpCommand(chatId, userId, args) {
+async function handleScpCommand(chatId, userId, args, lang = 'ru') {
   const text = (args || '').trim();
   const sendBotMsg = (txt, imgUrl = null) => {
     const msg = {
@@ -228,48 +228,62 @@ async function handleScpCommand(chatId, userId, args) {
   const number = text.replace(/[^0-9]/g, '');
   if (!number) return sendBotMsg('❌ **Ошибка**\nУкажите номер объекта, например: `/scp 049`');
 
+  const isRu = lang.toLowerCase().startsWith('ru');
+  const baseUrl = isRu ? 'https://scpfoundation.net/scp-' : 'https://scp-wiki.wikidot.com/scp-';
+  const targetUrl = `${baseUrl}${number}`;
+
+  let html = '';
   try {
-    const res = await fetch(`https://scp-wiki.wikidot.com/scp-${number}`, { headers: { 'User-Agent': 'Mozilla/5.0 (SCP-Messenger-Bot)' } });
-    if (!res.ok) throw new Error('Not found');
-    const html = await res.text();
-    
+    let res = await fetch(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (SCP-Messenger-Bot)' } });
+    html = await res.text();
+    if (html.includes('Wikidot is not available') || html.includes('Wikidot більш недоступний') || html.includes('Wikidot больше не доступен')) throw new Error('Blocked');
+  } catch (e) {
+    try {
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        const proxyRes = await fetch(proxyUrl);
+        html = await proxyRes.text();
+    } catch (proxyErr) {
+        return sendBotMsg(`❌ **Ошибка сети**\nНе удалось загрузить данные (Wikidot заблокирован в вашем регионе).`);
+    }
+  }
+
+  const cleanHTML = (str) => str ? str.replace(/<.*?>/g, '').replace(/&#160;/g, ' ').replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim() : '';
+
+  try {
     // 1. Название
     const titleMatch = html.match(/<div id="page-title">\s*(.*?)\s*<\/div>/);
-    const title = titleMatch ? titleMatch[1].trim() : `SCP-${number}`;
+    const title = titleMatch ? cleanHTML(titleMatch[1]) : `SCP-${number}`;
     
-    // 2. Класс объекта
-    const classMatch = html.match(/<strong>Object Class:<\/strong>\s*(.*?)\s*<br/);
-    const objClass = classMatch ? classMatch[1].replace(/<.*?>/g, '').trim() : 'Unknown';
+    // 2. Класс объекта (ищем в тегах strong, игнорируем переносы строк)
+    const classMatch = html.match(/<strong>Object Class:<\/strong>(.*?)(<br|<\/p>)/i) || html.match(/<strong>Класс объекта:<\/strong>(.*?)(<br|<\/p>)/i);
+    const objClass = classMatch ? cleanHTML(classMatch[1]) : 'Unknown';
     
     // 3. Условия содержания
-    const containmentMatch = html.match(/<strong>Special Containment Procedures:<\/strong>(.*?)(?=<strong>|$)/is);
-    let containment = 'Процедуры содержания не найдены.';
-    if (containmentMatch) {
-        containment = containmentMatch[1].replace(/<.*?>/g, '').trim();
-        if (containment.length > 300) containment = containment.substring(0, 300) + '...';
-    }
+    const containmentMatch = html.match(/<strong>Special Containment Procedures:<\/strong>(.*?)(?=<strong>|<div)/is) 
+                          || html.match(/<strong>Особые условия содержания:<\/strong>(.*?)(?=<strong>|<div)/is)
+                          || html.match(/<strong>Условия содержания:<\/strong>(.*?)(?=<strong>|<div)/is);
+    let containment = containmentMatch ? cleanHTML(containmentMatch[1]) : 'Не указаны.';
+    if (containment.length > 350) containment = containment.substring(0, 350) + '...';
 
     // 4. Описание
-    const descMatch = html.match(/<strong>Description:<\/strong>(.*?)(?=<strong>|<div|$)/is);
-    let desc = 'Описание не найдено.';
-    if (descMatch) {
-        desc = descMatch[1].replace(/<.*?>/g, '').trim();
-        if (desc.length > 400) desc = desc.substring(0, 400) + '...';
-    }
+    const descMatch = html.match(/<strong>Description:<\/strong>(.*?)(?=<strong>|<div)/is) 
+                   || html.match(/<strong>Описание:<\/strong>(.*?)(?=<strong>|<div)/is);
+    let desc = descMatch ? cleanHTML(descMatch[1]) : 'Не указано.';
+    if (desc.length > 350) desc = desc.substring(0, 350) + '...';
 
     // 5. Изображение
     let imgUrl = null;
     const imgMatch = html.match(/<div class="scp-image-block.*?">.*?<img src="(.*?)"/is);
     if (imgMatch && imgMatch[1]) {
-        imgUrl = imgMatch[1].startsWith('http') ? imgMatch[1] : `https://scp-wiki.wikidot.com${imgMatch[1]}`;
+        imgUrl = imgMatch[1].startsWith('http') ? imgMatch[1] : (isRu ? 'https://scpfoundation.net' : 'https://scp-wiki.wikidot.com') + imgMatch[1];
     }
 
     const cardText = [
       `📄 **${title}**`,
-      `🔹 **Класс объекта:** ${objClass}`,
-      `\n🛡️ **Условия содержания:**\n${containment}`,
-      `\n📝 **Описание:**\n${desc}`,
-      `\n🔗 [Открыть на SCP Wiki](https://scp-wiki.wikidot.com/scp-${number})`
+      `🔹 **${isRu ? 'Класс объекта' : 'Object Class'}:** ${objClass}`,
+      `\n🛡️ **${isRu ? 'Условия содержания' : 'Special Containment Procedures'}:**\n${containment}`,
+      `\n📝 **${isRu ? 'Описание' : 'Description'}:**\n${desc}`,
+      `\n🔗 [${isRu ? 'Открыть на SCP Wiki' : 'Open on SCP Wiki'}](${targetUrl})`
     ].join('\n');
 
     sendBotMsg(cardText, imgUrl);
@@ -1051,12 +1065,12 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
     }
   }
 
-  const { text, expires_in } = req.body;
+  const { text, expires_in, lang } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
   if (text.trim().toLowerCase().startsWith('/scp')) {
     const args = text.trim().slice(4).trim();
-    handleScpCommand(chatId, req.userId, args);
+    handleScpCommand(chatId, req.userId, args, lang);
     return res.json({ ok: true, bot_handled: true });
   }
 
