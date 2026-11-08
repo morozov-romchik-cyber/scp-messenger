@@ -2243,8 +2243,6 @@ function startExpiryTimers() {
       if (rem <= 0) { 
           el.textContent = '⌛ Истекло'; 
           el.style.opacity = '0.3'; 
-          // Мы не удаляем сообщение здесь, так как ждем событие от сокета, 
-          // но если оно почему-то не пришло, можно сделать принудительную очистку
           return; 
       }
       const m = Math.floor(rem / 60), s = rem % 60;
@@ -2873,7 +2871,6 @@ function connectSocket() {
     });
   });
   
-  // Обработка удаления исчезающих сообщений
   state.socket.on('messageDeleted', ({ messageId, type }) => {
     const el = document.getElementById('msg-' + messageId);
     if (!el) return;
@@ -2885,7 +2882,7 @@ function connectSocket() {
         m.innerHTML = '<div><i>Сообщение удалено</i></div><div class="deleted-label" style="display:flex">🗑️ Удалено</div>';
       }
     } else {
-        el.remove(); // Именно удаляем сообщение из DOM
+        el.remove();
     }
   });
   
