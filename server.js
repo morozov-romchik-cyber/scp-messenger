@@ -247,67 +247,52 @@ async function handleScpCommand(chatId, userId, args, lang = 'ru') {
     }
   }
 
-  // --- УМНЫЙ ПАРСИНГ: Переводим весь HTML в обычный текст ---
-  let cleanText = html
+  // Функция очистки от HTML (теги, скрипты, мнемоники)
+  const cleanHTML = (str) => str ? str
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '') // Убираем Cloudflare капчу
-    .replace(/Making sure you('re|&#39;re) not a bot!/gi, '') // Текст капчи
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<\/div>/gi, '\n\n')
-    .replace(/<\/h[1-6]>/gi, '\n\n')
-    .replace(/<.*?>/g, ' ') // Убираем оставшиеся теги
+    .replace(/<.*?>/g, ' ') // Убираем теги
     .replace(/&#160;/g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/&quot;/g, '"')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&#39;/g, "'")
-    .replace(/[ \t]+/g, ' ') // Схлопываем лишние пробелы
-    .replace(/\n{3,}/g, '\n\n') // Оставляем максимум 2 переноса строки
-    .trim();
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim() : '';
 
   try {
-    const textLower = cleanText.toLowerCase();
-    
     // 1. Название
     const titleMatch = html.match(/<div id="page-title">([\s\S]*?)<\/div>/i);
-    let title = titleMatch ? titleMatch[1].replace(/<.*?>/g, '').trim() : `SCP-${number}`;
+    let title = titleMatch ? cleanHTML(titleMatch[1]) : `SCP-${number}`;
 
     // 2. Класс
     let objClass = 'Unknown';
-    const classMatch = cleanText.match(/(?:Класс объекта|Object Class):\s*([^\n]+)/i);
-    if (classMatch) objClass = classMatch[1].trim();
+    const classMatch = html.match(/<strong>(?:Класс объекта|Object Class):<\/strong>([\s\S]*?)(<\/p>|<br)/i);
+    if (classMatch) objClass = cleanHTML(classMatch[1]);
 
-    // 3. Поиск индексов заголовков
-    let cStart = textLower.indexOf('особые условия содержания:');
-    if (cStart === -1) cStart = textLower.indexOf('special containment procedures:');
-    if (cStart === -1) cStart = textLower.indexOf('условия содержания:');
-    
-    let dStart = textLower.indexOf('описание:');
-    if (dStart === -1) dStart = textLower.indexOf('description:');
-
-    // 4. Вырезаем Условия содержания
+    // 3. Условия содержания (ищем HTML-блок от заголовка до Описания)
     let containment = 'Не указаны.';
-    if (cStart !== -1) {
-        const cEnd = (dStart !== -1 && dStart > cStart) ? dStart : cleanText.length;
-        containment = cleanText.substring(cStart, cEnd).replace(/^[^:]+:\s*/i, '').trim();
-    }
+    const contRegex = /<strong>(?:Особые условия содержания|Special Containment Procedures|Условия содержания):<\/strong>([\s\S]*?)(?=<strong>(?:Описание|Description):<\/strong>|<div class="footer-wikiwalk-nav">|$)/i;
+    const contMatch = html.match(contRegex);
+    if (contMatch) containment = cleanHTML(contMatch[1]);
 
-    // 5. Вырезаем Описание
+    // 4. Описание (ищем HTML-блок от заголовка до конца/футера)
     let desc = 'Не указано.';
-    if (dStart !== -1) {
-        const dEndMatch = cleanText.substring(dStart).match(/\n\s*(?:Приложение|Документ|Дополнение|Addendum|Appendix|История|History|Эксперимент|Experiment)/i);
-        const dEnd = dEndMatch ? dStart + dEndMatch.index : dStart + 1500; // Берем до 1500 символов если нет заголовков
-        desc = cleanText.substring(dStart, dEnd).replace(/^[^:]+:\s*/i, '').trim();
-    }
+    const descRegex = /<strong>(?:Описание|Description):<\/strong>([\s\S]*?)(?=<strong>|<div class="footer-wikiwalk-nav">|$)/i;
+    const descMatch = html.match(descRegex);
+    if (descMatch) desc = cleanHTML(descMatch[1]);
 
+    // Обрезаем текст для мессенджера УЖЕ после очистки
     if (containment.length > 350) containment = containment.substring(0, 350) + '...';
     if (desc.length > 350) desc = desc.substring(0, 350) + '...';
 
-    // 6. Изображение
+    // 5. Изображение
     let imgUrl = null;
     let imgMatch = html.match(/<div class="scp-image-block[^>]*>[\s\S]*?<img[^>]+src="([^"]+)"/i);
     if (!imgMatch) {
