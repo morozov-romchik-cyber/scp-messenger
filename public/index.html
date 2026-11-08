@@ -917,8 +917,6 @@ const ROLE_COLOR = { user: 'var(--muted)', helper: '#00ccff', moderator: '#ffcc0
 
 const CLEARANCE_LABEL = { 1: 'L1 — Класс-D', 2: 'L2 — Научный сотрудник', 3: 'L3 — Старший исследователь', 4: 'L4 — Руководитель Зоны', 5: 'L5 — Совет О5' };
 const CLEARANCE_SHORT = { 1: 'D', 2: 'S', 3: 'R', 4: 'Z', 5: 'O5' };
-const CLEARANCE_COLOR = { 1: '#8b949e', 2: '#00ccff', 3: '#ffcc00', 4: '#ff9933', 5: '#ffffff' };
-
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
 const FILE_SIZE_LIMITS = { 1: 10 * 1024 * 1024, 2: 50 * 1024 * 1024, 3: 200 * 1024 * 1024, 4: 1024 * 1024 * 1024, 5: 10 * 1024 * 1024 * 1024 };
 
@@ -2720,6 +2718,22 @@ function connectSocket() {
       document.getElementById('my-xp-bar').innerHTML = renderXpBar(state.me);
       if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList();
     } catch (e) {}
+  });
+
+  // Мгновенное обновление опыта (XP)
+  state.socket.on('xpUpdated', (data) => {
+      if (state.me) {
+          state.me.xp = data.xp;
+          state.me.clearance_level = data.clearance_level;
+          const xpBar = document.getElementById('my-xp-bar');
+          if (xpBar) xpBar.innerHTML = renderXpBar(state.me);
+          document.getElementById('my-role-badge').innerHTML = clearanceBadge(state.me.clearance_level);
+          document.getElementById('set-my-clearance').innerHTML = clearanceBadge(state.me.clearance_level);
+          const pXpBar = document.getElementById('profile-xp-bar');
+          if (pXpBar && document.getElementById('profile-modal').classList.contains('visible')) {
+             pXpBar.innerHTML = renderXpBar(state.me);
+          }
+      }
   });
   
   state.socket.on('newMessage', async (msg) => {
