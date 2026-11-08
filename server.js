@@ -221,6 +221,36 @@ const chatIsBlocked = (chatId, myId) => {
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
+const getWelcomeMessageText = () => {
+    return `[ДОСТУП РАЗРЕШЕН]
+ОБРАТНЫЙ ОТСЧЕТ ТЕРМИНАЛА... ГОТОВО.
+ДОБРО ПОЖАЛОВАТЬ В SCP FOUNDATION.
+Вы подключены к защищенному каналу связи локальной сети Фонда.
+Ваш текущий статус: Персонал класса D
+Ваш текущий уровень допуска: L1
+
+📈 РЕГЛАМЕНТ ПОВЫШЕНИЯ ДОПУСКА (СИСТЕМА XP)
+
+Для получения доступа к более засекреченным материалам выполняйте протоколы активности:
+• Ежедневная авторизация: +50 XP (один раз в сутки).
+• Текстовые рапорты: +2 XP за сообщение. Суточный лимит: 200 XP (первые 100 сообщений).
+• Одобрение коллег: +5 XP за каждую реакцию на ваши сообщения.
+• Вербовка полевых агентов: +200 XP за реферальный код. Суточный лимит: 2 активации.
+
+🎯 ИЕРАРХИЯ ДОПУСКА И ПРИВИЛЕГИИ
+
+• L2 [500 XP]: Разрешено формирование оперативных групп. Лимит передачи данных: до 50 МБ.
+• L3 [2 000 XP]: Открыт доступ к публичным информационным каналам. Лимит данных: до 200 МБ.
+• L4 [10 000 XP]: Допуск к засекреченным каналам и спец-архивам. Лимит данных: до 1 ГБ.
+• L5 [50 000 XP]: Максимальный уровень сингулярного контроля. Лимит данных: до 10 ГБ.
+
+⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА ИИ СБ)
+
+Категорически запрещена регистрация нескольких учетных записей с одного IP-адреса (саботаж и дюп опыта).
+При фиксации 3 и более аккаунтов на одном сетевом узле, автоматическая система безопасности Фонда инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.
+Оставайтесь бдительны. Фонд наблюдает за вами.`;
+};
+
 // ================= XP SYSTEM =================
 function addXp(userId, amount) {
   const user = db.users.find(u => u.id === userId);
@@ -252,16 +282,14 @@ function addXp(userId, amount) {
     
     const sysMsg = {
       id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID,
-      text: `🎉 **ПОВЫШЕНИЕ ДОПУСКА**\nВам присвоен **Уровень ${newLevel}**.\n🔓 Теперь вы можете ${perms}`,
+      text: `🎉 **ПОВЫШЕНИЕ ДОПУСКА**\nВам присвоен **Уровень ${newLevel}**.\n🔓 Теперь вы можете ${perks}`,
       created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
     };
     db.messages.push(sysMsg);
     emitToChatMembers(helperChat.id, 'newMessage', buildMessagePayload(sysMsg));
   }
   
-  // Отправляем сокет для моментального обновления XP на клиенте
   io.to(`user:${user.id}`).emit('xpUpdated', { xp: user.xp, clearance_level: user.clearance_level });
-  
   saveDb();
 }
 
@@ -472,7 +500,6 @@ app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   if (level === 5 && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может назначать Level 5' });
   
   target.clearance_level = level;
-  // Не сбрасываем роль!
   
   saveDb();
   io.to(`user:${target.id}`).emit('roleChanged', { newRole: target.role, clearance_level: level });
@@ -866,6 +893,26 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   res.json({ ok: true, chatId: groupId, username: null, required_clearance: reqClearance });
 });
 
+app.post('/api/chats/:chatId/add-members', authMiddleware, (req, res) => {
+    const chatId = req.params.chatId;
+    const { userIds } = req.body;
+    const chat = db.chats.find(c => c.id === chatId);
+    
+    if (!chat || !chat.is_group) return res.status(400).json({ error: 'Это не группа' });
+    if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может добавлять участников' });
+    if (!userIds || !Array.isArray(userIds)) return res.status(400).json({ error: 'Неверный список участников' });
+
+    userIds.forEach(uid => {
+        if (!db.chat_members.some(m => m.chat_id === chatId && m.user_id === uid)) {
+            db.chat_members.push({ id: genId(), chat_id: chatId, user_id: uid });
+        }
+    });
+
+    saveDb();
+    io.emit('refreshData');
+    res.json({ ok: true });
+});
+
 app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   const chat = db.chats.find(c => c.id === chatId);
@@ -1039,6 +1086,23 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
 
   const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
+
+  // Проверка на команду /start в чате с хелпером
+  const members = db.chat_members.filter(cm => cm.chat_id === chatId);
+  const otherId = members.find(m => m.user_id !== req.userId)?.user_id;
+  
+  if (!chatForCheck.is_group && otherId === HELPER_ID && text.trim().toLowerCase() === '/start') {
+      const sysMsg = {
+        id: genId(), chat_id: chatId, sender_id: HELPER_ID,
+        text: getWelcomeMessageText(),
+        created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+      };
+      db.messages.push(sysMsg);
+      saveDb();
+      const payload = buildMessagePayload(sysMsg);
+      emitToChatMembers(chatId, 'newMessage', payload);
+      return res.json(payload); // Возвращаем ответ бота, само сообщение "/start" не сохраняем
+  }
 
   // КУЛДАУН
   const cooldownMs = MESSAGE_COOLDOWNS[myClearance] || 0;
@@ -1327,12 +1391,10 @@ app.post('/api/register', async (req, res) => {
     const ip = getRealIp(req);
     if (db.banned_ips.includes(ip)) return res.status(403).json({ error: 'Ваш IP заблокирован' });
 
-    // --- ПРОВЕРКА IP НА ДЮП ---
     const existingIps = db.users.filter(u => u.ip === ip);
     let ipWarnMsg = '';
     
     if (existingIps.length >= 3) {
-        // Сброс всех
         db.users.filter(u => u.ip === ip).forEach(u => { u.xp = 0; u.clearance_level = 1; });
         ipWarnMsg = `⛔ **СРАБОТАЛ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА СБ)**\n\nЗафиксировано 4+ аккаунта на одном IP.\nВсе профили на этом сетевом узле принудительно обнулены до L1 и 0 XP.`;
     } else if (existingIps.length === 2) {
@@ -1340,7 +1402,6 @@ app.post('/api/register', async (req, res) => {
     } else if (existingIps.length === 1) {
         ipWarnMsg = `⚠️ **ПРЕДУПРЕЖДЕНИЕ СИСТЕМЫ БЕЗОПАСНОСТИ (1/2)**\n\nЗафиксирована регистрация второго аккаунта с вашего IP-адреса.\nОсталось предупреждений до полного обнуления: **2**.\nПри регистрации 3-го аккаунта все профили будут обнулены до L1.`;
     }
-    // --------------------------
 
     let userRole = 'user';
     let clearance_level = 1;
@@ -1406,43 +1467,14 @@ app.post('/api/register', async (req, res) => {
         }
     }
 
-    // --- ПРИВЕТСТВЕННОЕ СООБЩЕНИЕ ОТ SCP_HELPER ---
     let helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
     db.chats.push(helperChat);
     db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: id });
     db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: HELPER_ID });
 
-    const welcomeText = `[ДОСТУП РАЗРЕШЕН]
-ОБРАТНЫЙ ОТСЧЕТ ТЕРМИНАЛА... ГОТОВО.
-ДОБРО ПОЖАЛОВАТЬ В SCP FOUNDATION.
-Вы подключены к защищенному каналу связи локальной сети Фонда.
-Ваш текущий статус: Персонал класса D
-Ваш текущий уровень допуска: L1
-
-📈 РЕГЛАМЕНТ ПОВЫШЕНИЯ ДОПУСКА (СИСТЕМА XP)
-
-Для получения доступа к более засекреченным материалам выполняйте протоколы активности:
-• Ежедневная авторизация: +50 XP (один раз в сутки).
-• Текстовые рапорты: +2 XP за сообщение. Суточный лимит: 200 XP (первые 100 сообщений).
-• Одобрение коллег: +5 XP за каждую реакцию на ваши сообщения.
-• Вербовка полевых агентов: +200 XP за реферальный код. Суточный лимит: 2 активации.
-
-🎯 ИЕРАРХИЯ ДОПУСКА И ПРИВИЛЕГИИ
-
-• L2 [500 XP]: Разрешено формирование оперативных групп. Лимит передачи данных: до 50 МБ.
-• L3 [2 000 XP]: Открыт доступ к публичным информационным каналам. Лимит данных: до 200 МБ.
-• L4 [10 000 XP]: Допуск к засекреченным каналам и спец-архивам. Лимит данных: до 1 ГБ.
-• L5 [50 000 XP]: Максимальный уровень сингулярного контроля. Лимит данных: до 10 ГБ.
-
-⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА ИИ СБ)
-
-Категорически запрещена регистрация нескольких учетных записей с одного IP-адреса (саботаж и дюп опыта).
-При фиксации 3 и более аккаунтов на одном сетевом узле, автоматическая система безопасности Фонда инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.
-Оставайтесь бдительны. Фонд наблюдает за вами.`;
-
     const welcomeMsg = {
       id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID,
-      text: welcomeText, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+      text: getWelcomeMessageText(), created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
     };
     db.messages.push(welcomeMsg);
 
@@ -1450,7 +1482,6 @@ app.post('/api/register', async (req, res) => {
         const m = { id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID, text: ipWarnMsg, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [] };
         db.messages.push(m);
         
-        // Если это был сброс, отправим уведомление и остальным
         if (existingIps.length >= 3) {
             existingIps.forEach(u => {
                 let hc = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === u.id) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
@@ -1466,7 +1497,6 @@ app.post('/api/register', async (req, res) => {
             });
         }
     }
-    // ------------------------------------------------
 
     const plainCodes = [];
     for (let i = 0; i < 12; i++) {
