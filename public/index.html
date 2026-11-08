@@ -1615,7 +1615,7 @@ document.getElementById('ghosts-toggle').checked = visualSettings.ghosts;
 document.getElementById('favorites-toggle').checked = visualSettings.favorites;
 applyVisualSettings();
 document.getElementById('season-select').addEventListener('change', (e) => { visualSettings.season = e.target.value; localStorage.setItem('scp_season', visualSettings.season); applyVisualSettings(); });
-document.getElementById('weather-select').addEventListener('change', (e) => { visualSettings.weather = e.target.value; localStorage.setItem('scp_weather', visualSettings.weather); });
+document.getElementById('weather-select').addEventListener('change', (e) => { visualSettings.weather = e.target.value; localStorage.setItem('scp_weather', visualSettings.weather); FXEngine.initParticles(); });
 document.getElementById('ghosts-toggle').addEventListener('change', (e) => { visualSettings.ghosts = e.target.checked; localStorage.setItem('scp_ghosts', visualSettings.ghosts); });
 document.getElementById('favorites-toggle').addEventListener('change', (e) => { visualSettings.favorites = e.target.checked; localStorage.setItem('scp_favorites', visualSettings.favorites); renderChatList(); });
 
@@ -3224,10 +3224,100 @@ function getAttIcon(a) {
   return '📎';
 }
 
+// ================= FX ENGINE (Weather & Ghosts) =================
+const FXEngine = {
+    canvas: null,
+    ctx: null,
+    particles: [],
+    w: 0,
+    h: 0,
+    init() {
+        this.canvas = document.getElementById('fx-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.start();
+    },
+    resize() {
+        this.w = this.canvas.width = window.innerWidth;
+        this.h = this.canvas.height = window.innerHeight;
+    },
+    initParticles() {
+        this.particles = [];
+        const count = visualSettings.weather !== 'none' ? 80 : 0;
+        for (let i = 0; i < count; i++) {
+            this.particles.push({
+                x: Math.random() * this.w,
+                y: Math.random() * this.h,
+                vx: visualSettings.weather === 'rain' ? (Math.random() - 0.5) * 2 : (Math.random() - 0.5) * 0.5,
+                vy: visualSettings.weather === 'rain' ? Math.random() * 5 + 5 : Math.random() * 1 + 0.5,
+                r: visualSettings.weather === 'rain' ? Math.random() * 1 + 0.5 : Math.random() * 2 + 1
+            });
+        }
+    },
+    start() {
+        const tick = () => {
+            this.ctx.clearRect(0, 0, this.w, this.h);
+            
+            // Дождь / Снег
+            if (visualSettings.weather === 'rain') {
+                this.ctx.strokeStyle = 'rgba(150, 200, 255, 0.4)';
+                this.ctx.lineWidth = 1;
+                this.particles.forEach(p => {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(p.x, p.y);
+                    this.ctx.lineTo(p.x + p.vx, p.y + p.vy);
+                    this.ctx.stroke();
+                    p.x += p.vx; p.y += p.vy;
+                    if (p.y > this.h) { p.y = -10; p.x = Math.random() * this.w; }
+                });
+            } else if (visualSettings.weather === 'snow') {
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                this.particles.forEach(p => {
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    p.x += Math.sin(p.y * 0.02) * 1; p.y += p.vy;
+                    if (p.y > this.h) { p.y = -10; p.x = Math.random() * this.w; }
+                });
+            }
+
+            // Призраки (SCP)
+            if (visualSettings.ghosts) {
+                const time = Date.now() * 0.001;
+                for (let i = 0; i < 5; i++) {
+                    const px = this.w / 2 + Math.sin(time + i * 2) * (this.w / 2);
+                    const py = this.h / 2 + Math.cos(time * 0.8 + i * 3) * (this.h / 2);
+                    const radius = 80 + Math.sin(time * 2 + i) * 30;
+                    const gradient = this.ctx.createRadialGradient(px, py, 0, px, py, radius);
+                    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)'); 
+                    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.beginPath();
+                    this.ctx.arc(px, py, radius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            }
+            requestAnimationFrame(tick);
+        };
+        tick();
+    }
+};
+
 // ================= INIT =================
 setTimeout(() => {
   if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
 }, 3000);
+
+window.addEventListener('load', () => {
+    FXEngine.init();
+    FXEngine.initParticles();
+});
+
+setInterval(() => {
+    if (visualSettings.weather !== 'none' && FXEngine.particles.length === 0) FXEngine.initParticles();
+    if (visualSettings.weather === 'none' && FXEngine.particles.length > 0) FXEngine.particles = [];
+}, 1000);
 
 (async () => {
   if (state.token) {
