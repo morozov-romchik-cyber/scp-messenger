@@ -306,110 +306,6 @@
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  /* ========================================================= */
-  /* СТИЛИ ДЛЯ ПРОСМОТРЩИКА ФАЙЛОВ (ИСПРАВЛЕНИЕ КРЕСТИКА)       */
-  /* ========================================================= */
-  .att-viewer-modal {
-    display: none;
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(8px);
-    z-index: 100000;
-    align-items: center;
-    justify-content: center;
-  }
-  .att-viewer-modal.visible {
-    display: flex;
-  }
-  .att-viewer-content {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    width: 90%;
-    max-width: 800px;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-  }
-  .att-viewer-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-    font-family: 'Fira Code', monospace;
-    font-weight: 600;
-    color: var(--text);
-  }
-  .att-viewer-close {
-    background: transparent;
-    border: none;
-    color: var(--muted);
-    font-size: 24px;
-    cursor: pointer;
-    line-height: 1;
-    transition: color 0.2s;
-  }
-  .att-viewer-close:hover {
-    color: #ff4d4d;
-  }
-  .att-viewer-meta {
-    padding: 8px 16px;
-    font-size: 12px;
-    color: var(--muted);
-    background: rgba(0,0,0,0.2);
-    border-bottom: 1px solid var(--border);
-    font-family: 'Fira Code', monospace;
-  }
-  .att-viewer-body {
-    padding: 16px;
-    overflow-y: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 200px;
-    background: var(--bg);
-  }
-  .att-viewer-body img,
-  .att-viewer-body video {
-    max-width: 100%;
-    max-height: 60vh;
-    border-radius: 6px;
-    object-fit: contain;
-  }
-  .att-viewer-nav {
-    display: none;
-    justify-content: center;
-    align-items: center;
-    gap: 20px;
-    padding: 12px;
-    background: var(--card);
-    border-top: 1px solid var(--border);
-    font-family: 'Fira Code', monospace;
-    font-size: 13px;
-  }
-  .att-viewer-nav button {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 6px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .att-viewer-nav button:hover:not(:disabled) {
-    background: var(--border);
-  }
-  .att-viewer-nav button:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
 </style>
 </head>
 <body>
@@ -910,12 +806,14 @@
   </div>
 </div>
 
-<div id="att-viewer" class="att-viewer-modal">
-  <div class="att-viewer-content" id="att-viewer-content">
-    <div class="att-viewer-header" id="att-viewer-header"><span id="att-viewer-title">Файл</span><button class="att-viewer-close" onclick="closeAttViewer()">×</button></div>
-    <div class="att-viewer-meta" id="att-viewer-meta"></div>
-    <div class="att-viewer-body" id="att-viewer-body"></div>
-    <div class="att-viewer-nav" id="att-viewer-nav"></div>
+<!-- ВОЗВРАЩЕННОЕ ОКНО ПРОСМОТРА ФАЙЛОВ -->
+<div class="modal" id="att-viewer">
+  <div class="modal-content" style="width: 500px; height: 500px; resize: both;">
+    <h3 id="att-viewer-title" style="cursor: move;">Файл</h3>
+    <div class="att-viewer-meta" id="att-viewer-meta" style="margin-bottom: 10px; font-size: 12px; color: var(--muted); font-family: 'Fira Code', monospace; text-align: center;"></div>
+    <div class="att-viewer-body" id="att-viewer-body" style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px;"></div>
+    <div class="att-viewer-nav" id="att-viewer-nav" style="display: flex; justify-content: center; align-items: center; gap: 15px; font-family: 'Fira Code', monospace; margin-bottom: 10px;"></div>
+    <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="closeAttViewer()">Закрыть</button>
   </div>
 </div>
 
@@ -3351,14 +3249,18 @@ function renderAttViewer() {
   const url = a.url || '';
   const mime = a.mime || '';
   if (mime.startsWith('image/')) {
-    body.innerHTML = `<img src="${escAttr(url)}" alt="">`;
-  } else if (mime.startsWith('video/')) body.innerHTML = `<video src="${escAttr(url)}" controls autoplay></video>`;
-  else if (mime.startsWith('audio/')) body.innerHTML = `<audio src="${escAttr(url)}" controls autoplay></audio>`;
-  else body.innerHTML = `<div style="text-align: center; width: 100%;"><div style="font-size: 48px; margin-bottom: 15px;">${getAttIcon(a)}</div><a class="file-link" href="${escAttr(url)}" target="_blank" download="${escAttr(a.name || 'file')}" style="display: inline-flex; justify-content: center; padding: 12px 24px; background: var(--accent); color: #000; border: none;">📥 Скачать ${esc(a.name || 'file')} (${formatSize(a.size)})</a></div>`;
+    body.innerHTML = `<img src="${escAttr(url)}" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px;">`;
+  } else if (mime.startsWith('video/')) {
+    body.innerHTML = `<video src="${escAttr(url)}" controls autoplay style="max-width: 100%; max-height: 100%; border-radius: 4px;"></video>`;
+  } else if (mime.startsWith('audio/')) {
+    body.innerHTML = `<audio src="${escAttr(url)}" controls autoplay style="width: 100%;"></audio>`;
+  } else {
+    body.innerHTML = `<div style="text-align: center; padding: 20px;"><div style="font-size: 48px; margin-bottom: 15px;">${getAttIcon(a)}</div><a href="${escAttr(url)}" target="_blank" download="${escAttr(a.name || 'file')}" style="display: inline-flex; justify-content: center; padding: 10px 20px; background: var(--accent); color: #000; border-radius: 6px; text-decoration: none; font-weight: 600;">📥 Скачать (${formatSize(a.size)})</a></div>`;
+  }
   const nav = document.getElementById('att-viewer-nav');
   if (attachments.length > 1) {
     nav.style.display = 'flex';
-    nav.innerHTML = `<button onclick="navAttViewer(-1)" ${index === 0 ? 'disabled' : ''}>←</button><span>${index + 1} / ${attachments.length}</span><button onclick="navAttViewer(1)" ${index === attachments.length - 1 ? 'disabled' : ''}>→</button>`;
+    nav.innerHTML = `<button class="admin-btn" onclick="navAttViewer(-1)" ${index === 0 ? 'disabled' : ''} style="padding: 4px 10px;">←</button><span>${index + 1} / ${attachments.length}</span><button class="admin-btn" onclick="navAttViewer(1)" ${index === attachments.length - 1 ? 'disabled' : ''} style="padding: 4px 10px;">→</button>`;
   } else { nav.style.display = 'none'; nav.innerHTML = ''; }
 }
 function formatSize(b) { if (!b) return '0 B'; const u = ['B','KB','MB','GB']; let i = 0, n = b; while (n >= 1024 && i < u.length-1) { n /= 1024; i++; } return n.toFixed(1) + ' ' + u[i]; }
