@@ -2568,11 +2568,11 @@ function appendMessage(msg, scroll = true) {
 function renderScpCard(text, imageUrl) {
   if (!text || !text.startsWith('📄 **SCP-')) return null;
   
-  // Парсим блоки по спецсимволам
+  // Парсим блоки по спецсимволам (поддерживает и русский, и английский)
   const titleMatch = text.match(/📄 \*\*(.*?)\*\*/);
-  const classMatch = text.match(/🔹 \*\*Класс объекта:\*\* (.*)/);
-  const containmentMatch = text.match(/🛡️ \*\*Условия содержания:\*\*\n(.*?)(?=\n\n|📝|🔗|$)/s);
-  const descMatch = text.match(/📝 \*\*Описание:\*\*\n(.*?)(?=\n\n|🔗|$)/s);
+  const classMatch = text.match(/🔹 \*\*(?:Класс объекта|Object Class):\*\* (.*)/);
+  const containmentMatch = text.match(/🛡️ \*\*(?:Условия содержания|Special Containment Procedures):\*\*\n(.*?)(?=\n\n|📝|🔗|$)/s);
+  const descMatch = text.match(/📝 \*\*(?:Описание|Description):\*\*\n(.*?)(?=\n\n|🔗|$)/s);
   const linkMatch = text.match(/🔗 (.*)/);
 
   const title = titleMatch ? titleMatch[1] : 'SCP Object';
@@ -2828,10 +2828,12 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   state.replyTo = null;
   document.getElementById('reply-bar').classList.remove('visible');
   
+  const currentLang = document.documentElement.lang || 'ru';
+
   try {
     const msg = await api('/chats/' + targetChatId + '/messages', {
       method: 'POST',
-      body: JSON.stringify({ text: body, expires_in: currentExpiry })
+      body: JSON.stringify({ text: body, expires_in: currentExpiry, lang: currentLang })
     });
     if (state.currentChat && state.currentChat.id === targetChatId) {
       if (!msg.bot_handled) appendMessage(msg);
