@@ -69,24 +69,6 @@
   .expiry-btn.active { background: #ff3333; color: #fff; border-color: #ff3333; }
   .expiry-btn:hover { border-color: var(--border-hover); }
 
-  /* ================= SCP CARD ================= */
-  .scp-card {
-    background: rgba(0, 0, 0, 0.4); 
-    border: 1px solid #ff3333;
-    border-radius: 8px; 
-    padding: 16px; 
-    margin-top: 8px;
-    font-family: 'Inter', sans-serif;
-    max-width: 480px;
-  }
-  .scp-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; border-bottom: 1px solid rgba(255,51,51,0.3); padding-bottom: 8px; }
-  .scp-card-title { font-size: 16px; font-weight: 700; color: #ff3333; }
-  .scp-card-class { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #ff3333; color: #000; font-weight: bold; text-transform: uppercase; }
-  .scp-card-body { font-size: 13px; color: #ddd; line-height: 1.5; }
-  .scp-card-body b { color: #fff; font-family: 'Fira Code', monospace; }
-  .scp-card-footer { margin-top: 12px; font-size: 12px; }
-  .scp-card-footer a { color: #1d9bf0; text-decoration: underline; }
-
   /* ================= STATUS DOT ================= */
   .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
   .status-dot.online { background: #00ff9d; box-shadow: 0 0 5px #00ff9d; }
@@ -1018,7 +1000,7 @@
     <div class="emoji-picker" id="emoji-picker"></div>
 
     <form id="composer">
-      <textarea id="msg-input" placeholder="Введите сообщение... (или /scp 173)" rows="1"></textarea>
+      <textarea id="msg-input" placeholder="Введите сообщение..." rows="1"></textarea>
       <button type="button" class="file" id="whiteboard-btn" title="Белая доска">🎨</button>
       <button type="button" class="file" id="emoji-btn" title="Emoji">😀</button>
       <button type="button" class="file" id="file-btn" title="Attach">📎</button>
@@ -1064,7 +1046,7 @@ window.setExpiry = function(seconds) {
      input.placeholder = `🔥 Исчезнет через ${seconds >= 3600 ? '1 час' : seconds/60 + ' мин'}...`;
   } else {
      input.style.borderColor = 'var(--border)';
-     input.placeholder = 'Введите сообщение... (или /scp 173)';
+     input.placeholder = 'Введите сообщение...';
   }
 };
 
@@ -2479,10 +2461,7 @@ function appendMessage(msg, scroll = true) {
   if (msg.is_deleted && !canReadDeleted) {
     content += `<div><i>Сообщение удалено</i></div>`;
   } else {
-    const scpCard = renderScpCard(rawText, msg.scp_image); // Передаем картинку
-    if (scpCard) {
-      content += scpCard;
-    } else if (rawText.startsWith('> ')) {
+    if (rawText.startsWith('> ')) {
       const lines = rawText.split('\n');
       let quoteLine = lines[0].replace('> ', '');
       let origId = null;
@@ -2575,41 +2554,6 @@ function appendMessage(msg, scroll = true) {
   
   msgsEl.appendChild(row);
   if (scroll) msgsEl.scrollTop = msgsEl.scrollHeight;
-}
-
-// ================= SCP CARD RENDERER =================
-function renderScpCard(text, imageUrl) {
-  if (!text || !text.startsWith('📄 **SCP-')) return null;
-  
-  // Парсим блоки по спецсимволам (поддерживает и русский, и английский)
-  const titleMatch = text.match(/📄 \*\*(.*?)\*\*/);
-  const classMatch = text.match(/🔹 \*\*(?:Класс объекта|Object Class):\*\* (.*)/);
-  const containmentMatch = text.match(/🛡️ \*\*(?:Условия содержания|Special Containment Procedures):\*\*\n(.*?)(?=\n\n|📝|🔗|$)/s);
-  const descMatch = text.match(/📝 \*\*(?:Описание|Description):\*\*\n(.*?)(?=\n\n|🔗|$)/s);
-  const linkMatch = text.match(/🔗 (.*)/);
-
-  const title = titleMatch ? titleMatch[1] : 'SCP Object';
-  const objClass = classMatch ? classMatch[1] : 'Unknown';
-  const containment = containmentMatch ? containmentMatch[1].trim() : 'Не указаны.';
-  const desc = descMatch ? descMatch[1].trim() : 'Не указано.';
-  const link = linkMatch ? linkMatch[1] : '';
-
-  const imgHtml = imageUrl ? `<img src="${escAttr(imageUrl)}" style="max-width: 100%; border-radius: 6px; margin-bottom: 12px; display: block; border: 1px solid #444;" onerror="this.style.display='none'">` : '';
-
-  return `
-    <div class="scp-card">
-      <div class="scp-card-header">
-        <span class="scp-card-title">${esc(title)}</span>
-        <span class="scp-card-class">${esc(objClass)}</span>
-      </div>
-      <div class="scp-card-body">
-        ${imgHtml}
-        <div style="margin-bottom: 8px;"><b>Условия содержания:</b><br>${formatMessageText(containment)}</div>
-        <div><b>Описание:</b><br>${formatMessageText(desc)}</div>
-      </div>
-      <div class="scp-card-footer">${formatMessageText(link)}</div>
-    </div>
-  `;
 }
 
 window.scrollToMsg = function(msgId) {
@@ -2840,16 +2784,14 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   }
   state.replyTo = null;
   document.getElementById('reply-bar').classList.remove('visible');
-  
-  const currentLang = document.documentElement.lang || 'ru';
 
   try {
     const msg = await api('/chats/' + targetChatId + '/messages', {
       method: 'POST',
-      body: JSON.stringify({ text: body, expires_in: currentExpiry, lang: currentLang })
+      body: JSON.stringify({ text: body, expires_in: currentExpiry })
     });
     if (state.currentChat && state.currentChat.id === targetChatId) {
-      if (!msg.bot_handled) appendMessage(msg);
+      appendMessage(msg);
     }
   } catch (e) { alert(e.message); }
 });
