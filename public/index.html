@@ -19,7 +19,8 @@
     --admin-accent: #ff3333; --admin-text: #ffcccc; --admin-green: #00ff9d;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; height: 100dvh; overflow: hidden; -webkit-app-region: drag; } /* Делает окно перетаскиваемым */
+  /* Делаем окно перетаскиваемым (для Electron) */
+  html, body { height: 100%; height: 100dvh; overflow: hidden; -webkit-app-region: drag; } 
   body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
   
   /* Исключаем кликабельные элементы из зоны перетаскивания */
@@ -272,9 +273,9 @@
   .reaction-picker-row button { background: var(--card); border: 1px solid var(--border); border-radius: 8px; font-size: 20px; cursor: pointer; padding: 4px 8px; transition: transform 0.1s, border-color 0.1s; }
   #typing-indicator { display: none; font-size: 11px; color: #00ff9d; font-family: 'Fira Code', monospace; font-weight: 600; padding-left: 2px; margin-top: 2px; animation: typingPulse 1.4s ease-in-out infinite; }
 
-  /* Панель мультивыбора */
+  /* Панель мультивыбора - по умолчанию СКРЫТА */
   #multi-select-bar {
-    display: none;
+    display: none; /* ИСПРАВЛЕНО: убрали display: flex */
     position: absolute;
     bottom: 80px;
     left: 50%;
@@ -285,7 +286,6 @@
     padding: 10px 20px;
     z-index: 100;
     box-shadow: 0 4px 12px rgba(0,0,0,0.8);
-    display: flex;
     gap: 15px;
     align-items: center;
     pointer-events: auto;
@@ -921,8 +921,8 @@
       <button class="close-reply" id="close-reply">×</button>
     </div>
 
-    <!-- Панель мультивыбора -->
-    <div id="multi-select-bar">
+    <!-- Панель мультивыбора (ИСПРАВЛЕНО: скрыта по умолчанию) -->
+    <div id="multi-select-bar" style="display: none;">
         <button onclick="cancelSelectionMode()" style="background: transparent; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 5px;">✖</button>
         <span id="selection-count" style="color: #fff; font-family: 'Fira Code'; font-size: 14px; min-width: 80px;">0 выбрано</span>
         <button onclick="forwardSelectedMessages()" class="admin-btn" style="background: var(--card); color: #fff; border-color: var(--border); margin: 0; padding: 6px 12px;">➡️ Переслать</button>
@@ -1179,17 +1179,43 @@ window.forwardSelectedMessages = function() {
     document.getElementById('forward-modal').classList.add('visible');
 };
 
+// === ОБНОВЛЕННАЯ ЛОГИКА УДАЛЕНИЯ ===
 window.deleteSelectedMessages = async function() {
     if (selectedMsgIds.size === 0) return;
-    if (!confirm(`Удалить ${selectedMsgIds.size} сообщений?`)) return;
+
+    const myRole = state.me.role;
+    const canDeleteOthersGlobally = ['sysadmin', 'admin', 'moderator'].includes(myRole);
+
+    let allMine = true;
+    for (const msgId of selectedMsgIds) {
+        const row = document.getElementById('msg-' + msgId);
+        if (row && row.dataset.senderId !== state.me.id) {
+            allMine = false;
+            break;
+        }
+    }
+
+    let scope = 'me'; 
+    
+    if (allMine || canDeleteOthersGlobally) {
+        const choice = confirm(`Выбрано ${selectedMsgIds.size} сообщений.\n\nНажмите ОК, чтобы удалить У ВСЕХ.\nНажмите Отмена, чтобы удалить ТОЛЬКО У СЕБЯ.`);
+        if (choice) scope = 'all';
+    } else {
+        alert(`Выбрано ${selectedMsgIds.size} сообщений. Так как среди них есть чужие, они будут удалены ТОЛЬКО У ВАС.`);
+        scope = 'me';
+    }
+
     let success = 0;
     for (const msgId of selectedMsgIds) {
         try {
-            await api('/messages/' + msgId, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
+            await api('/messages/' + msgId, { method: 'DELETE', body: JSON.stringify({ scope }) });
             success++;
+            if (scope === 'me') {
+                document.getElementById('msg-' + msgId)?.remove();
+            }
         } catch(e) { console.error(e); }
     }
-    alert(`Удалено ${success} сообщений`);
+    
     cancelSelectionMode();
 };
 
