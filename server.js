@@ -251,6 +251,8 @@ async function handleScpCommand(chatId, userId, args, lang = 'ru') {
   let cleanText = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '') // Убираем Cloudflare капчу
+    .replace(/Making sure you('re|&#39;re) not a bot!/gi, '') // Текст капчи
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<\/div>/gi, '\n\n')
@@ -262,35 +264,50 @@ async function handleScpCommand(chatId, userId, args, lang = 'ru') {
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
+    .replace(/&#39;/g, "'")
     .replace(/[ \t]+/g, ' ') // Схлопываем лишние пробелы
     .replace(/\n{3,}/g, '\n\n') // Оставляем максимум 2 переноса строки
     .trim();
 
   try {
+    const textLower = cleanText.toLowerCase();
+    
     // 1. Название
     const titleMatch = html.match(/<div id="page-title">([\s\S]*?)<\/div>/i);
     let title = titleMatch ? titleMatch[1].replace(/<.*?>/g, '').trim() : `SCP-${number}`;
 
-    // 2. Класс объекта
+    // 2. Класс
     let objClass = 'Unknown';
     const classMatch = cleanText.match(/(?:Класс объекта|Object Class):\s*([^\n]+)/i);
     if (classMatch) objClass = classMatch[1].trim();
 
-    // 3. Условия содержания
+    // 3. Поиск индексов заголовков
+    let cStart = textLower.indexOf('особые условия содержания:');
+    if (cStart === -1) cStart = textLower.indexOf('special containment procedures:');
+    if (cStart === -1) cStart = textLower.indexOf('условия содержания:');
+    
+    let dStart = textLower.indexOf('описание:');
+    if (dStart === -1) dStart = textLower.indexOf('description:');
+
+    // 4. Вырезаем Условия содержания
     let containment = 'Не указаны.';
-    const contMatch = cleanText.match(/(?:Особые условия содержания|Special Containment Procedures|Условия содержания):\s*([\s\S]*?)(?=\n\s*(?:Описание|Description):|\n*$)/i);
-    if (contMatch) containment = contMatch[1].trim();
+    if (cStart !== -1) {
+        const cEnd = (dStart !== -1 && dStart > cStart) ? dStart : cleanText.length;
+        containment = cleanText.substring(cStart, cEnd).replace(/^[^:]+:\s*/i, '').trim();
+    }
 
-    // 4. Описание
+    // 5. Вырезаем Описание
     let desc = 'Не указано.';
-    const descMatch = cleanText.match(/(?:Описание|Description):\s*([\s\S]*?)(?=\n\s*(?:Приложение|Документ|Дополнение|Addendum|Appendix|История|History|Эксперимент|Experiment)[^\n]*:|$)/i);
-    if (descMatch) desc = descMatch[1].trim();
+    if (dStart !== -1) {
+        const dEndMatch = cleanText.substring(dStart).match(/\n\s*(?:Приложение|Документ|Дополнение|Addendum|Appendix|История|History|Эксперимент|Experiment)/i);
+        const dEnd = dEndMatch ? dStart + dEndMatch.index : dStart + 1500; // Берем до 1500 символов если нет заголовков
+        desc = cleanText.substring(dStart, dEnd).replace(/^[^:]+:\s*/i, '').trim();
+    }
 
-    // Обрезаем для мессенджера
     if (containment.length > 350) containment = containment.substring(0, 350) + '...';
     if (desc.length > 350) desc = desc.substring(0, 350) + '...';
 
-    // 5. Изображение
+    // 6. Изображение
     let imgUrl = null;
     let imgMatch = html.match(/<div class="scp-image-block[^>]*>[\s\S]*?<img[^>]+src="([^"]+)"/i);
     if (!imgMatch) {
@@ -835,7 +852,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       isChannel: !!c.is_channel, username: c.username || null,
       isHelper: !c.is_group && !isSelf && otherId === HELPER_ID,
       otherStatus: other && !c.is_group ? (other.custom_status || '') : '',
-      status: other ? (other.status || 'offline') : 'offline', // ФИКС СТАТУСА
+      status: other ? (other.status || 'offline') : 'offline',
       required_clearance: requiredClearance,
       min_write_clearance: c.min_write_clearance || 1,
       canAccess: canAccess
