@@ -210,118 +210,6 @@ const chatIsBlocked = (chatId, myId) => {
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
-// ================= SCP API (Wiki Scraper) =================
-async function handleScpCommand(chatId, userId, args, lang = 'ru') {
-  const text = (args || '').trim();
-  const sendBotMsg = (txt, imgUrl = null) => {
-    const msg = {
-      id: genId(), chat_id: chatId, sender_id: HELPER_ID, text: txt,
-      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [],
-      scp_image: imgUrl 
-    };
-    db.messages.push(msg);
-    saveDb();
-    emitToChatMembers(chatId, 'newMessage', buildMessagePayload(msg));
-  };
-
-  if (!text) return sendBotMsg('📖 **Команда /scp**\nИспользование: `/scp <номер>`\nПример: `/scp 049`');
-  const number = text.replace(/[^0-9]/g, '');
-  if (!number) return sendBotMsg('❌ **Ошибка**\nУкажите номер объекта, например: `/scp 049`');
-
-  const isRu = lang.toLowerCase().startsWith('ru');
-  const baseUrl = isRu ? 'https://scpfoundation.net/scp-' : 'https://scp-wiki.wikidot.com/scp-';
-  const targetUrl = `${baseUrl}${number}`;
-
-  let html = '';
-  try {
-    let res = await fetch(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (SCP-Messenger-Bot)' } });
-    html = await res.text();
-    if (html.includes('Wikidot is not available') || html.includes('Wikidot більш недоступний') || html.includes('Wikidot больше не доступен')) throw new Error('Blocked');
-  } catch (e) {
-    try {
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-        const proxyRes = await fetch(proxyUrl);
-        html = await proxyRes.text();
-    } catch (proxyErr) {
-        return sendBotMsg(`❌ **Ошибка сети**\nНе удалось загрузить данные (Wikidot заблокирован в вашем регионе).`);
-    }
-  }
-
-  // Функция очистки от HTML (теги, скрипты, мнемоники)
-  const cleanHTML = (str) => str ? str
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/div>/gi, '\n\n')
-    .replace(/<.*?>/g, ' ') // Убираем теги
-    .replace(/&#160;/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim() : '';
-
-  try {
-    // 1. Название
-    const titleMatch = html.match(/<div id="page-title">([\s\S]*?)<\/div>/i);
-    let title = titleMatch ? cleanHTML(titleMatch[1]) : `SCP-${number}`;
-
-    // 2. Класс
-    let objClass = 'Unknown';
-    const classMatch = html.match(/<strong>(?:Класс объекта|Object Class):<\/strong>([\s\S]*?)(<\/p>|<br)/i);
-    if (classMatch) objClass = cleanHTML(classMatch[1]);
-
-    // 3. Условия содержания (ищем HTML-блок от заголовка до Описания)
-    let containment = 'Не указаны.';
-    const contRegex = /<strong>(?:Особые условия содержания|Special Containment Procedures|Условия содержания):<\/strong>([\s\S]*?)(?=<strong>(?:Описание|Description):<\/strong>|<div class="footer-wikiwalk-nav">|$)/i;
-    const contMatch = html.match(contRegex);
-    if (contMatch) containment = cleanHTML(contMatch[1]);
-
-    // 4. Описание (ищем HTML-блок от заголовка до конца/футера)
-    let desc = 'Не указано.';
-    const descRegex = /<strong>(?:Описание|Description):<\/strong>([\s\S]*?)(?=<strong>|<div class="footer-wikiwalk-nav">|$)/i;
-    const descMatch = html.match(descRegex);
-    if (descMatch) desc = cleanHTML(descMatch[1]);
-
-    // Обрезаем текст для мессенджера УЖЕ после очистки
-    if (containment.length > 350) containment = containment.substring(0, 350) + '...';
-    if (desc.length > 350) desc = desc.substring(0, 350) + '...';
-
-    // 5. Изображение
-    let imgUrl = null;
-    let imgMatch = html.match(/<div class="scp-image-block[^>]*>[\s\S]*?<img[^>]+src="([^"]+)"/i);
-    if (!imgMatch) {
-        const allImages = [...html.matchAll(/<img[^>]+src="([^"]+)"/ig)];
-        const validImage = allImages.find(m => !m[1].includes('favicon') && !m[1].includes('logo') && !m[1].includes('smile'));
-        if (validImage) imgMatch = validImage;
-    }
-    if (imgMatch && imgMatch[1]) {
-        let src = imgMatch[1];
-        if (!src.startsWith('http') && !src.startsWith('data:')) {
-            src = (isRu ? 'https://scpfoundation.net' : 'https://scp-wiki.wikidot.com') + (src.startsWith('/') ? src : '/' + src);
-        }
-        imgUrl = src;
-    }
-
-    const cardText = [
-      `📄 **${title}**`,
-      `🔹 **${isRu ? 'Класс объекта' : 'Object Class'}:** ${objClass}`,
-      `\n🛡️ **${isRu ? 'Условия содержания' : 'Special Containment Procedures'}:**\n${containment}`,
-      `\n📝 **${isRu ? 'Описание' : 'Description'}:**\n${desc}`,
-      `\n🔗 [${isRu ? 'Открыть на SCP Wiki' : 'Open on SCP Wiki'}](${targetUrl})`
-    ].join('\n');
-
-    sendBotMsg(cardText, imgUrl);
-  } catch (err) {
-    sendBotMsg(`❌ **SCP-${number} не найден**\nПроверьте номер или попробуйте позже.`);
-  }
-}
-
 // ================= SELF-DESTRUCT =================
 function scheduleMessageExpiry(msgId, expiresAt) {
   const delay = expiresAt - Date.now();
@@ -1058,7 +946,6 @@ function buildMessagePayload(m) {
     reactions: m.reactions || [],
     edited: m.edited || false,
     expires_at: m.expires_at || null,
-    scp_image: m.scp_image || null,
     attachments: atts.map(a => ({ url: a.url, mime: a.mime_type, name: a.original_name, size: a.size }))
   };
 }
@@ -1095,14 +982,8 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
     }
   }
 
-  const { text, expires_in, lang } = req.body;
+  const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
-
-  if (text.trim().toLowerCase().startsWith('/scp')) {
-    const args = text.trim().slice(4).trim();
-    handleScpCommand(chatId, req.userId, args, lang);
-    return res.json({ ok: true, bot_handled: true });
-  }
 
   const msgId = genId();
   const now = Math.floor(Date.now() / 1000);
