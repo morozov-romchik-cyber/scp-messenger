@@ -58,7 +58,8 @@ const ALLOWED_EXT = new Set([
 
 const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
 const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
-const ROLE_TO_CLEARANCE = { user: 1, helper: 5, moderator: 5, admin: 5, sysadmin: 5 }; // Служебные роли всегда 5
+// Служебные роли всегда получают L5
+const ROLE_TO_CLEARANCE = { user: 1, helper: 5, moderator: 5, admin: 5, sysadmin: 5 };
 const CLEARANCE_TO_ROLE = { 1: 'user', 2: 'user', 3: 'user', 4: 'user', 5: 'user' };
 const CLEARANCE_RANK = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
 
@@ -154,7 +155,7 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({
-  storage, limits: { fileSize: 10 * 1024 * 1024 * 1024 }, // Абсолютный лимит 10 ГБ для аватарок
+  storage, limits: { fileSize: 10 * 1024 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const originalName = decodeFilename(file.originalname);
     const ext = path.extname(originalName).toLowerCase();
@@ -226,7 +227,7 @@ const chatIsBlocked = (chatId, myId) => {
 // ================= XP SYSTEM =================
 function addXp(userId, amount) {
   const user = db.users.find(u => u.id === userId);
-  if (!user || user.role !== 'user') return; // Персонал не получает XP
+  if (!user || user.role !== 'user') return; 
   user.xp = (user.xp || 0) + amount;
   
   let newLevel = 1;
@@ -238,7 +239,6 @@ function addXp(userId, amount) {
   if (newLevel > (user.clearance_level || 1)) {
     user.clearance_level = newLevel;
     
-    // Отправка системного сообщения через SCP_Helper
     let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === userId) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
     if (!helperChat) {
         helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
@@ -419,7 +419,6 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-// АДМИНСКИЕ ИНВАЙТЫ (НЕ ТРОГАЕМ)
 app.post('/api/admin/generate-invite', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me) return res.status(403).json({ error: 'Доступ запрещён' });
@@ -450,7 +449,7 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   if (target.role === 'sysadmin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может менять роль SysAdmin' });
   
   target.role = role;
-  target.clearance_level = ROLE_TO_CLEARANCE[role] || 1; // Если персонал, то 5. Если user, то 1 (потом прокачается)
+  target.clearance_level = ROLE_TO_CLEARANCE[role] || 1; 
   
   saveDb();
   io.to(`user:${target.id}`).emit('roleChanged', { newRole: role, clearance_level: target.clearance_level });
@@ -472,7 +471,6 @@ app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   if (level === 5 && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может назначать Level 5' });
   
   target.clearance_level = level;
-  // Роль меняем только если это повышение до персонала. Обычный юзер остается юзером.
   if (level === 5 && ['helper', 'moderator', 'admin', 'sysadmin'].includes(target.role)) {
       target.role = CLEARANCE_TO_ROLE[level] || 'user';
   }
@@ -1012,7 +1010,11 @@ app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   if (chat && (chat.required_clearance || 1) > myClearance) {
     return res.status(403).json({ error: `Доступ запрещён. Требуется уровень допуска ${chat.required_clearance}` });
   }
-  const messages = db.messages.filter(m => m.chat_id === req.params.chatId).sort((a, b) => a.created_at - b.created_at).map(buildMessagePayload);
+  const messages = db.messages
+    .filter(m => m.chat_id === req.params.chatId)
+    .filter(m => !(m.deleted_for && m.deleted_for.includes(req.userId))) // УДАЛЕНО У СЕБЯ
+    .sort((a, b) => a.created_at - b.created_at)
+    .map(buildMessagePayload);
   res.json(messages);
 });
 
@@ -1039,7 +1041,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
-  // Начисление XP за сообщение (лимит 100 XP в день)
   if (me.role === 'user') {
       const today = new Date().toDateString();
       if (!me.last_msg_xp_date || me.last_msg_xp_date !== today) {
@@ -1091,7 +1092,6 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   const { fileName, fileType, fileSize } = req.body;
   if (!fileName || !fileType) return res.status(400).json({ error: 'Нет данных о файле' });
   
-  // ПРОВЕРКА ЛИМИТА ФАЙЛА
   const limit = FILE_SIZE_LIMITS[myClearance] || FILE_SIZE_LIMITS[1];
   if (fileSize && fileSize > limit) {
       const mb = Math.round(limit / (1024 * 1024));
@@ -1212,10 +1212,18 @@ app.delete('/api/messages/:messageId', authMiddleware, (req, res) => {
   const isAdmin = me && ['sysadmin', 'admin', 'moderator'].includes(me.role);
   const isOwn = msg.sender_id === req.userId;
   const scope = (req.body && req.body.scope) || 'me';
+  
   if (scope === 'all') {
     if (!isOwn && !isAdmin) return res.status(403).json({ error: 'Недостаточно прав' });
     msg.is_deleted = true;
-    saveDb(); emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
+    saveDb(); 
+    emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
+  } else {
+    if (!msg.deleted_for) msg.deleted_for = [];
+    if (!msg.deleted_for.includes(req.userId)) {
+      msg.deleted_for.push(req.userId);
+      saveDb();
+    }
   }
   res.json({ ok: true });
 });
@@ -1260,7 +1268,6 @@ app.post('/api/messages/:messageId/react', authMiddleware, (req, res) => {
       msg.reactions.splice(idx, 1);
   } else {
       msg.reactions.push({ emoji, userId: req.userId });
-      // +5 XP автору сообщения (если это не он сам)
       if (msg.sender_id !== req.userId) {
           addXp(msg.sender_id, 5);
       }
@@ -1322,7 +1329,6 @@ app.post('/api/register', async (req, res) => {
           inviter = adminInvite.created_by;
           adminInvite.used = true;
       } else {
-          // Проверяем пользовательский реф-код
           const refUser = db.users.find(u => u.invite_code === invited_by);
           if (refUser) {
               inviter = refUser.username;
@@ -1348,14 +1354,14 @@ app.post('/api/register', async (req, res) => {
       clearance_level,
       custom_status: '',
       xp: 0,
-      invite_code: `REF-${cleanUsername.toUpperCase()}`,
+      invite_code: `REF-${cleanUsername.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
       last_daily_login: 0
     };
     db.users.push(newUser);
 
     if (isRefInvite && inviter) {
         const inv = findUserByUsername(inviter);
-        if (inv) addXp(inv.id, 200); // Награда за друга
+        if (inv) addXp(inv.id, 200); 
     }
 
     const plainCodes = [];
@@ -1385,7 +1391,6 @@ app.post('/api/login', async (req, res) => {
       else { user.ban_expires = 0; user.ban_reason = ''; }
     }
 
-    // Ежедневный вход +50 XP
     if (user.role === 'user') {
         const now = Date.now();
         const day = 24 * 60 * 60 * 1000;
@@ -1450,7 +1455,7 @@ io.on('connection', (socket) => {
   } catch (e) {}
 });
 
-// ================= ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК (ТОЛЬКО В САМОМ КОНЦЕ) =================
+// ================= ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК =================
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'API route not found' });
@@ -1504,7 +1509,12 @@ app.use((req, res, next) => {
     if (u.custom_status === undefined) u.custom_status = '';
     if (u.clearance_level === undefined) { u.clearance_level = ROLE_TO_CLEARANCE[u.role] || 1; migrated = true; }
     if (u.xp === undefined) { u.xp = 0; migrated = true; }
-    if (!u.invite_code) { u.invite_code = `REF-${u.username.toUpperCase()}`; migrated = true; }
+    
+    // Миграция инвайт-кодов под новый формат с цифрами
+    if (!u.invite_code || !/^REF-.*-\d{4}$/.test(u.invite_code)) {
+        u.invite_code = `REF-${u.username.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        migrated = true;
+    }
   });
   if (migrated) saveDb();
 
