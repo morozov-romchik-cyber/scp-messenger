@@ -247,33 +247,45 @@ async function handleScpCommand(chatId, userId, args, lang = 'ru') {
     }
   }
 
-  const cleanHTML = (str) => str ? str.replace(/<.*?>/g, '').replace(/&#160;/g, ' ').replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim() : '';
+  const cleanHTML = (str) => str ? str
+    .replace(/<script.*?<\/script>/is, '')
+    .replace(/<style.*?<\/style>/is, '')
+    .replace(/<.*?>/g, '')
+    .replace(/&#160;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;/g, ' ')
+    .trim() : '';
 
   try {
-    // 1. Название
     const titleMatch = html.match(/<div id="page-title">\s*(.*?)\s*<\/div>/);
     const title = titleMatch ? cleanHTML(titleMatch[1]) : `SCP-${number}`;
     
-    // 2. Класс объекта (ищем в тегах strong, игнорируем переносы строк)
-    const classMatch = html.match(/<strong>Object Class:<\/strong>(.*?)(<br|<\/p>)/i) || html.match(/<strong>Класс объекта:<\/strong>(.*?)(<br|<\/p>)/i);
-    const objClass = classMatch ? cleanHTML(classMatch[1]) : 'Unknown';
-    
-    // 3. Условия содержания
-    const containmentMatch = html.match(/<strong>Special Containment Procedures:<\/strong>(.*?)(?=<strong>|<div)/is) 
-                          || html.match(/<strong>Особые условия содержания:<\/strong>(.*?)(?=<strong>|<div)/is)
-                          || html.match(/<strong>Условия содержания:<\/strong>(.*?)(?=<strong>|<div)/is);
-    let containment = containmentMatch ? cleanHTML(containmentMatch[1]) : 'Не указаны.';
-    if (containment.length > 350) containment = containment.substring(0, 350) + '...';
+    let objClass = 'Unknown';
+    const classMatch = html.match(/<strong>(?:Класс объекта|Object Class):<\/strong>(.*?)(<\/p>|<br|$)/is);
+    if (classMatch) objClass = cleanHTML(classMatch[1]);
 
-    // 4. Описание
-    const descMatch = html.match(/<strong>Description:<\/strong>(.*?)(?=<strong>|<div)/is) 
-                   || html.match(/<strong>Описание:<\/strong>(.*?)(?=<strong>|<div)/is);
-    let desc = descMatch ? cleanHTML(descMatch[1]) : 'Не указано.';
+    let containment = 'Не указаны.';
+    const contStart = html.search(/<strong>(?:Особые условия содержания|Special Containment Procedures|Условия содержания):<\/strong>/i);
+    if (contStart !== -1) {
+        const descStartIdx = html.search(/<strong>(?:Описание|Description):<\/strong>/i);
+        const endIndex = (descStartIdx !== -1 && descStartIdx > contStart) ? descStartIdx : contStart + 4000;
+        const chunk = html.substring(contStart, endIndex);
+        containment = cleanHTML(chunk).replace(/^(?:Особые условия содержания|Special Containment Procedures|Условия содержания):/i, '').trim();
+    }
+
+    let desc = 'Не указано.';
+    const descStartIdx = html.search(/<strong>(?:Описание|Description):<\/strong>/i);
+    if (descStartIdx !== -1) {
+        const chunk = html.substring(descStartIdx, descStartIdx + 4000);
+        desc = cleanHTML(chunk).replace(/^(?:Описание|Description):/i, '').trim();
+    }
+
+    if (containment.length > 350) containment = containment.substring(0, 350) + '...';
     if (desc.length > 350) desc = desc.substring(0, 350) + '...';
 
-    // 5. Изображение
     let imgUrl = null;
-    const imgMatch = html.match(/<div class="scp-image-block.*?">.*?<img src="(.*?)"/is);
+    const imgMatch = html.match(/<div class="scp-image-block.*?">.*?<img src="(.*?)"/is) || html.match(/<img src="(.*?)".*?class=".*?scp-image.*?"/is);
     if (imgMatch && imgMatch[1]) {
         imgUrl = imgMatch[1].startsWith('http') ? imgMatch[1] : (isRu ? 'https://scpfoundation.net' : 'https://scp-wiki.wikidot.com') + imgMatch[1];
     }
