@@ -2376,14 +2376,27 @@ window.openChat = openChat;
 // ================= FORMAT MESSAGE =================
 function formatMessageText(rawText) {
   let text = esc(rawText);
+  
+  // 1. Парсим Markdown-ссылки [Текст](ссылка)
+  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation();">$1</a>');
+
+  // 2. Списки
   text = text.replace(/(^|\n)\s*-\s+(.+)/g, '$1• $2');
+  
+  // 3. Жирный и курсив
   text = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   text = text.replace(/\*(.*?)\*/g, '<i>$1</i>');
-  const linkRegex = /((?:https?:\/\/|scp\.me\/|scp\.group\/)[^\s]+)/g;
+  
+  // 4. Обычные ссылки (избегаем двойного парсинга уже готовых тегов <a href="...">)
+  const linkRegex = /(?<!href=")((?:https?:\/\/|scp\.me\/|scp\.group\/)[^\s<"]+)/g;
   text = text.replace(linkRegex, function(url) {
-    if (url.startsWith('scp.')) return `<a href="#" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation(); openLinkChat('${url}')">${url}</a>`;
-    return `<a href="${url}" target="_blank" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation();">${url}</a>`;
+    if (url.startsWith('scp.')) {
+        return `<a href="#" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation(); openLinkChat('${url}')">${url}</a>`;
+    } else {
+        return `<a href="${url}" target="_blank" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation();">${url}</a>`;
+    }
   });
+  
   return text;
 }
 
