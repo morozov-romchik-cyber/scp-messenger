@@ -19,11 +19,9 @@
     --admin-accent: #ff3333; --admin-text: #ffcccc; --admin-green: #00ff9d;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  /* Делаем окно перетаскиваемым (для Electron) */
   html, body { height: 100%; height: 100dvh; overflow: hidden; -webkit-app-region: drag; } 
   body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
   
-  /* Исключаем кликабельные элементы из зоны перетаскивания */
   button, input, textarea, a, .chat-item, .msg-row, .modal, .admin-btn { -webkit-app-region: no-drag; }
 
   #fx-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
@@ -61,7 +59,6 @@
   .expiry-timer { font-size: 10px; color: #ff3333; font-family: 'Fira Code', monospace; font-weight: 700; margin-left: 6px; animation: pulseRed 1.5s infinite; }
   @keyframes pulseRed { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
   
-  /* Выпадающее меню с 3 точками */
   .expiry-popup { display: none; position: absolute; bottom: 60px; right: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; flex-direction: column; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 10; }
   .expiry-popup.visible { display: flex; }
   .expiry-btn { background: var(--card); border: 1px solid var(--border); color: var(--muted); padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; font-family: 'Fira Code', monospace; transition: all 0.2s; text-align: left; }
@@ -149,7 +146,6 @@
   .msg-row.mine .msg { background: rgba(48, 54, 61, 0.95); border-color: var(--border-hover); border-bottom-right-radius: 2px; }
   .msg-row:not(.mine) .msg { border-bottom-left-radius: 2px; }
 
-  /* Визуализация выделенного сообщения */
   .msg-row.selected .msg {
     border: 2px solid #1d9bf0 !important;
     background: rgba(29, 155, 240, 0.1) !important;
@@ -273,9 +269,8 @@
   .reaction-picker-row button { background: var(--card); border: 1px solid var(--border); border-radius: 8px; font-size: 20px; cursor: pointer; padding: 4px 8px; transition: transform 0.1s, border-color 0.1s; }
   #typing-indicator { display: none; font-size: 11px; color: #00ff9d; font-family: 'Fira Code', monospace; font-weight: 600; padding-left: 2px; margin-top: 2px; animation: typingPulse 1.4s ease-in-out infinite; }
 
-  /* Панель мультивыбора - по умолчанию СКРЫТА */
   #multi-select-bar {
-    display: none; /* ИСПРАВЛЕНО: убрали display: flex */
+    display: none; 
     position: absolute;
     bottom: 80px;
     left: 50%;
@@ -479,6 +474,16 @@
     <textarea id="report-custom-text" placeholder="Опишите причину..." style="display: none; width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none; resize: vertical; min-height: 60px;"></textarea>
     <button class="modal-btn" onclick="submitReport()" style="background: #ff9933; color: #000; font-weight: bold; margin-bottom: 8px;">Отправить жалобу</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('report-modal').classList.remove('visible')">Отмена</button>
+  </div>
+</div>
+
+<div class="modal" id="delete-multi-modal">
+  <div class="modal-content" style="width: 340px; text-align: center;">
+    <h3>УДАЛЕНИЕ СООБЩЕНИЙ</h3>
+    <p style="margin-bottom: 20px; color: var(--muted); font-size: 14px;">Выбрано сообщений: <b id="delete-multi-count" style="color:#fff;">0</b></p>
+    <button class="modal-btn" id="del-multi-all-btn" style="background: #ff4d4d; color: #fff; margin-bottom: 10px; display: none;">Удалить у всех</button>
+    <button class="modal-btn" id="del-multi-me-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Удалить только у себя</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('delete-multi-modal').classList.remove('visible')">Отмена</button>
   </div>
 </div>
 
@@ -921,7 +926,6 @@
       <button class="close-reply" id="close-reply">×</button>
     </div>
 
-    <!-- Панель мультивыбора (ИСПРАВЛЕНО: скрыта по умолчанию) -->
     <div id="multi-select-bar" style="display: none;">
         <button onclick="cancelSelectionMode()" style="background: transparent; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 5px;">✖</button>
         <span id="selection-count" style="color: #fff; font-family: 'Fira Code'; font-size: 14px; min-width: 80px;">0 выбрано</span>
@@ -930,7 +934,6 @@
         <button onclick="reportSelectedMessages()" class="admin-btn" style="background: #ff9933; color: #000; border: none; margin: 0; padding: 6px 12px;">🚩 Пожаловаться</button>
     </div>
 
-    <!-- Popup для исчезающих сообщений -->
     <div class="expiry-popup" id="expiry-popup">
         <div style="font-size: 11px; color: var(--muted); margin-bottom: 5px; font-family: 'Fira Code';">Исчезающее сообщение:</div>
         <button type="button" class="expiry-btn active" data-expiry="0" onclick="setExpiry(0)">Выкл</button>
@@ -959,7 +962,6 @@ let favoriteChats = JSON.parse(localStorage.getItem('scp_fav_chats') || '[]');
 let chatDrafts = JSON.parse(localStorage.getItem('scp_drafts') || '{}');
 const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false };
 
-// === ПЕРЕМЕННЫЕ ДЛЯ МУЛЬТИВЫБОРА ===
 let isSelectionMode = false;
 let selectedMsgIds = new Set();
 let multiSelectReportTargetId = null;
@@ -1011,7 +1013,6 @@ function renderXpBar(user) {
   </div>`;
 }
 
-// Обработчик для исчезающих сообщений
 window.setExpiry = function(seconds) {
   currentExpiry = seconds;
   document.querySelectorAll('.expiry-popup .expiry-btn').forEach(b => {
@@ -1179,13 +1180,12 @@ window.forwardSelectedMessages = function() {
     document.getElementById('forward-modal').classList.add('visible');
 };
 
-// === ОБНОВЛЕННАЯ ЛОГИКА УДАЛЕНИЯ ===
-window.deleteSelectedMessages = async function() {
+window.deleteSelectedMessages = function() {
     if (selectedMsgIds.size === 0) return;
-
+    
     const myRole = state.me.role;
     const canDeleteOthersGlobally = ['sysadmin', 'admin', 'moderator'].includes(myRole);
-
+    
     let allMine = true;
     for (const msgId of selectedMsgIds) {
         const row = document.getElementById('msg-' + msgId);
@@ -1194,17 +1194,30 @@ window.deleteSelectedMessages = async function() {
             break;
         }
     }
-
-    let scope = 'me'; 
     
+    document.getElementById('delete-multi-count').textContent = selectedMsgIds.size;
+    
+    const allBtn = document.getElementById('del-multi-all-btn');
     if (allMine || canDeleteOthersGlobally) {
-        const choice = confirm(`Выбрано ${selectedMsgIds.size} сообщений.\n\nНажмите ОК, чтобы удалить У ВСЕХ.\nНажмите Отмена, чтобы удалить ТОЛЬКО У СЕБЯ.`);
-        if (choice) scope = 'all';
+        allBtn.style.display = 'block';
     } else {
-        alert(`Выбрано ${selectedMsgIds.size} сообщений. Так как среди них есть чужие, они будут удалены ТОЛЬКО У ВАС.`);
-        scope = 'me';
+        allBtn.style.display = 'none';
     }
+    
+    allBtn.onclick = () => {
+        executeMultiDelete('all');
+        document.getElementById('delete-multi-modal').classList.remove('visible');
+    };
+    
+    document.getElementById('del-multi-me-btn').onclick = () => {
+        executeMultiDelete('me');
+        document.getElementById('delete-multi-modal').classList.remove('visible');
+    };
+    
+    document.getElementById('delete-multi-modal').classList.add('visible');
+};
 
+async function executeMultiDelete(scope) {
     let success = 0;
     for (const msgId of selectedMsgIds) {
         try {
@@ -1215,9 +1228,8 @@ window.deleteSelectedMessages = async function() {
             }
         } catch(e) { console.error(e); }
     }
-    
     cancelSelectionMode();
-};
+}
 
 window.reportSelectedMessages = function() {
     if (selectedMsgIds.size === 0) return;
@@ -2558,7 +2570,6 @@ function appendMessage(msg, scroll = true) {
   const msgDiv = row.querySelector('.msg');
   let pressTimer = null;
   
-  // Обработчик обычного клика для мультивыбора
   msgDiv.addEventListener('click', (e) => {
       if (isSelectionMode) {
           e.stopPropagation();
@@ -2568,7 +2579,6 @@ function appendMessage(msg, scroll = true) {
 
   const startPress = (e) => {
     if (msg.is_deleted) return;
-    // Если в режиме выбора, не открываем меню действий
     if (isSelectionMode) return;
     if (['IMG','VIDEO','AUDIO','A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip, .reply-quote, .msg-reaction, .scp-card')) return;
     pressTimer = setTimeout(() => { pressTimer = null; openMsgActions(msg); if (navigator.vibrate) navigator.vibrate(50); }, 1000);
@@ -2629,7 +2639,6 @@ function openMsgActions(msg) {
     };
   } else dl.style.display = 'none';
   
-  // Добавляем обработчик на кнопку "Выбрать"
   const selBtn = document.getElementById('msg-select-btn');
   selBtn.onclick = () => {
       enterSelectionMode(msg.id);
@@ -2658,14 +2667,13 @@ document.getElementById('msg-reply-btn').addEventListener('click', () => {
 document.getElementById('close-reply').addEventListener('click', () => { state.replyTo = null; document.getElementById('reply-bar').classList.remove('visible'); });
 document.getElementById('msg-forward-btn').addEventListener('click', () => {
   const m = state.activeMsg; if (!m) return;
-  isForwardingMultiple = false; // Сбрасываем флаг
+  isForwardingMultiple = false; 
   const list = document.getElementById('forward-list');
   list.innerHTML = state.chats.map(c => `<div class="forward-item" onclick="forwardTo('${escAttr(c.id)}')"><div class="chat-avatar">${c.isGroup ? (c.isChannel ? '📢' : '👥') : esc((c.name || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(c.name)}</div></div></div>`).join('') || '<div class="empty">Нет чатов</div>';
   document.getElementById('msg-actions-modal').classList.remove('visible');
   document.getElementById('forward-modal').classList.add('visible');
 });
 
-// Обновленный forwardTo для поддержки мультивыбора
 window.forwardTo = async function(chatId) {
   if (isForwardingMultiple) {
       let success = 0;
@@ -3349,7 +3357,6 @@ setInterval(() => {
     if (visualSettings.weather === 'none' && FXEngine.particles.length > 0) FXEngine.particles = [];
 }, 1000);
 
-// Обработчик меню 3 точек
 document.getElementById('expiry-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('expiry-popup').classList.toggle('visible');
