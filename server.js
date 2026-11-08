@@ -1111,7 +1111,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
-  // Проверка на команду /start
   const members = db.chat_members.filter(cm => cm.chat_id === chatId);
   const otherId = members.find(m => m.user_id !== req.userId)?.user_id;
   
@@ -1128,7 +1127,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       return res.json(payload);
   }
 
-  // КУЛДАУН НА ОТПРАВКУ
   const cooldownMs = MESSAGE_COOLDOWNS[myClearance] || 0;
   const now = Date.now();
   if (cooldownMs > 0 && me.last_message_time) {
