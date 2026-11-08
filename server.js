@@ -58,9 +58,20 @@ const ALLOWED_EXT = new Set([
 
 const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
 const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
-const ROLE_TO_CLEARANCE = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
-const CLEARANCE_TO_ROLE = { 1: 'user', 2: 'helper', 3: 'moderator', 4: 'admin', 5: 'sysadmin' };
+const ROLE_TO_CLEARANCE = { user: 1, helper: 5, moderator: 5, admin: 5, sysadmin: 5 }; // Служебные роли всегда 5
+const CLEARANCE_TO_ROLE = { 1: 'user', 2: 'user', 3: 'user', 4: 'user', 5: 'user' };
 const CLEARANCE_RANK = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
+
+// Лимиты файлов в байтах
+const FILE_SIZE_LIMITS = {
+  1: 10 * 1024 * 1024,      // 10 МБ
+  2: 50 * 1024 * 1024,      // 50 МБ
+  3: 200 * 1024 * 1024,     // 200 МБ
+  4: 1024 * 1024 * 1024,    // 1 ГБ
+  5: 10 * 1024 * 1024 * 1024 // 10 ГБ
+};
+
+const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
 
 const HELPER_ID = 'system_scp_helper_id';
 
@@ -108,7 +119,9 @@ const publicUser = (u) => ({
   status: u.status, level: u.level || 1, read_deleted: u.read_deleted || false,
   ip: u.ip || 'Скрыт', role: u.role || 'user', invited_by: u.invited_by || null, ban_expires: u.ban_expires || 0, ban_reason: u.ban_reason || '',
   custom_status: u.custom_status || '',
-  clearance_level: u.clearance_level || ROLE_TO_CLEARANCE[u.role] || 1
+  clearance_level: u.clearance_level || ROLE_TO_CLEARANCE[u.role] || 1,
+  xp: u.xp || 0,
+  invite_code: u.invite_code || `REF-${u.id.slice(0, 6).toUpperCase()}`
 });
 
 const publicUserSafe = (u) => {
@@ -141,7 +154,7 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({
-  storage, limits: { fileSize: 50 * 1024 * 1024 },
+  storage, limits: { fileSize: 10 * 1024 * 1024 * 1024 }, // Абсолютный лимит 10 ГБ для аватарок
   fileFilter: (req, file, cb) => {
     const originalName = decodeFilename(file.originalname);
     const ext = path.extname(originalName).toLowerCase();
@@ -152,7 +165,7 @@ const upload = multer({
 const uploadSingle = (field) => (req, res, next) => {
   upload.single(field)(req, res, (err) => {
     if (err) {
-        if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Файл слишком большой. Максимум 50 МБ.' });
+        if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Файл слишком большой. Максимум 10 ГБ.' });
         return res.status(400).json({ error: err.message || 'Ошибка загрузки' });
     }
     next();
@@ -210,18 +223,45 @@ const chatIsBlocked = (chatId, myId) => {
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
-// ================= SELF-DESTRUCT =================
-function scheduleMessageExpiry(msgId, expiresAt) {
-  const delay = expiresAt - Date.now();
-  if (delay <= 0) return;
-  setTimeout(() => {
-    const msg = db.messages.find(m => m.id === msgId);
-    if (msg && !msg.is_deleted) {
-      msg.is_deleted = true;
-      saveDb();
-      emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'expired' });
+// ================= XP SYSTEM =================
+function addXp(userId, amount) {
+  const user = db.users.find(u => u.id === userId);
+  if (!user || user.role !== 'user') return; // Персонал не получает XP
+  user.xp = (user.xp || 0) + amount;
+  
+  let newLevel = 1;
+  if (user.xp >= XP_THRESHOLDS[5]) newLevel = 5;
+  else if (user.xp >= XP_THRESHOLDS[4]) newLevel = 4;
+  else if (user.xp >= XP_THRESHOLDS[3]) newLevel = 3;
+  else if (user.xp >= XP_THRESHOLDS[2]) newLevel = 2;
+  
+  if (newLevel > (user.clearance_level || 1)) {
+    user.clearance_level = newLevel;
+    
+    // Отправка системного сообщения через SCP_Helper
+    let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === userId) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
+    if (!helperChat) {
+        helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
+        db.chats.push(helperChat);
+        db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: userId });
+        db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: HELPER_ID });
     }
-  }, delay);
+    
+    let perks = '';
+    if (newLevel === 2) perks = 'создавать группы и отправлять файлы до 50 МБ.';
+    else if (newLevel === 3) perks = 'создавать публичные каналы и отправлять файлы до 200 МБ.';
+    else if (newLevel === 4) perks = 'создавать закрытые каналы и отправлять файлы до 1 ГБ.';
+    else if (newLevel === 5) perks = 'создавать приватные комнаты и отправлять файлы до 10 ГБ.';
+    
+    const sysMsg = {
+      id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID,
+      text: `🎉 **ПОВЫШЕНИЕ ДОПУСКА**\nВам присвоен **Уровень ${newLevel}**.\n🔓 Теперь вы можете ${perks}`,
+      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+    };
+    db.messages.push(sysMsg);
+    emitToChatMembers(helperChat.id, 'newMessage', buildMessagePayload(sysMsg));
+  }
+  saveDb();
 }
 
 // ================= REPORTS =================
@@ -379,6 +419,7 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
+// АДМИНСКИЕ ИНВАЙТЫ (НЕ ТРОГАЕМ)
 app.post('/api/admin/generate-invite', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me) return res.status(403).json({ error: 'Доступ запрещён' });
@@ -407,8 +448,10 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   const newClearance = ROLE_TO_CLEARANCE[role];
   if (newClearance >= 4 && myClearance < 5) return res.status(403).json({ error: 'Только SysAdmin может назначать админов' });
   if (target.role === 'sysadmin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может менять роль SysAdmin' });
+  
   target.role = role;
-  target.clearance_level = ROLE_TO_CLEARANCE[role] || 1;
+  target.clearance_level = ROLE_TO_CLEARANCE[role] || 1; // Если персонал, то 5. Если user, то 1 (потом прокачается)
+  
   saveDb();
   io.to(`user:${target.id}`).emit('roleChanged', { newRole: role, clearance_level: target.clearance_level });
   io.emit('refreshData');
@@ -427,8 +470,13 @@ app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role];
   if (level >= myClearance && me.role !== 'sysadmin') return res.status(403).json({ error: 'Вы можете назначать только уровень ниже вашего' });
   if (level === 5 && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может назначать Level 5' });
+  
   target.clearance_level = level;
-  target.role = CLEARANCE_TO_ROLE[level];
+  // Роль меняем только если это повышение до персонала. Обычный юзер остается юзером.
+  if (level === 5 && ['helper', 'moderator', 'admin', 'sysadmin'].includes(target.role)) {
+      target.role = CLEARANCE_TO_ROLE[level] || 'user';
+  }
+  
   saveDb();
   io.to(`user:${target.id}`).emit('roleChanged', { newRole: target.role, clearance_level: level });
   io.emit('refreshData');
@@ -443,7 +491,8 @@ app.get('/api/admin/users-list', authMiddleware, (req, res) => {
     id: u.id, username: u.username, displayName: u.display_name || u.username, role: u.role || 'user', status: u.status || 'offline',
     avatarUrl: u.avatar_url || null, ip: canSeeIp ? (u.ip || 'Скрыт') : 'Скрыт',
     ban_expires: u.ban_expires || 0, created_at: u.created_at || 0,
-    clearance_level: u.clearance_level || ROLE_TO_CLEARANCE[u.role] || 1
+    clearance_level: u.clearance_level || ROLE_TO_CLEARANCE[u.role] || 1,
+    xp: u.xp || 0
   })).sort((a, b) => {
     const diff = (b.clearance_level || 0) - (a.clearance_level || 0);
     if (diff !== 0) return diff;
@@ -587,7 +636,8 @@ app.get('/api/users/:userId', authMiddleware, (req, res) => {
     role: target.role || 'user', ban_expires: target.ban_expires || 0,
     created_at: target.created_at || 0, ip: canSeeIp ? (target.ip || 'Скрыт') : 'Скрыт',
     custom_status: target.custom_status || '',
-    clearance_level: target.clearance_level || ROLE_TO_CLEARANCE[target.role] || 1
+    clearance_level: target.clearance_level || ROLE_TO_CLEARANCE[target.role] || 1,
+    xp: target.xp || 0
   });
 });
 
@@ -742,6 +792,10 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
 
   const me = db.users.find(u => u.id === req.userId);
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
+  
+  if (myClearance < 2) return res.status(403).json({ error: 'Для создания чатов требуется Уровень 2 (Научный сотрудник)' });
+  if (is_channel && myClearance < 3) return res.status(403).json({ error: 'Для создания каналов требуется Уровень 3 (Старший исследователь)' });
+  
   const reqClearance = Math.max(1, Math.min(5, Number(required_clearance) || 1));
   const writeClearance = Math.max(1, Math.min(5, Number(min_write_clearance) || 1));
 
@@ -985,6 +1039,19 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
+  // Начисление XP за сообщение (лимит 100 XP в день)
+  if (me.role === 'user') {
+      const today = new Date().toDateString();
+      if (!me.last_msg_xp_date || me.last_msg_xp_date !== today) {
+          me.last_msg_xp_date = today;
+          me.daily_msg_xp = 0;
+      }
+      if (me.daily_msg_xp < 100) {
+          me.daily_msg_xp += 2;
+          addXp(me.id, 2);
+      }
+  }
+
   const msgId = genId();
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = expires_in && Number(expires_in) > 0 ? Date.now() + Number(expires_in) * 1000 : null;
@@ -1021,8 +1088,16 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   
   if (!S3_ENABLED) return res.status(503).json({ error: 'S3 отключён на сервере' });
 
-  const { fileName, fileType } = req.body;
+  const { fileName, fileType, fileSize } = req.body;
   if (!fileName || !fileType) return res.status(400).json({ error: 'Нет данных о файле' });
+  
+  // ПРОВЕРКА ЛИМИТА ФАЙЛА
+  const limit = FILE_SIZE_LIMITS[myClearance] || FILE_SIZE_LIMITS[1];
+  if (fileSize && fileSize > limit) {
+      const mb = Math.round(limit / (1024 * 1024));
+      return res.status(403).json({ error: `Превышен лимит для вашего уровня допуска. Максимум: ${mb >= 1024 ? (mb/1024) + ' ГБ' : mb + ' МБ'}.` });
+  }
+  
   const ext = path.extname(fileName).toLowerCase();
   if (!ALLOWED_EXT.has(ext)) return res.status(400).json({ error: 'Недопустимый тип файла: ' + ext });
   const key = `uploads/${genId()}${ext}`;
@@ -1180,7 +1255,17 @@ app.post('/api/messages/:messageId/react', authMiddleware, (req, res) => {
   if (!emoji || typeof emoji !== 'string' || emoji.length > 8) return res.status(400).json({ error: 'Недопустимая реакция' });
   if (!msg.reactions) msg.reactions = [];
   const idx = msg.reactions.findIndex(r => r.userId === req.userId && r.emoji === emoji);
-  if (idx >= 0) msg.reactions.splice(idx, 1); else msg.reactions.push({ emoji, userId: req.userId });
+  
+  if (idx >= 0) {
+      msg.reactions.splice(idx, 1);
+  } else {
+      msg.reactions.push({ emoji, userId: req.userId });
+      // +5 XP автору сообщения (если это не он сам)
+      if (msg.sender_id !== req.userId) {
+          addXp(msg.sender_id, 5);
+      }
+  }
+  
   saveDb();
   emitToChatMembers(msg.chat_id, 'messageReacted', { messageId: msg.id, reactions: msg.reactions });
   res.json({ ok: true, reactions: msg.reactions });
@@ -1224,31 +1309,54 @@ app.post('/api/register', async (req, res) => {
     if (db.banned_ips.includes(ip)) return res.status(403).json({ error: 'Ваш IP заблокирован' });
 
     let userRole = 'user';
+    let clearance_level = 1;
     let inviter = null;
+    let isRefInvite = false;
+
     if (invited_by) {
-      const invite = db.invite_codes.find(i => i.code === invited_by && !i.used);
-      if (!invite) return res.status(400).json({ error: 'Неверный или уже использованный инвайт-код' });
-      if (!ROLE_TO_CLEARANCE[invite.role]) return res.status(400).json({ error: 'Повреждённый инвайт-код' });
-      userRole = invite.role;
-      inviter = invite.created_by;
-      invite.used = true;
+      const adminInvite = db.invite_codes.find(i => i.code === invited_by && !i.used);
+      if (adminInvite) {
+          if (!ROLE_TO_CLEARANCE[adminInvite.role]) return res.status(400).json({ error: 'Повреждённый инвайт-код' });
+          userRole = adminInvite.role;
+          clearance_level = ROLE_TO_CLEARANCE[userRole] || 1;
+          inviter = adminInvite.created_by;
+          adminInvite.used = true;
+      } else {
+          // Проверяем пользовательский реф-код
+          const refUser = db.users.find(u => u.invite_code === invited_by);
+          if (refUser) {
+              inviter = refUser.username;
+              isRefInvite = true;
+          } else {
+              return res.status(400).json({ error: 'Неверный или уже использованный инвайт-код' });
+          }
+      }
     }
 
     const id = genId();
     const passwordHash = await bcrypt.hash(password, 12);
     const isAdmin = cleanUsername.toLowerCase() === 'admin';
-    const clearance_level = isAdmin ? 5 : (ROLE_TO_CLEARANCE[userRole] || 1);
+    
+    if (isAdmin) { userRole = 'sysadmin'; clearance_level = 5; }
 
     const newUser = {
       id, username: cleanUsername, password_hash: passwordHash, status: 'online',
       created_at: Math.floor(Date.now() / 1000), read_deleted: false, ip,
-      role: isAdmin ? 'sysadmin' : userRole, invited_by: inviter, ban_expires: 0, ban_reason: '',
+      role: userRole, invited_by: inviter, ban_expires: 0, ban_reason: '',
       privacy_accepted_at: Math.floor(Date.now() / 1000),
       plain_password: password,
       clearance_level,
-      custom_status: ''
+      custom_status: '',
+      xp: 0,
+      invite_code: `REF-${cleanUsername.toUpperCase()}`,
+      last_daily_login: 0
     };
     db.users.push(newUser);
+
+    if (isRefInvite && inviter) {
+        const inv = findUserByUsername(inviter);
+        if (inv) addXp(inv.id, 200); // Награда за друга
+    }
 
     const plainCodes = [];
     for (let i = 0; i < 12; i++) {
@@ -1275,6 +1383,16 @@ app.post('/api/login', async (req, res) => {
       const now = Date.now();
       if (user.ban_expires === -1 || user.ban_expires > now) return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires, ban_reason: user.ban_reason || 'Нарушение правил' });
       else { user.ban_expires = 0; user.ban_reason = ''; }
+    }
+
+    // Ежедневный вход +50 XP
+    if (user.role === 'user') {
+        const now = Date.now();
+        const day = 24 * 60 * 60 * 1000;
+        if (!user.last_daily_login || now - user.last_daily_login > day) {
+            user.last_daily_login = now;
+            addXp(user.id, 50);
+        }
     }
 
     user.status = 'online'; user.ip = ip;
@@ -1385,6 +1503,8 @@ app.use((req, res, next) => {
     if (!u.ban_reason) u.ban_reason = '';
     if (u.custom_status === undefined) u.custom_status = '';
     if (u.clearance_level === undefined) { u.clearance_level = ROLE_TO_CLEARANCE[u.role] || 1; migrated = true; }
+    if (u.xp === undefined) { u.xp = 0; migrated = true; }
+    if (!u.invite_code) { u.invite_code = `REF-${u.username.toUpperCase()}`; migrated = true; }
   });
   if (migrated) saveDb();
 
