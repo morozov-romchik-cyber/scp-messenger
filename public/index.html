@@ -1050,6 +1050,9 @@ const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], c
 let currentExpiry = 0;
 let authMode = 'login';
 
+const authScreen = document.getElementById('auth');
+const chatScreen = document.getElementById('chat');
+
 const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
 const ROLE_ICON = { user: '👤', helper: '🤝', moderator: '🛡️', admin: '🔰', sysadmin: '👑' };
 const ROLE_COLOR = { user: 'var(--muted)', helper: '#00ccff', moderator: '#ffcc00', admin: '#ff9933', sysadmin: '#ffffff' };
