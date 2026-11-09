@@ -582,17 +582,21 @@
       <p>Мы используем localStorage для токена и настроек.</p>
       <h4>8. Изменения политики</h4>
       <p>Продолжая пользоваться сервисом, вы принимаете обновления.</p>
+      
+      <h4 style="color: #ff4d4d; margin-top: 15px;">9. Ответственность и мультиаккаунтинг</h4>
+      <p>Регистрация более 2-х аккаунтов с одного IP-адреса строго запрещена. Начиная с регистрации 2-го аккаунта выносится предупреждение. При регистрации 3-го аккаунта система автоматически обнуляет прогресс (XP и уровень допуска) всех связанных профилей до L1 (Класс-D). Продолжая регистрацию, вы даете безоговорочное согласие на данные действия без права обжалования.</p>
     </div>
     <button class="modal-btn" onclick="document.getElementById('privacy-modal').classList.remove('visible')">Закрыть</button>
   </div>
 </div>
 
-<div class="modal" id="scp-verify-modal" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);">
-  <div class="modal-content" style="border: 1px solid #1d9bf0; box-shadow: 0 0 30px rgba(29,155,240,0.2); text-align: center; max-width: 400px;">
-    <svg style="width: 64px; height: 64px; fill: #1d9bf0; margin: 0 auto 15px auto;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-    <h3 style="color: #1d9bf0; font-size: 20px; margin-bottom: 10px;">Официальный субъект SCP</h3>
-    <p style="font-size: 14px; color: var(--text); margin-bottom: 20px; line-height: 1.6;">Данный аккаунт является официальным представителем Фонда SCP.</p>
-    <button class="modal-btn" onclick="document.getElementById('scp-verify-modal').classList.remove('visible')" style="background: #1d9bf0; color: #fff; font-weight: bold;">ПОНЯТНО</button>
+<!-- ИСПРАВЛЕННОЕ ОКНО ВЕРИФИКАЦИИ SCP -->
+<div class="modal" id="scp-verify-modal" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 100000;">
+  <div class="modal-content" style="border: 1px solid #1d9bf0; box-shadow: 0 0 30px rgba(29,155,240,0.3); text-align: center; max-width: 400px; padding: 30px 20px; border-radius: 12px;">
+    <div style="font-size: 40px; color: #1d9bf0; margin-bottom: 15px; line-height: 1; font-family: sans-serif;">✓</div>
+    <h3 style="color: #1d9bf0; font-size: 20px; margin-bottom: 15px; border: none; padding: 0; cursor: default;">Официальный субъект SCP</h3>
+    <p style="font-size: 14px; color: var(--text); margin-bottom: 25px; line-height: 1.6;">Данный аккаунт является официальным представителем Фонда SCP.</p>
+    <button class="modal-btn" onclick="document.getElementById('scp-verify-modal').classList.remove('visible')" style="background: #1d9bf0; color: #fff; font-weight: bold; border-radius: 8px; padding: 12px;">ПОНЯТНО</button>
   </div>
 </div>
 
@@ -1542,7 +1546,12 @@ document.getElementById('a-submit').addEventListener('click', async () => {
     const data = await api(url, { method: 'POST', body: JSON.stringify({ username, password, invited_by, accepted_privacy }) });
     state.token = data.token; state.me = data.user; state.read_deleted = data.user.read_deleted || false;
     localStorage.setItem('scp_token', data.token);
+    
+    if (data.warning) {
+        alert(data.warning);
+    }
     if (authMode === 'register' && data.recoveryCodes) alert('СОХРАНИТЕ КОДЫ:\n\n' + data.recoveryCodes.join('\n'));
+    
     enterChat();
   } catch (e) { if (e.message !== 'Banned') errEl.textContent = e.message; }
   finally { btn.disabled = false; btn.textContent = orig; }
@@ -3546,6 +3555,7 @@ let wbLastX = 0, wbLastY = 0;
 let wbHistory = [];
 let currentTextInput = null;
 let wbTextAngle = 0;
+let isAddingText = false;
 let wbIsPanning = false;
 let wbStartPanX = 0, wbStartPanY = 0;
 
@@ -3688,6 +3698,7 @@ wbContainer.addEventListener('pointerleave', () => {
 });
 
 function createTextInput(x, y) {
+    isAddingText = true;
     currentTextInput = document.createElement('textarea');
     currentTextInput.className = 'wb-text-input-overlay';
     currentTextInput.style.left = x + 'px';
@@ -3703,10 +3714,15 @@ function createTextInput(x, y) {
     setTimeout(() => {
         if (currentTextInput) {
             currentTextInput.focus();
+            isAddingText = false;
         }
     }, 50);
 
-    currentTextInput.addEventListener('blur', commitTextInput);
+    currentTextInput.addEventListener('blur', () => {
+        if (!isAddingText) {
+            commitTextInput();
+        }
+    });
     
     currentTextInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
