@@ -1,8 +1,8 @@
 require('dotenv').config();
 const express = require('express');
-const https = require('https');
-const fs = require('fs');
+const http = require('http');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -12,13 +12,7 @@ const { Server } = require('socket.io');
 const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
-// Читаем сертификаты Cloudflare (файлы должны лежать рядом с server.js)
-const options = {
-  key: fs.readFileSync('./key.pem'),
-  cert: fs.readFileSync('./cert.pem')
-};
-
-const PORT = process.env.PORT || 443; // Слушаем 443 порт для HTTPS
+const PORT = process.env.PORT || 3000; // Слушаем 3000 порт, Nginx будет проксировать сюда
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://firsts3.ru').trim();
@@ -108,8 +102,8 @@ const app = express();
 // Важно для работы за Cloudflare (правильное определение IP)
 app.set('trust proxy', 1); 
 
-// Создаем HTTPS сервер
-const server = https.createServer(options, app);
+// Создаем обычный HTTP сервер
+const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 server.requestTimeout = 0; server.headersTimeout = 0; server.timeout = 0;
@@ -1558,6 +1552,6 @@ app.use((req, res, next) => {
     helperUser.role = 'sysadmin'; helperUser.clearance_level = 5; saveDb();
   }
 
-  // Запуск HTTPS сервера на 443 порту
-  server.listen(PORT, '0.0.0.0', () => { console.log(`\n⬛ SCP Foundation Messenger (HTTPS) запущен: https://localhost:${PORT}\n`); });
+  // Запуск HTTP сервера на 3000 порту
+  server.listen(PORT, '0.0.0.0', () => { console.log(`\n⬛ SCP Foundation Messenger (HTTP) запущен: http://localhost:${PORT}\n`); });
 })();
