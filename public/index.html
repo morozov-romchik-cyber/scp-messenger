@@ -373,6 +373,7 @@
     min-width: 10px;
     min-height: 1.2em;
     white-space: pre;
+    transform-origin: top left; /* Важно для поворота */
   }
 
   .wb-send-btn { background: #00ff9d; color: #000; border: none; font-weight: bold; margin-left: auto; }
@@ -526,6 +527,16 @@
         </div>
         <div class="wb-group-title">Толщина</div>
       </div>
+      
+      <!-- ДОБАВЛЕНЫ НАСТРОЙКИ ТЕКСТА (УГОЛ ПОВОРОТА) -->
+      <div class="wb-group" id="wb-text-settings" style="display: none;">
+        <div class="wb-group-content">
+          <input type="number" id="wb-text-angle" value="0" min="0" max="360" step="1" class="wb-select" style="width: 50px; text-align: center;" oninput="updateWbTextAngle(this.value)">
+          <span style="color: #fff; font-size: 12px; margin-right: 5px;">°</span>
+        </div>
+        <div class="wb-group-title">Угол</div>
+      </div>
+
       <div class="wb-group" style="margin-left: auto; border-right: none;">
         <div class="wb-group-content">
           <button class="wb-btn" onclick="undoWb()" title="Отменить"><svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>Отменить</button>
@@ -3534,7 +3545,7 @@ let wbIsDrawing = false;
 let wbLastX = 0, wbLastY = 0;
 let wbHistory = [];
 let currentTextInput = null;
-let isAddingText = false;
+let wbTextAngle = 0;
 let wbIsPanning = false;
 let wbStartPanX = 0, wbStartPanY = 0;
 
@@ -3545,7 +3556,6 @@ const wbWrapper = document.getElementById('wb-canvas-wrapper');
 const wbCoords = document.getElementById('wb-coords-panel');
 
 function initWhiteboard() {
-    // Устанавливаем фиксированный огромный размер
     wbCanvas.width = 4000;
     wbCanvas.height = 4000;
     wbCtx.lineCap = 'round';
@@ -3564,8 +3574,11 @@ window.setWbTool = function(tool) {
     document.querySelectorAll('.wb-btn[id^="wb-tool-"]').forEach(b => b.classList.remove('active'));
     document.getElementById('wb-tool-' + tool)?.classList.add('active');
     
-    if (tool !== 'text' && currentTextInput) {
-        commitTextInput();
+    if (tool === 'text') {
+        document.getElementById('wb-text-settings').style.display = 'flex';
+    } else {
+        document.getElementById('wb-text-settings').style.display = 'none';
+        if (currentTextInput) commitTextInput();
     }
     
     if (tool === 'pan') {
@@ -3579,6 +3592,13 @@ window.setWbColor = function(el) {
     wbColor = el.dataset.color;
     document.querySelectorAll('.wb-color').forEach(c => c.classList.remove('active'));
     el.classList.add('active');
+};
+
+window.updateWbTextAngle = function(val) {
+    wbTextAngle = parseInt(val) || 0;
+    if (currentTextInput) {
+        currentTextInput.style.transform = `rotate(${wbTextAngle}deg)`;
+    }
 };
 
 window.undoWb = function() {
@@ -3602,7 +3622,6 @@ wbContainer.addEventListener('pointerdown', (e) => {
     if (e.target !== wbCanvas && !e.target.classList.contains('wb-text-input-overlay')) return;
     
     const rect = wbCanvas.getBoundingClientRect();
-    // Вычисляем правильные координаты с учетом прокрутки
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
@@ -3616,7 +3635,7 @@ wbContainer.addEventListener('pointerdown', (e) => {
     }
 
     if (wbTool === 'text') {
-        e.preventDefault(); // Предотвращаем сброс фокуса браузером
+        e.preventDefault();
         if (currentTextInput) commitTextInput();
         createTextInput(x, y);
     } else if (wbTool === 'pen' || wbTool === 'eraser') {
@@ -3668,9 +3687,7 @@ wbContainer.addEventListener('pointerleave', () => {
     }
 });
 
-// ---- Логика текстового инструмента ----
 function createTextInput(x, y) {
-    isAddingText = true;
     currentTextInput = document.createElement('textarea');
     currentTextInput.className = 'wb-text-input-overlay';
     currentTextInput.style.left = x + 'px';
@@ -3679,22 +3696,17 @@ function createTextInput(x, y) {
     currentTextInput.style.fontSize = fontSize + 'px';
     currentTextInput.style.color = wbColor;
     currentTextInput.style.minHeight = (fontSize * 1.2) + 'px';
+    currentTextInput.style.transform = `rotate(${wbTextAngle}deg)`;
     
     wbContainer.appendChild(currentTextInput);
     
-    // Принудительный фокус с задержкой, чтобы браузер не "сбросил" его при клике
     setTimeout(() => {
         if (currentTextInput) {
             currentTextInput.focus();
-            isAddingText = false;
         }
     }, 50);
 
-    currentTextInput.addEventListener('blur', () => {
-        if (!isAddingText) {
-            commitTextInput();
-        }
-    });
+    currentTextInput.addEventListener('blur', commitTextInput);
     
     currentTextInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -3712,17 +3724,21 @@ function commitTextInput() {
     const fontSize = parseFloat(currentTextInput.style.fontSize);
 
     if (text) {
+        wbCtx.save();
+        wbCtx.translate(x, y);
+        wbCtx.rotate(wbTextAngle * Math.PI / 180);
+        
         wbCtx.font = `${fontSize}px 'Inter', sans-serif`;
         wbCtx.fillStyle = wbColor;
         wbCtx.textBaseline = 'top';
         
-        // Обработка многострочного текста
         const lines = text.split('\n');
         const lineHeight = fontSize * 1.2;
         lines.forEach((line, index) => {
-            wbCtx.fillText(line, x, y + (index * lineHeight));
+            wbCtx.fillText(line, 0, index * lineHeight);
         });
         
+        wbCtx.restore();
         saveWbState();
     }
 
@@ -3730,7 +3746,6 @@ function commitTextInput() {
     currentTextInput = null;
 }
 
-// При открытии модалки доски нужно обновить размеры канваса
 document.getElementById('menu-whiteboard-btn').addEventListener('click', () => {
     document.getElementById('composer-more-menu').classList.remove('visible');
     document.getElementById('whiteboard-modal').classList.add('visible');
@@ -3740,12 +3755,11 @@ document.getElementById('menu-whiteboard-btn').addEventListener('click', () => {
 window.sendWhiteboard = async function() {
     if (!state.currentChat) return alert('Чат не выбран');
     
-    // Делаем белый фон для отправки
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = wbCanvas.width;
     tempCanvas.height = wbCanvas.height;
     const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.fillStyle = '#000000'; // Черный фон, как у нас
+    tempCtx.fillStyle = '#000000';
     tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
     tempCtx.drawImage(wbCanvas, 0, 0);
     
