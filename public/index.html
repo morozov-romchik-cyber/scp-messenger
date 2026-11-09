@@ -306,6 +306,98 @@
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ========================================================= */
+  /* ОКНО ПРОСМОТРА ФАЙЛОВ (ATT-VIEWER)                        */
+  /* ========================================================= */
+  #att-viewer {
+    background: rgba(0, 0, 0, 0.3) !important; /* Легкое затемнение фона */
+    backdrop-filter: none !important; /* Убираем размытие */
+  }
+  #att-viewer .modal-content {
+    width: 400px;
+    height: auto;
+    min-height: 250px;
+    max-height: 80vh;
+    padding: 0;
+    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border-hover);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    resize: both;
+  }
+  #att-viewer .att-viewer-header {
+    padding: 12px 16px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+    user-select: none;
+  }
+  #att-viewer .att-viewer-header h3 {
+    margin: 0;
+    padding: 0;
+    border: none;
+    font-size: 14px;
+    color: var(--text);
+    cursor: move;
+  }
+  #att-viewer .att-viewer-close {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+  #att-viewer .att-viewer-close:hover {
+    color: #ff4d4d;
+  }
+  #att-viewer .att-viewer-meta {
+    padding: 8px 16px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Fira Code', monospace;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  #att-viewer .att-viewer-body {
+    flex: 1;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    background: var(--bg);
+    border-radius: 0;
+    margin: 0;
+    border: none;
+  }
+  #att-viewer .att-viewer-body img,
+  #att-viewer .att-viewer-body video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+  #att-viewer .att-viewer-nav {
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+  }
 </style>
 </head>
 <body>
@@ -806,14 +898,16 @@
   </div>
 </div>
 
-<!-- ВОЗВРАЩЕННОЕ ОКНО ПРОСМОТРА ФАЙЛОВ -->
+<!-- УЛУЧШЕННОЕ ОКНО ПРОСМОТРА ФАЙЛОВ -->
 <div class="modal" id="att-viewer">
-  <div class="modal-content" style="width: 500px; height: 500px; resize: both;">
-    <h3 id="att-viewer-title" style="cursor: move;">Файл</h3>
-    <div class="att-viewer-meta" id="att-viewer-meta" style="margin-bottom: 10px; font-size: 12px; color: var(--muted); font-family: 'Fira Code', monospace; text-align: center;"></div>
-    <div class="att-viewer-body" id="att-viewer-body" style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px;"></div>
-    <div class="att-viewer-nav" id="att-viewer-nav" style="display: flex; justify-content: center; align-items: center; gap: 15px; font-family: 'Fira Code', monospace; margin-bottom: 10px;"></div>
-    <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="closeAttViewer()">Закрыть</button>
+  <div class="modal-content">
+    <div class="att-viewer-header">
+      <h3 id="att-viewer-title" style="margin: 0; border: none; padding: 0;">Файл</h3>
+      <button class="att-viewer-close" onclick="closeAttViewer()">×</button>
+    </div>
+    <div class="att-viewer-meta" id="att-viewer-meta"></div>
+    <div class="att-viewer-body" id="att-viewer-body"></div>
+    <div class="att-viewer-nav" id="att-viewer-nav"></div>
   </div>
 </div>
 
