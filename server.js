@@ -71,37 +71,7 @@ const FILE_SIZE_LIMITS = {
 };
 
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
-
 const HELPER_ID = 'system_scp_helper_id';
-
-const BOT_START_TEXT = `[ДОСТУП РАЗРЕШЕН] ОБРАТНЫЙ ОТСЧЕТ ТЕРМИНАЛА... ГОТОВО.
-ДОБРО ПОЖАЛОВАТЬ В SCP FOUNDATION.
-Вы подключены к защищенному каналу связи локальной сети Фонда.
-• Ваш текущий статус: Персонал класса D
-• Ваш текущий уровень допуска: L1 (0 XP)
-
-📈 РЕГЛАМЕНТ ПОВЫШЕНИЯ ДОПУСКА (СИСТЕМА XP)
-
-Для получения доступа к более засекреченным материалам выполняйте протоколы активности. Начисление опыта происходит мгновенно в режиме реального времени (Live-Update) — обновление страницы терминала не требуется.
-• Ежедневная авторизация: +50 XP (один раз в сутки).
-• Текстовые рапорты: +2 XP за сообщение. Суточный лимит: 200 XP (первые 100 сообщений).
-• Одобрение коллег: +5 XP за каждую реакцию на ваши сообщения.
-• Вербовка полевых агентов: +200 XP за реферальный код. Суточный лимит: 2 активации.
-
-🎯 ИЕРАРХИЯ ДОПУСКА, ПРИВИЛЕГИИ И ТАЙМАУТЫ
-
-• L1 [0 XP]: Базовый доступ сотрудника класса D. Задержка отправки сообщений: 1 раз в 7 секунд.
-• L2 [500 XP]: Разрешено формирование оперативных групп. Лимит передачи данных: до 50 МБ. Задержка отправки сообщений: 1 раз в 5 секунд.
-• L3 [2 000 XP]: Открыт доступ к публичным информационным каналам. Лимит данных: до 200 МБ. Задержка отправки сообщений: 1 раз в 3 секунды.
-• L4 [10 000 XP]: Допуск к засекреченным каналам и спец-архивам. Лимит данных: до 1 ГБ. Задержка отправки сообщений: 1 раз в 1 секунду (режим Трекли).
-• L5 [50 000 XP]: Максимальный уровень сингулярного контроля. Лимит данных: до 10 ГБ. Отправка сообщений без ограничений.
-
-⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА СБ)
-
-Категорически запрещена регистрация нескольких учетных записей с одного IP-адреса. Система классифицирует это как саботаж внутренней сети и дюп опыта.
-• При обнаружении повторного подключения система выдает системное уведомление.
-• Внимание: С данного IP-адреса зафиксирована регистрация учетной записи. Вынесено предупреждение 1 из 2. Осталось 2 предупреждения.
-• После фиксации 3-го аккаунта на одном сетевом узле автоматическая система безопасности Фонда инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.`;
 
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -251,28 +221,6 @@ const chatIsBlocked = (chatId, myId) => {
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
-// ================= ИСЧЕЗАЮЩИЕ СООБЩЕНИЯ =================
-function scheduleMessageExpiry(messageId, expiresAt) {
-  const now = Date.now();
-  const delay = expiresAt - now;
-  if (delay <= 0) {
-    markMessageExpired(messageId);
-  } else {
-    setTimeout(() => {
-      markMessageExpired(messageId);
-    }, delay);
-  }
-}
-
-function markMessageExpired(messageId) {
-  const msg = db.messages.find(m => m.id === messageId);
-  if (msg && !msg.is_deleted) {
-    msg.is_deleted = true;
-    saveDb();
-    emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: 'system' });
-  }
-}
-
 // ================= XP SYSTEM =================
 function addXp(userId, amount) {
   const user = db.users.find(u => u.id === userId);
@@ -418,17 +366,6 @@ app.get('/api/admin/all-chats', authMiddleware, (req, res) => {
   res.json(chats);
 });
 
-app.get('/api/admin/chats/:chatId/members', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
-  const chatId = req.params.chatId;
-  const members = db.chat_members.filter(m => m.chat_id === chatId).map(m => {
-    const u = db.users.find(user => user.id === m.user_id);
-    return u ? publicUserSafe(u) : null;
-  }).filter(Boolean);
-  res.json(members);
-});
-
 app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
@@ -479,6 +416,7 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
+// АДМИНСКИЕ ИНВАЙТЫ (НЕ ТРОГАЕМ)
 app.post('/api/admin/generate-invite', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me) return res.status(403).json({ error: 'Доступ запрещён' });
@@ -783,13 +721,6 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     db.chats.push(helperChat);
     db.chat_members.push({ id: genId(), chat_id: helperChatId, user_id: req.userId });
     db.chat_members.push({ id: genId(), chat_id: helperChatId, user_id: HELPER_ID });
-
-    // ДОБАВЛЯЕМ ПРИВЕТСТВЕННОЕ СООБЩЕНИЕ ОТ БОТА ПРИ СОЗДАНИИ
-    db.messages.push({
-        id: genId(), chat_id: helperChatId, sender_id: HELPER_ID,
-        text: BOT_START_TEXT, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
-    });
-
     saveDb();
     myChatIds.push(helperChatId);
   } else {
@@ -1104,6 +1035,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
+  // Начисление XP за сообщение (лимит 100 XP в день)
   if (me.role === 'user') {
       const today = new Date().toDateString();
       if (!me.last_msg_xp_date || me.last_msg_xp_date !== today) {
@@ -1130,27 +1062,44 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   db.messages.push(msg);
   saveDb();
 
-  // === BOT LOGIC START ===
-  const chatMembers = db.chat_members.filter(cm => cm.chat_id === chatId);
-  const isHelperChat = !chatForCheck.is_group && chatMembers.some(cm => cm.user_id === HELPER_ID);
-  if (isHelperChat && text.trim().toLowerCase() === '/start') {
-      const botMsg = {
-          id: genId(), chat_id: chatId, sender_id: HELPER_ID, text: BOT_START_TEXT,
-          created_at: Math.floor(Date.now() / 1000) + 1, // Добавляем секунду, чтобы бот отвечал после
-          is_deleted: false, delivered_to: [], read_by: []
-      };
-      db.messages.push(botMsg);
-      saveDb();
-      
-      const botPayload = buildMessagePayload(botMsg);
-      emitToChatMembers(chatId, 'newMessage', botPayload);
-  }
-  // === BOT LOGIC END ===
-
   if (expiresAt) scheduleMessageExpiry(msgId, expiresAt);
 
   const payload = buildMessagePayload(msg);
   emitToChatMembers(chatId, 'newMessage', payload);
+
+  // ================= БОТ ЛОГИКА (SCP_Helper) =================
+  const isHelperChat = !chatForCheck.is_group && db.chat_members.some(m => m.chat_id === chatId && m.user_id === HELPER_ID);
+  if (isHelperChat && me.id !== HELPER_ID) {
+      const cmd = text.trim().toLowerCase();
+      let botReplyText = '';
+
+      if (cmd.startsWith('/start')) {
+          botReplyText = `👋 Привет, агент **${me.display_name || me.username}**!\n\nДобро пожаловать в SCP Foundation. Я ваш личный помощник.\n\nВот что я умею:\n- /help — список команд\n- /profile — посмотреть ваш профиль\n- /clearance — узнать свой уровень допуска\n\nПомните: Фонд следит за вами.`;
+      } else if (cmd.startsWith('/help')) {
+          botReplyText = `📋 **Доступные команды:**\n/start — перезапустить меня\n/profile — ваша статистика\n/clearance — ваш уровень допуска\n/help — это сообщение\n\nЕсли вам нужна помощь с системой, обратитесь к администрации.`;
+      } else if (cmd.startsWith('/profile')) {
+          const u = me;
+          botReplyText = `👤 **Ваш профиль:**\nЛогин: @${u.username}\nОтображаемое имя: ${u.display_name || 'Не задано'}\nРоль: ${ROLE_LABEL[u.role] || u.role}\nУровень допуска: L${u.clearance_level || 1} (${u.xp || 0} XP)`;
+      } else if (cmd.startsWith('/clearance')) {
+          const u = me;
+          const lvl = u.clearance_level || 1;
+          const name = {1: 'Класс-D', 2: 'Научный сотрудник', 3: 'Старший исследователь', 4: 'Руководитель Зоны', 5: 'Совет О5'}[lvl];
+          botReplyText = `🔐 **Ваш уровень допуска:** L${lvl} — ${name}\n\nВаш текущий XP: ${u.xp || 0}. Продолжайте общаться, чтобы повысить уровень!`;
+      }
+
+      if (botReplyText) {
+          setTimeout(() => {
+              const botMsg = {
+                  id: genId(), chat_id: chatId, sender_id: HELPER_ID, text: botReplyText,
+                  created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [me.id], read_by: []
+              };
+              db.messages.push(botMsg);
+              saveDb();
+              emitToChatMembers(chatId, 'newMessage', buildMessagePayload(botMsg));
+          }, 1000); // Задержка 1 сек для реалистичности
+      }
+  }
+
   res.json(payload);
 });
 
@@ -1527,7 +1476,7 @@ io.on('connection', (socket) => {
   } catch (e) {}
 });
 
-// ================= ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК (ТОЛЬКО В САМОМ КОНЦЕ) =================
+// ================= ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК =================
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'API route not found' });
