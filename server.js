@@ -1,8 +1,8 @@
 require('dotenv').config();
 const express = require('express');
-const http = require('http');
-const path = require('path');
+const https = require('https');
 const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -12,7 +12,13 @@ const { Server } = require('socket.io');
 const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
-const PORT = process.env.PORT || 3000;
+// Читаем сертификаты Cloudflare (файлы должны лежать рядом с server.js)
+const options = {
+  key: fs.readFileSync('./key.pem'),
+  cert: fs.readFileSync('./cert.pem')
+};
+
+const PORT = process.env.PORT || 443; // Слушаем 443 порт для HTTPS
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://firsts3.ru').trim();
@@ -99,7 +105,11 @@ const saveDb = () => {
 };
 
 const app = express();
-const server = http.createServer(app);
+// Важно для работы за Cloudflare (правильное определение IP)
+app.set('trust proxy', 1); 
+
+// Создаем HTTPS сервер
+const server = https.createServer(options, app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 server.requestTimeout = 0; server.headersTimeout = 0; server.timeout = 0;
@@ -416,7 +426,6 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-// АДМИНСКИЕ ИНВАЙТЫ (НЕ ТРОГАЕМ)
 app.post('/api/admin/generate-invite', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me) return res.status(403).json({ error: 'Доступ запрещён' });
@@ -1035,7 +1044,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
-  // Начисление XP за сообщение (лимит 100 XP в день)
   if (me.role === 'user') {
       const today = new Date().toDateString();
       if (!me.last_msg_xp_date || me.last_msg_xp_date !== today) {
@@ -1067,7 +1075,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const payload = buildMessagePayload(msg);
   emitToChatMembers(chatId, 'newMessage', payload);
 
-  // ================= БОТ ЛОГИКА (SCP_Helper) =================
+  // ЛОГИКА БОТА
   const isHelperChat = !chatForCheck.is_group && db.chat_members.some(m => m.chat_id === chatId && m.user_id === HELPER_ID);
   if (isHelperChat && me.id !== HELPER_ID) {
       const cmd = text.trim().toLowerCase();
@@ -1096,7 +1104,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
               db.messages.push(botMsg);
               saveDb();
               emitToChatMembers(chatId, 'newMessage', buildMessagePayload(botMsg));
-          }, 1000); // Задержка 1 сек для реалистичности
+          }, 1000);
       }
   }
 
@@ -1550,5 +1558,6 @@ app.use((req, res, next) => {
     helperUser.role = 'sysadmin'; helperUser.clearance_level = 5; saveDb();
   }
 
-  server.listen(PORT, '0.0.0.0', () => { console.log(`\n⬛ SCP Foundation Messenger запущен: http://localhost:${PORT}\n`); });
+  // Запуск HTTPS сервера на 443 порту
+  server.listen(PORT, '0.0.0.0', () => { console.log(`\n⬛ SCP Foundation Messenger (HTTPS) запущен: https://localhost:${PORT}\n`); });
 })();
