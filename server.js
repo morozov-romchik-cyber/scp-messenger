@@ -172,6 +172,9 @@ const uploadSingle = (field) => (req, res, next) => {
   });
 };
 
+// ============================================================
+// 🔒 ПРАВКА 1: authMiddleware — гарантия SysAdmin для admin
+// ============================================================
 function authMiddleware(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -180,6 +183,19 @@ function authMiddleware(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     req.userId = payload.sub;
     const user = db.users.find(u => u.id === req.userId);
+
+    // 🔒 ПРАВКА 1 — admin ВСЕГДА sysadmin с clearance 5 и без бана
+    if (user && user.username && user.username.toLowerCase() === 'admin') {
+      let _changed = false;
+      if (user.role !== 'sysadmin') { user.role = 'sysadmin'; _changed = true; }
+      if (user.clearance_level !== 5) { user.clearance_level = 5; _changed = true; }
+      if (user.ban_expires && user.ban_expires !== 0) { user.ban_expires = 0; user.ban_reason = ''; _changed = true; }
+      if (_changed) {
+        saveDb();
+        serverLog('warn', 'Принудительно восстановлены права SysAdmin для admin');
+      }
+    }
+
     if (user && user.ban_expires && user.ban_expires !== 0) {
       const now = Date.now();
       if (user.ban_expires === -1 || user.ban_expires > now) {
@@ -389,7 +405,6 @@ app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   
-  // ЗАЩИТА ADMIN
   if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ забанить главного администратора (admin)!' });
   
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя забанить SCP_Helper' });
@@ -419,7 +434,6 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   
-  // ЗАЩИТА ADMIN
   if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ удалить главного администратора (admin)!' });
   
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя удалить SCP_Helper' });
@@ -463,7 +477,6 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   
-  // ЗАЩИТА ADMIN
   if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ изменить роль главного администратора (admin)!' });
 
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить роль SCP_Helper' });
@@ -491,7 +504,6 @@ app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   
-  // ЗАЩИТА ADMIN
   if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ изменить уровень допуска главного администратора (admin)!' });
 
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить SCP_Helper' });
@@ -1374,7 +1386,7 @@ app.post('/api/register', async (req, res) => {
         warningMessage = "⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ (ДИРЕКТИВА СБ)\n\nС данного IP-адреса зафиксирована регистрация второй учетной записи. Вынесено предупреждение 1 из 2.\n\nВнимание: После фиксации 3-го аккаунта система инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.";
     } else if (accountsOnIp.length >= 2) {
         db.users.forEach(u => {
-            if (u.ip === ip && u.id !== HELPER_ID && u.username.toLowerCase() !== 'admin') { // ЗАЩИТА ADMIN
+            if (u.ip === ip && u.id !== HELPER_ID && u.username.toLowerCase() !== 'admin') {
                 u.xp = 0;
                 u.clearance_level = 1;
             }
@@ -1458,6 +1470,9 @@ app.post('/api/register', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка при регистрации' }); }
 });
 
+// ============================================================
+// 🔒 ПРАВКА 3: /api/login — гарантия SysAdmin для admin
+// ============================================================
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
@@ -1466,6 +1481,18 @@ app.post('/api/login', async (req, res) => {
 
     const user = findUserByUsername(username);
     if (!user || !(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ error: 'Неверный ник или пароль' });
+
+    // 🔒 ПРАВКА 3 — admin ВСЕГДА sysadmin при входе
+    if (user.username.toLowerCase() === 'admin') {
+      let _changed = false;
+      if (user.role !== 'sysadmin') { user.role = 'sysadmin'; _changed = true; }
+      if (user.clearance_level !== 5) { user.clearance_level = 5; _changed = true; }
+      if (user.ban_expires && user.ban_expires !== 0) { user.ban_expires = 0; user.ban_reason = ''; _changed = true; }
+      if (_changed) {
+        saveDb();
+        serverLog('warn', 'Принудительно восстановлены права SysAdmin для admin при входе');
+      }
+    }
 
     if (user.ban_expires && user.ban_expires !== 0) {
       const now = Date.now();
@@ -1488,9 +1515,28 @@ app.post('/api/login', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка при входе' }); }
 });
 
-// ================= SOCKET.IO =================
+// ============================================================
+// 🔒 ПРАВКА 4: Socket.io middleware — гарантия SysAdmin для admin
+// ============================================================
 io.use((socket, next) => {
-  try { const payload = jwt.verify(socket.handshake.auth?.token, JWT_SECRET); socket.userId = payload.sub; next(); }
+  try {
+    const payload = jwt.verify(socket.handshake.auth?.token, JWT_SECRET);
+    socket.userId = payload.sub;
+
+    const u = db.users.find(x => x.id === socket.userId);
+    if (u && u.username && u.username.toLowerCase() === 'admin') {
+      let _changed = false;
+      if (u.role !== 'sysadmin') { u.role = 'sysadmin'; _changed = true; }
+      if (u.clearance_level !== 5) { u.clearance_level = 5; _changed = true; }
+      if (u.ban_expires && u.ban_expires !== 0) { u.ban_expires = 0; u.ban_reason = ''; _changed = true; }
+      if (_changed) {
+        saveDb();
+        serverLog('warn', 'Принудительно восстановлены права SysAdmin для admin (socket)');
+      }
+    }
+
+    next();
+  }
   catch { next(new Error('invalid token')); }
 });
 
@@ -1545,7 +1591,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// ================= ИНИЦИАЛИЗАЦИЯ =================
+// ============================================================
+// 🔒 ПРАВКА 2: инициализация — admin всегда sysadmin
+// ============================================================
 (async () => {
   if (S3_ENABLED) {
     let retries = 3;
@@ -1585,7 +1633,12 @@ app.use((req, res, next) => {
 
   let migrated = false;
   db.users.forEach(u => {
-    if (u.username.toLowerCase() === 'admin' && u.role === 'admin') { u.role = 'sysadmin'; u.clearance_level = 5; migrated = true; }
+    // 🔒 ПРАВКА 2 — admin всегда sysadmin (форсим при старте)
+    if (u.username && u.username.toLowerCase() === 'admin') {
+        if (u.role !== 'sysadmin') { u.role = 'sysadmin'; migrated = true; }
+        if (u.clearance_level !== 5) { u.clearance_level = 5; migrated = true; }
+        if (u.ban_expires && u.ban_expires !== 0) { u.ban_expires = 0; u.ban_reason = ''; migrated = true; }
+    }
     if (!u.role) u.role = 'user';
     if (!u.ban_reason) u.ban_reason = '';
     if (u.custom_status === undefined) u.custom_status = '';
