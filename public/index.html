@@ -337,10 +337,34 @@
   .wb-color:hover { transform: scale(1.1); }
   .wb-color.active { border-color: #fff; }
   .wb-select { background: #3d3d3d; border: 1px solid #555; color: #fff; border-radius: 4px; padding: 4px; font-size: 12px; outline: none; }
-  .wb-canvas-wrapper { flex: 1; background: #000; border-radius: 8px; position: relative; overflow: hidden; }
-  #wb-canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; cursor: crosshair; }
-  #wb-canvas { width: 100%; height: 100%; touch-action: none; }
-  #wb-preview-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  
+  /* ОБНОВЛЕННЫЕ СТИЛИ ДЛЯ ХОЛСТА */
+  .wb-canvas-wrapper { 
+    flex: 1; background: #000; border-radius: 8px; 
+    position: relative; overflow-y: auto; overflow-x: hidden; 
+    border: 1px solid #333;
+  }
+  #wb-canvas-container { width: 100%; position: relative; }
+  #wb-canvas { display: block; width: 100%; touch-action: none; background: #000; }
+  
+  /* Поле ввода текста */
+  .wb-text-input-overlay {
+    position: absolute;
+    background: rgba(0,0,0,0.5);
+    border: 1px dashed #00ff9d;
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    padding: 0; margin: 0;
+    line-height: 1.2;
+    z-index: 10;
+    min-width: 10px;
+    min-height: 1em;
+    white-space: pre;
+  }
+
   .wb-send-btn { background: #00ff9d; color: #000; border: none; font-weight: bold; margin-left: auto; }
   .wb-close-btn { background: #ff4d4d; border: none; }
   #wb-coords-panel { position: absolute; bottom: 15px; right: 20px; font-family: 'Fira Code'; font-size: 11px; color: rgba(255,255,255,0.5); background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; pointer-events: none; z-index: 10; }
@@ -349,8 +373,8 @@
   /* ОКНО ПРОСМОТРА ФАЙЛОВ (ATT-VIEWER)                        */
   /* ========================================================= */
   #att-viewer {
-    background: rgba(0, 0, 0, 0.3) !important; /* Легкое затемнение фона */
-    backdrop-filter: none !important; /* Убираем размытие */
+    background: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: none !important;
   }
   #att-viewer .modal-content {
     width: 400px;
@@ -466,6 +490,7 @@
         <div class="wb-group-content">
           <button class="wb-btn active" id="wb-tool-pen" onclick="setWbTool('pen')" title="Кисть"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>Кисть</button>
           <button class="wb-btn" id="wb-tool-eraser" onclick="setWbTool('eraser')" title="Ластик"><svg viewBox="0 0 24 24"><path d="M16.24 3.56l4.2 4.2c.78.78.78 2.05 0 2.83L12 19H6.5l-2.93-2.93c-.78-.78-.78-2.05 0-2.83L14.83 2.5c.78-.78 2.05-.78 2.83 0l-1.42 1.06zM4.83 14.83l2.83 2.83H12l4.24-4.24-4.24-4.24-7.17 7.17z"/></svg>Ластик</button>
+          <button class="wb-btn" id="wb-tool-text" onclick="setWbTool('text')" title="Текст"><svg viewBox="0 0 24 24"><path d="M9 4v3h5v12h3V7h5V4H9zm-2 16h2v-2H7v2zm0-4h2v-2H7v2zm0-4h2v-2H7v2zm0-4h2V6H7v2z"/></svg>Текст</button>
         </div>
         <div class="wb-group-title">Инструменты</div>
       </div>
@@ -1650,7 +1675,6 @@ let isDraggingModal = false, dragModalOffsetX = 0, dragModalOffsetY = 0, activeM
 document.addEventListener('mousedown', (e) => {
     const content = e.target.closest('.modal-content');
     if (!content) return;
-    // ИСПРАВЛЕНИЕ: Добавлен att-viewer-header для перетаскивания окна файлов
     if (e.target.tagName === 'H3' || e.target.closest('h3') || e.target.closest('.att-viewer-header')) {
         activeModal = content;
         isDraggingModal = true;
@@ -3498,6 +3522,7 @@ let wbLineWidth = 4;
 let wbIsDrawing = false;
 let wbLastX = 0, wbLastY = 0;
 let wbHistory = [];
+let currentTextInput = null;
 
 const wbCanvas = document.getElementById('wb-canvas');
 const wbCtx = wbCanvas.getContext('2d');
@@ -3507,21 +3532,27 @@ const wbCoords = document.getElementById('wb-coords-panel');
 function initWhiteboard() {
     const rect = wbContainer.getBoundingClientRect();
     wbCanvas.width = rect.width;
-    wbCanvas.height = rect.height;
+    // Устанавливаем начальную высоту (бесконечный холст)
+    wbCanvas.height = 3000;
+    wbCanvas.style.height = '3000px';
     wbCtx.lineCap = 'round';
     wbCtx.lineJoin = 'round';
+    wbHistory = [];
     saveWbState();
 }
 
 function saveWbState() {
     if (wbHistory.length > 20) wbHistory.shift();
-    wbHistory.push(wbCanvas.toDataURL());
+    wbHistory.push({ img: wbCanvas.toDataURL(), height: wbCanvas.height });
 }
 
 window.setWbTool = function(tool) {
     wbTool = tool;
     document.querySelectorAll('.wb-btn[id^="wb-tool-"]').forEach(b => b.classList.remove('active'));
     document.getElementById('wb-tool-' + tool)?.classList.add('active');
+    if (tool !== 'text' && currentTextInput) {
+        commitTextInput();
+    }
 };
 
 window.setWbColor = function(el) {
@@ -3532,11 +3563,13 @@ window.setWbColor = function(el) {
 
 window.undoWb = function() {
     if (wbHistory.length <= 1) return;
-    wbHistory.pop(); // Удаляем текущее состояние
-    const prevState = wbHistory[wbHistory.length - 1];
+    wbHistory.pop(); 
+    const prev = wbHistory[wbHistory.length - 1];
     const img = new Image();
-    img.src = prevState;
+    img.src = prev.img;
     img.onload = () => {
+        wbCanvas.height = prev.height;
+        wbCanvas.style.height = prev.height + 'px';
         wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
         wbCtx.drawImage(img, 0, 0);
     };
@@ -3547,13 +3580,29 @@ window.clearWb = function() {
     saveWbState();
 };
 
+// Расширение холста при прокрутке вниз
+document.querySelector('.wb-canvas-wrapper').addEventListener('scroll', function() {
+    if (this.scrollTop + this.clientHeight >= wbCanvas.height - 200) {
+        const oldHeight = wbCanvas.height;
+        wbCanvas.height += 1000;
+        wbCanvas.style.height = wbCanvas.height + 'px';
+        saveWbState();
+    }
+});
+
 wbContainer.addEventListener('pointerdown', (e) => {
     if (e.target !== wbCanvas) return;
-    wbIsDrawing = true;
     const rect = wbCanvas.getBoundingClientRect();
-    wbLastX = e.clientX - rect.left;
-    wbLastY = e.clientY - rect.top;
-    if (wbTool === 'pen' || wbTool === 'eraser') {
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (wbTool === 'text') {
+        if (currentTextInput) commitTextInput();
+        createTextInput(x, y);
+    } else if (wbTool === 'pen' || wbTool === 'eraser') {
+        wbIsDrawing = true;
+        wbLastX = x;
+        wbLastY = y;
         wbCtx.beginPath();
         wbCtx.moveTo(wbLastX, wbLastY);
     }
@@ -3588,6 +3637,47 @@ wbContainer.addEventListener('pointerleave', () => {
         saveWbState();
     }
 });
+
+// ---- Логика текстового инструмента ----
+function createTextInput(x, y) {
+    currentTextInput = document.createElement('textarea');
+    currentTextInput.className = 'wb-text-input-overlay';
+    currentTextInput.style.left = x + 'px';
+    currentTextInput.style.top = y + 'px';
+    const fontSize = wbLineWidth * 4; 
+    currentTextInput.style.fontSize = fontSize + 'px';
+    currentTextInput.style.color = wbColor;
+    
+    wbContainer.appendChild(currentTextInput);
+    currentTextInput.focus();
+
+    currentTextInput.addEventListener('blur', commitTextInput);
+    currentTextInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            commitTextInput();
+        }
+    });
+}
+
+function commitTextInput() {
+    if (!currentTextInput) return;
+    const text = currentTextInput.value.trim();
+    const x = parseFloat(currentTextInput.style.left);
+    const y = parseFloat(currentTextInput.style.top);
+    const fontSize = parseFloat(currentTextInput.style.fontSize);
+
+    if (text) {
+        wbCtx.font = `${fontSize}px 'Inter', sans-serif`;
+        wbCtx.fillStyle = wbColor;
+        wbCtx.textBaseline = 'top';
+        wbCtx.fillText(text, x, y);
+        saveWbState();
+    }
+
+    currentTextInput.remove();
+    currentTextInput = null;
+}
 
 // При открытии модалки доски нужно обновить размеры канваса
 document.getElementById('menu-whiteboard-btn').addEventListener('click', () => {
