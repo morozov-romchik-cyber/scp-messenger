@@ -12,7 +12,7 @@ const { Server } = require('socket.io');
 const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
-const PORT = process.env.PORT || 3000; // Слушаем 3000 порт (Nginx/Cloudflare проксируют сюда)
+const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://firsts3.ru').trim();
@@ -388,6 +388,10 @@ app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   const { username, duration, reason } = req.body;
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
+  
+  // ЗАЩИТА ADMIN
+  if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ забанить главного администратора (admin)!' });
+  
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя забанить SCP_Helper' });
   if (target.role === 'sysadmin') return res.status(403).json({ error: 'НЕЛЬЗЯ забанить системного администратора (SysAdmin)!' });
   if (target.role === 'admin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может банить админов' });
@@ -414,6 +418,10 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   const { username } = req.body;
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
+  
+  // ЗАЩИТА ADMIN
+  if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ удалить главного администратора (admin)!' });
+  
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя удалить SCP_Helper' });
   if (target.role === 'sysadmin') return res.status(400).json({ error: 'Нельзя удалить SysAdmin' });
   if (target.role === 'admin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может удалять админов' });
@@ -454,6 +462,10 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   if (!CLEARANCE_TO_ROLE[ROLE_TO_CLEARANCE[role]]) return res.status(400).json({ error: 'Неизвестная роль' });
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
+  
+  // ЗАЩИТА ADMIN
+  if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ изменить роль главного администратора (admin)!' });
+
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить роль SCP_Helper' });
   if (target.id === me.id) return res.status(400).json({ error: 'Нельзя изменить свою роль' });
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role];
@@ -478,6 +490,10 @@ app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   if (!CLEARANCE_RANK[level]) return res.status(400).json({ error: 'Уровень допуска должен быть от 1 до 5' });
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
+  
+  // ЗАЩИТА ADMIN
+  if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ изменить уровень допуска главного администратора (admin)!' });
+
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить SCP_Helper' });
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role];
   if (level >= myClearance && me.role !== 'sysadmin') return res.status(403).json({ error: 'Вы можете назначать только уровень ниже вашего' });
@@ -1081,7 +1097,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const payload = buildMessagePayload(msg);
   emitToChatMembers(chatId, 'newMessage', payload);
 
-  // ЛОГИКА БОТА
   const isHelperChat = !chatForCheck.is_group && db.chat_members.some(m => m.chat_id === chatId && m.user_id === HELPER_ID);
   if (isHelperChat && me.id !== HELPER_ID) {
       const cmd = text.trim().toLowerCase();
@@ -1352,16 +1367,14 @@ app.post('/api/register', async (req, res) => {
     const ip = getRealIp(req);
     if (db.banned_ips.includes(ip)) return res.status(403).json({ error: 'Ваш IP заблокирован' });
 
-    // ПРОВЕРКА НА МУЛЬТИАККАУНТЫ
     const accountsOnIp = db.users.filter(u => u.ip === ip && u.id !== HELPER_ID);
     let warningMessage = null;
 
     if (accountsOnIp.length === 1) {
         warningMessage = "⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ (ДИРЕКТИВА СБ)\n\nС данного IP-адреса зафиксирована регистрация второй учетной записи. Вынесено предупреждение 1 из 2.\n\nВнимание: После фиксации 3-го аккаунта система инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.";
     } else if (accountsOnIp.length >= 2) {
-        // Обнуляем все аккаунты с этого IP
         db.users.forEach(u => {
-            if (u.ip === ip && u.id !== HELPER_ID) {
+            if (u.ip === ip && u.id !== HELPER_ID && u.username.toLowerCase() !== 'admin') { // ЗАЩИТА ADMIN
                 u.xp = 0;
                 u.clearance_level = 1;
             }
