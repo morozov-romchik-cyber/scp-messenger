@@ -12,7 +12,7 @@ const { Server } = require('socket.io');
 const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
-const PORT = process.env.PORT || 3000; // Слушаем 3000 порт, Nginx будет проксировать сюда
+const PORT = process.env.PORT || 3000; // Слушаем 3000 порт (Nginx/Cloudflare проксируют сюда)
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://firsts3.ru').trim();
@@ -99,10 +99,8 @@ const saveDb = () => {
 };
 
 const app = express();
-// Важно для работы за Cloudflare (правильное определение IP)
 app.set('trust proxy', 1); 
 
-// Создаем обычный HTTP сервер
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
@@ -224,6 +222,20 @@ const chatIsBlocked = (chatId, myId) => {
   if (!otherId || otherId === HELPER_ID) return false;
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
+
+function scheduleMessageExpiry(msgId, expiresAt) {
+  const delay = expiresAt - Date.now();
+  if (delay > 0) {
+    setTimeout(() => {
+      const msg = db.messages.find(m => m.id === msgId);
+      if (msg && !msg.is_deleted) {
+        msg.is_deleted = true;
+        saveDb();
+        emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all' });
+      }
+    }, delay);
+  }
+}
 
 // ================= XP SYSTEM =================
 function addXp(userId, amount) {
@@ -1076,9 +1088,9 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       let botReplyText = '';
 
       if (cmd.startsWith('/start')) {
-          botReplyText = `👋 Привет, агент **${me.display_name || me.username}**!\n\nДобро пожаловать в SCP Foundation. Я ваш личный помощник.\n\nВот что я умею:\n- /help — список команд\n- /profile — посмотреть ваш профиль\n- /clearance — узнать свой уровень допуска\n\nПомните: Фонд следит за вами.`;
+          botReplyText = `👋 Привет, агент **${me.display_name || me.username}**!\n\nДобро пожаловать в SCP Foundation. Я ваш личный помощник.\n\nВот что я умею:\n- /help — список команд\n- /profile — посмотреть ваш профиль\n- /clearance — узнать свой уровень допуска\n- /info — регламент и правила\n\nПомните: Фонд следит за вами.`;
       } else if (cmd.startsWith('/help')) {
-          botReplyText = `📋 **Доступные команды:**\n/start — перезапустить меня\n/profile — ваша статистика\n/clearance — ваш уровень допуска\n/help — это сообщение\n\nЕсли вам нужна помощь с системой, обратитесь к администрации.`;
+          botReplyText = `📋 **Доступные команды:**\n/start — перезапустить меня\n/profile — ваша статистика\n/clearance — ваш уровень допуска\n/info — подробная информация о системе\n/help — это сообщение`;
       } else if (cmd.startsWith('/profile')) {
           const u = me;
           botReplyText = `👤 **Ваш профиль:**\nЛогин: @${u.username}\nОтображаемое имя: ${u.display_name || 'Не задано'}\nРоль: ${ROLE_LABEL[u.role] || u.role}\nУровень допуска: L${u.clearance_level || 1} (${u.xp || 0} XP)`;
@@ -1087,6 +1099,8 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
           const lvl = u.clearance_level || 1;
           const name = {1: 'Класс-D', 2: 'Научный сотрудник', 3: 'Старший исследователь', 4: 'Руководитель Зоны', 5: 'Совет О5'}[lvl];
           botReplyText = `🔐 **Ваш уровень допуска:** L${lvl} — ${name}\n\nВаш текущий XP: ${u.xp || 0}. Продолжайте общаться, чтобы повысить уровень!`;
+      } else if (cmd.startsWith('/info')) {
+          botReplyText = `[ДОСТУП РАЗРЕШЕН] ОБРАТНЫЙ ОТСЧЕТ ТЕРМИНАЛА... ГОТОВО.\nДОБРО ПОЖАЛОВАТЬ В SCP FOUNDATION.\nВы подключены к защищенному каналу связи локальной сети Фонда.\n• Ваш текущий статус: Персонал класса D\n• Ваш текущий уровень допуска: L1 (0 XP)\n\n📈 РЕГЛАМЕНТ ПОВЫШЕНИЯ ДОПУСКА (СИСТЕМА XP)\nДля получения доступа к более засекреченным материалам выполняйте протоколы активности. Начисление опыта происходит мгновенно в режиме реального времени (Live-Update) — обновление страницы терминала не требуется.\n• Ежедневная авторизация: +50 XP (один раз в сутки).\n• Текстовые рапорты: +2 XP за сообщение. Суточный лимит: 200 XP (первые 100 сообщений).\n• Одобрение коллег: +5 XP за каждую реакцию на ваши сообщения.\n• Вербовка полевых агентов: +200 XP за реферальный код. Суточный лимит: 2 активации.\n\n🎯 ИЕРАРХИЯ ДОПУСКА, ПРИВИЛЕГИИ И ТАЙМАУТЫ\n• L1 [0 XP]: Базовый доступ сотрудника класса D. Задержка отправки сообщений: 1 раз в 7 секунд.\n• L2 [500 XP]: Разрешено формирование оперативных групп. Лимит передачи данных: до 50 МБ. Задержка отправки сообщений: 1 раз в 5 секунд.\n• L3 [2 000 XP]: Открыт доступ к публичным информационным каналам. Лимит данных: до 200 МБ. Задержка отправки сообщений: 1 раз в 3 секунды.\n• L4 [10 000 XP]: Допуск к засекреченным каналам и спец-архивам. Лимит данных: до 1 ГБ. Задержка отправки сообщений: 1 раз в 1 секунду (режим Трекли).\n• L5 [50 000 XP]: Максимальный уровень сингулярного контроля. Лимит данных: до 10 ГБ. Отправка сообщений без ограничений.\n\n⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА СБ)\nКатегорически запрещена регистрация нескольких учетных записей с одного IP-адреса. Система классифицирует это как саботаж внутренней сети и дюп опыта.\n• При обнаружении повторного подключения система выдает системное уведомление.\n• Внимание: С данного IP-адреса зафиксирована регистрация учетной записи. Вынесено предупреждение 1 из 2.\n• После фиксации 3-го аккаунта на одном сетевом узле автоматическая система безопасности Фонда инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.`;
       }
 
       if (botReplyText) {
@@ -1338,6 +1352,23 @@ app.post('/api/register', async (req, res) => {
     const ip = getRealIp(req);
     if (db.banned_ips.includes(ip)) return res.status(403).json({ error: 'Ваш IP заблокирован' });
 
+    // ПРОВЕРКА НА МУЛЬТИАККАУНТЫ
+    const accountsOnIp = db.users.filter(u => u.ip === ip && u.id !== HELPER_ID);
+    let warningMessage = null;
+
+    if (accountsOnIp.length === 1) {
+        warningMessage = "⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ (ДИРЕКТИВА СБ)\n\nС данного IP-адреса зафиксирована регистрация второй учетной записи. Вынесено предупреждение 1 из 2.\n\nВнимание: После фиксации 3-го аккаунта система инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.";
+    } else if (accountsOnIp.length >= 2) {
+        // Обнуляем все аккаунты с этого IP
+        db.users.forEach(u => {
+            if (u.ip === ip && u.id !== HELPER_ID) {
+                u.xp = 0;
+                u.clearance_level = 1;
+            }
+        });
+        warningMessage = "🚨 КРИТИЧЕСКОЕ НАРУШЕНИЕ БЕЗОПАСНОСТИ!\n\nЗафиксирована регистрация 3-го аккаунта с одного IP-адреса.\n\nВСЕ СВЯЗАННЫЕ ПРОФИЛИ ОБНУЛЕНЫ до статуса Класса-D (L1 и 0 XP) без права обжалования.";
+    }
+
     let userRole = 'user';
     let clearance_level = 1;
     let inviter = null;
@@ -1382,6 +1413,20 @@ app.post('/api/register', async (req, res) => {
     };
     db.users.push(newUser);
 
+    if (warningMessage) {
+        let helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
+        db.chats.push(helperChat);
+        db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: id });
+        db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: HELPER_ID });
+
+        const sysMsg = {
+            id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID,
+            text: warningMessage,
+            created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [id], read_by: []
+        };
+        db.messages.push(sysMsg);
+    }
+
     if (isRefInvite && inviter) {
         const inv = findUserByUsername(inviter);
         if (inv) addXp(inv.id, 200);
@@ -1395,7 +1440,8 @@ app.post('/api/register', async (req, res) => {
       db.recovery_codes.push({ id: genId(), user_id: id, code_hash: hash, used_at: null });
     }
     saveDb(); io.emit('refreshData');
-    res.json({ token: signToken(id), user: publicUser(newUser), recoveryCodes: plainCodes });
+    
+    res.json({ token: signToken(id), user: publicUser(newUser), recoveryCodes: plainCodes, warning: warningMessage });
   } catch (e) { res.status(500).json({ error: 'Ошибка при регистрации' }); }
 });
 
@@ -1552,6 +1598,5 @@ app.use((req, res, next) => {
     helperUser.role = 'sysadmin'; helperUser.clearance_level = 5; saveDb();
   }
 
-  // Запуск HTTP сервера на 3000 порту
   server.listen(PORT, '0.0.0.0', () => { console.log(`\n⬛ SCP Foundation Messenger (HTTP) запущен: http://localhost:${PORT}\n`); });
 })();
