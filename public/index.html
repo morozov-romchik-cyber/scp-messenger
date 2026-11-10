@@ -2071,6 +2071,45 @@ lightbox.addEventListener('pointermove', (e) => {
   updateLightboxTransform();
 });
 lightbox.addEventListener('pointerup', () => { lbIsDragging = false; });
+lightbox.addEventListener('pointercancel', () => { lbIsDragging = false; });
+
+// ---- PINCH TO ZOOM ДЛЯ МОБИЛЬНЫХ ----
+let initialPinchDistance = null;
+let initialScale = 1;
+let pinching = false;
+
+lightbox.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+        pinching = true;
+        lbIsDragging = false;
+        initialPinchDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialScale = lbScale;
+    }
+}, { passive: true });
+
+lightbox.addEventListener('touchmove', (e) => {
+    if (pinching && e.touches.length === 2) {
+        e.preventDefault();
+        const currentDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        if (initialPinchDistance > 0) {
+            lbScale = Math.max(0.1, Math.min(initialScale * (currentDistance / initialPinchDistance), 10));
+            updateLightboxTransform();
+        }
+    }
+}, { passive: false });
+
+lightbox.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) {
+        pinching = false;
+        initialPinchDistance = null;
+    }
+});
 
 // ================= AUTH =================
 document.getElementById('tab-login').addEventListener('click', () => {
@@ -4149,9 +4188,10 @@ function connectSocket() {
   // ТАЙПИНГ И ЗАПИСЬ
   state.socket.on('userTyping', ({ chatId }) => {
     if (!state.currentChat || state.currentChat.id !== chatId) return;
+    const ti = document.getElementById('typing-indicator');
+    if (ti.textContent.includes('записывает')) return; // Не перебиваем запись
     const c = state.chats.find(x => x.id === chatId);
     const n = c ? c.name : 'Собеседник';
-    const ti = document.getElementById('typing-indicator');
     ti.textContent = `${n} печатает…`;
     ti.style.display = 'block';
     ti.style.color = '#00ff9d';
@@ -4159,6 +4199,7 @@ function connectSocket() {
   state.socket.on('userStopTyping', ({ chatId }) => {
     if (!state.currentChat || state.currentChat.id !== chatId) return;
     const ti = document.getElementById('typing-indicator');
+    if (ti.textContent.includes('записывает')) return; // Не скрываем запись
     ti.textContent = '';
     ti.style.display = 'none';
   });
