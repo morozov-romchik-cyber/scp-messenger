@@ -207,7 +207,8 @@
       border-radius: 24px;
       margin-top: 6px;
       min-width: 180px;
-      max-width: 100%;
+      max-width: 100%; /* Исправлено обрезание */
+      box-sizing: border-box;
       user-select: none;
   }
   .voice-play-btn {
@@ -722,6 +723,15 @@
   </div>
 </div>
 
+<div class="modal" id="pinned-list-modal">
+  <div class="modal-content" style="width: 450px;">
+    <h3>📌 ЗАКРЕПЛЕННЫЕ СООБЩЕНИЯ</h3>
+    <div id="pinned-list-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;"></div>
+    <button class="modal-btn" onclick="unpinSelectedMessages()" style="background: #ff4d4d; color: #fff; margin-bottom: 8px;">Открепить выбранные</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('pinned-list-modal').classList.remove('visible')">Закрыть</button>
+  </div>
+</div>
+
 <div class="modal" id="admin-dashboard-modal">
   <div class="modal-content">
     <div class="admin-sidebar">
@@ -1173,6 +1183,7 @@
     <div id="pinned-banner" onclick="cyclePin()">
       <span class="pin-icon">📌</span>
       <span class="pin-text" id="pinned-text">Закрепленное сообщение (0/0)</span>
+      <button class="unpin-btn" onclick="event.stopPropagation(); openPinnedListModal()" title="Все закрепленные" style="color: #fff;">⋮</button>
       <button class="unpin-btn" onclick="event.stopPropagation(); unpinCurrentMsg()" title="Открепить">✖</button>
     </div>
 
@@ -1184,6 +1195,15 @@
     <div class="file-progress" id="file-progress">
       <span id="file-progress-text">⏳ Загрузка... 0%</span>
       <button id="cancel-upload-btn" type="button">Отмена</button>
+    </div>
+
+    <div id="recording-ui" style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid #ff4d4d; border-radius: 20px; padding: 10px 20px; align-items: center; gap: 15px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+      <div style="width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; animation: pulseRed 1s infinite;"></div>
+      <span id="rec-timer" style="font-family: 'Fira Code'; font-weight: bold; color: #fff;">0:00</span>
+      <div style="width: 100px; height: 6px; background: #333; border-radius: 3px; overflow: hidden;">
+          <div id="rec-volume-bar" style="height: 100%; width: 0%; background: #00ff9d; transition: width 0.1s;"></div>
+      </div>
+      <button id="rec-cancel-btn" style="background: transparent; border: none; color: #ff4d4d; font-weight: bold; cursor: pointer;">Отмена</button>
     </div>
 
     <div id="reply-bar">
@@ -1266,6 +1286,14 @@ let notifVolume = parseFloat(localStorage.getItem('scp_notif_volume') || '0.5');
 let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
+let isCancelled = false;
+let recTimerInterval;
+let recStartTime;
+let audioContext;
+let analyser;
+let dataArray;
+let recStream;
+let currentExpiryTimeout;
 
 function clearanceBadge(level) {
   const lvl = level || 1;
@@ -1496,38 +1524,82 @@ document.getElementById('mic-btn').addEventListener('click', async () => {
     const micBtn = document.getElementById('mic-btn');
     if (isRecording) {
         mediaRecorder.stop();
-        micBtn.classList.remove('recording');
-        isRecording = false;
         return;
     }
     
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 
                          MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 
-                         MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 
-                         '';
-        mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+                         MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+        mediaRecorder = mimeType ? new MediaRecorder(recStream, { mimeType }) : new MediaRecorder(recStream);
         audioChunks = [];
         
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(recStream);
+        source.connect(analyser);
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+
         mediaRecorder.ondataavailable = e => {
             if (e.data.size > 0) audioChunks.push(e.data);
         };
         
         mediaRecorder.onstop = () => {
+            if (recStream) recStream.getTracks().forEach(track => track.stop());
+            if (audioContext) audioContext.close();
+            clearInterval(recTimerInterval);
+            document.getElementById('recording-ui').style.display = 'none';
+            micBtn.classList.remove('recording');
+            isRecording = false;
+
+            if (isCancelled) { isCancelled = false; return; }
+
             const actualMime = mediaRecorder.mimeType || 'audio/webm';
             const ext = actualMime.includes('mp4') ? 'm4a' : 'webm';
             const audioBlob = new Blob(audioChunks, { type: actualMime });
             const file = new File([audioBlob], `voice_${Date.now()}.${ext}`, { type: actualMime });
             uploadFilesWithProgress([file], '', true);
-            stream.getTracks().forEach(track => track.stop());
         };
         
         mediaRecorder.start();
         micBtn.classList.add('recording');
         isRecording = true;
+        isCancelled = false;
+
+        document.getElementById('recording-ui').style.display = 'flex';
+        recStartTime = Date.now();
+        document.getElementById('rec-timer').textContent = '0:00';
+        document.getElementById('rec-volume-bar').style.width = '0%';
+
+        recTimerInterval = setInterval(() => {
+            const diff = Math.floor((Date.now() - recStartTime) / 1000);
+            const m = Math.floor(diff / 60);
+            const s = diff % 60;
+            document.getElementById('rec-timer').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+            
+            analyser.getByteTimeDomainData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                const x = (dataArray[i] - 128) / 128;
+                sum += x * x;
+            }
+            const rms = Math.sqrt(sum / bufferLength);
+            const vol = Math.min(100, Math.max(0, rms * 300));
+            document.getElementById('rec-volume-bar').style.width = vol + '%';
+        }, 100);
+
     } catch (err) {
         alert('Нет доступа к микрофону или произошла ошибка: ' + err.message);
+    }
+});
+
+document.getElementById('rec-cancel-btn').addEventListener('click', () => {
+    isCancelled = true;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
     }
 });
 
@@ -1602,6 +1674,39 @@ window.unpinCurrentMsg = async function() {
     } catch(e) { alert(e.message); }
 };
 
+window.openPinnedListModal = function() {
+    if (!state.visiblePinnedMessages || state.visiblePinnedMessages.length === 0) return;
+    const container = document.getElementById('pinned-list-container');
+    container.innerHTML = state.visiblePinnedMessages.map(p => {
+        const msgEl = document.getElementById('msg-' + p.messageId);
+        let text = 'Сообщение не загружено';
+        if (msgEl) {
+            const m = msgEl.querySelector('.msg');
+            if (m) {
+                // Убираем лишние элементы для читаемости
+                const clone = m.cloneNode(true);
+                const toRemove = clone.querySelectorAll('.msg-footer, .msg-reactions, .msg-editor, .voice-player, img, video');
+                toRemove.forEach(el => el.remove());
+                text = clone.innerText.trim().substring(0, 50) || 'Вложение';
+            }
+        }
+        return `<label style="display: flex; align-items: flex-start; gap: 8px; background: var(--card); padding: 10px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer;">
+            <input type="checkbox" class="unpin-checkbox" value="${p.messageId}" style="margin-top: 2px;">
+            <span style="font-size: 13px; color: var(--text);">${esc(text)}...</span>
+        </label>`;
+    }).join('');
+    document.getElementById('pinned-list-modal').classList.add('visible');
+};
+
+window.unpinSelectedMessages = async function() {
+    const checkboxes = document.querySelectorAll('.unpin-checkbox:checked');
+    if (checkboxes.length === 0) return alert('Выберите сообщения');
+    for (const cb of checkboxes) {
+        await api(`/chats/${state.currentChat.id}/unpin`, { method: 'POST', body: JSON.stringify({ messageId: cb.value }) });
+    }
+    document.getElementById('pinned-list-modal').classList.remove('visible');
+};
+
 window.cyclePin = function() {
     if (!state.visiblePinnedMessages || state.visiblePinnedMessages.length === 0) return;
     state.currentPinnedIndex = (state.currentPinnedIndex + 1) % state.visiblePinnedMessages.length;
@@ -1656,6 +1761,14 @@ window.ctxTogglePin = function() {
     const chatId = menu.dataset.chatId;
     if (chatId) togglePinChat(chatId);
     menu.classList.remove('visible');
+};
+
+window.togglePinChat = async function(chatId) {
+    try {
+        const res = await api('/users/pin-chat', { method: 'POST', body: JSON.stringify({ chatId }) });
+        state.me.pinned_chats = res.pinned_chats;
+        renderChatList();
+    } catch (e) { alert(e.message); }
 };
 
 window.ctxToggleFav = function() {
@@ -3284,6 +3397,15 @@ function appendMessage(msg, scroll = true) {
     pressTimer = setTimeout(() => { pressTimer = null; openMsgActions(msg); if (navigator.vibrate) navigator.vibrate(50); }, 1000);
   };
   const cancelPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+  
+  msgDiv.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (msg.is_deleted) return;
+      if (isSelectionMode) return;
+      if (['IMG','VIDEO','AUDIO','A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip, .reply-quote, .msg-reaction, .scp-card, .poll-container, .voice-play-btn, .voice-progress-wrapper')) return;
+      openMsgActions(msg);
+  });
+  
   msgDiv.addEventListener('mousedown', startPress);
   msgDiv.addEventListener('mouseup', cancelPress);
   msgDiv.addEventListener('mouseleave', cancelPress);
