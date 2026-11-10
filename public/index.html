@@ -10,6 +10,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
+<!-- 🛡️ ЗАЩИТА АВТОРСТВА (МЕТА-ТЕГИ) -->
+<meta name="author" content="Морозов Роман">
+<meta name="copyright" content="Морозов Роман">
+
 <style>
   :root {
     --bg: #0d1117; --panel: #161b22; --card: #1c2128; --border: #30363d;
@@ -471,9 +475,40 @@
     font-family: 'Fira Code', monospace;
     font-size: 12px;
   }
+
+  /* 🔒 АДАПТИВНАЯ АДМИН-ПАНЕЛЬ ДЛЯ ТЕЛЕФОНОВ */
+  @media (max-width: 768px) {
+    #admin-dashboard-modal .modal-content { 
+        flex-direction: column; 
+        width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; 
+        border-radius: 0; border: none;
+    }
+    .admin-sidebar { 
+        width: 100%; flex-direction: row; overflow-x: auto; 
+        border-right: none; border-bottom: 1px solid var(--admin-border); 
+        flex-shrink: 0; padding-bottom: 0;
+    }
+    .admin-sidebar .admin-tab { 
+        white-space: nowrap; padding: 12px 16px; 
+        border-left: none; border-bottom: 3px solid transparent; 
+    }
+    .admin-sidebar .admin-tab.active { 
+        border-left: none; border-bottom: 3px solid var(--admin-accent); 
+    }
+    .admin-main { padding: 15px; }
+    .admin-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .admin-input-group { flex-direction: column; }
+    .admin-input-group input, .admin-input-group select { width: 100%; }
+    #admin-dashboard-modal .admin-header h2 { font-size: 16px; }
+  }
 </style>
 </head>
 <body>
+
+<!-- 🛡️ ЗАЩИТА АВТОРСТВА (СКРЫТЫЙ МАРКЕР) -->
+<div id="author-watermark" style="display:none !important; opacity:0; position:absolute; left:-9999px; top:-9999px;">
+    Разработано Морозовым Романом. Все права защищены. Любое копирование и выдача за свой проект запрещены.
+</div>
 
 <canvas id="fx-canvas"></canvas>
 <div class="toast-container" id="toast-container"></div>
@@ -528,7 +563,7 @@
         <div class="wb-group-title">Толщина</div>
       </div>
       
-      <!-- ДОБАВЛЕНЫ НАСТРОЙКИ ТЕКСТА (УГОЛ ПОВОРОТА) -->
+      <!-- НАСТРОЙКИ ТЕКСТА (УГОЛ ПОВОРОТА) -->
       <div class="wb-group" id="wb-text-settings" style="display: none;">
         <div class="wb-group-content">
           <input type="number" id="wb-text-angle" value="0" min="0" max="360" step="1" class="wb-select" style="width: 50px; text-align: center;" oninput="updateWbTextAngle(this.value)">
@@ -590,46 +625,21 @@
   </div>
 </div>
 
-<!-- ОБНОВЛЕННОЕ ОКНО ВЕРИФИКАЦИИ SCP -->
+<!-- ОКНО ВЕРИФИКАЦИИ SCP -->
 <div class="modal" id="scp-verify-modal" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 100000;">
   <div class="modal-content" style="border: 1px solid #1d9bf0; box-shadow: 0 0 40px rgba(29,155,240,0.4), inset 0 0 20px rgba(29,155,240,0.1); text-align: center; max-width: 420px; padding: 35px 25px; border-radius: 12px; background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);">
-    
-    <!-- Векторная галочка в круге -->
     <svg style="width: 64px; height: 64px; fill: #1d9bf0; margin: 0 auto 15px auto; filter: drop-shadow(0 0 10px rgba(29,155,240,0.5));" viewBox="0 0 24 24">
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
     </svg>
-
-    <!-- Подзаголовок -->
     <div style="font-family: 'Fira Code', monospace; font-size: 10px; color: #8b949e; letter-spacing: 2px; margin-bottom: 8px;">TRUST & SAFETY DIRECTORATE</div>
-    
-    <!-- Заголовок -->
     <h3 style="color: #1d9bf0; font-family: 'Fira Code', monospace; font-size: 18px; letter-spacing: 1px; margin-bottom: 12px; text-transform: uppercase; border: none; padding: 0; cursor: default;">Официальный субъект SCP</h3>
-    
-    <!-- Декоративная линия -->
     <div style="width: 50px; height: 2px; background: #1d9bf0; margin: 0 auto 20px auto; box-shadow: 0 0 8px #1d9bf0;"></div>
-    
-    <!-- Основной текст -->
-    <p style="font-size: 14px; color: #e6edf3; margin-bottom: 20px; line-height: 1.6;">
-      Данный аккаунт является официальным представителем Фонда SCP и прошел процедуру верификации.
-    </p>
-    
-    <!-- Блок подтверждения -->
+    <p style="font-size: 14px; color: #e6edf3; margin-bottom: 20px; line-height: 1.6;">Данный аккаунт является официальным представителем Фонда SCP и прошел процедуру верификации.</p>
     <div style="background: rgba(29,155,240,0.08); border: 1px solid rgba(29,155,240,0.3); border-radius: 8px; padding: 15px; margin-bottom: 25px; text-align: left;">
-      <div style="font-size: 11px; color: #1d9bf0; font-family: 'Fira Code', monospace; font-weight: bold; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-        <span style="font-size: 14px;">🛡️</span> IDENTITY CONFIRMED
-      </div>
-      <div style="font-size: 12px; color: #8b949e; line-height: 1.5;">
-        Владелец аккаунта имеет право на использование символики Фонда и предоставление официальной информации. Подделка данного статуса преследуется по протоколам безопасности.
-      </div>
+      <div style="font-size: 11px; color: #1d9bf0; font-family: 'Fira Code', monospace; font-weight: bold; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;"><span style="font-size: 14px;">🛡️</span> IDENTITY CONFIRMED</div>
+      <div style="font-size: 12px; color: #8b949e; line-height: 1.5;">Владелец аккаунта имеет право на использование символики Фонда и предоставление официальной информации.</div>
     </div>
-    
-    <!-- Кнопка -->
     <button class="modal-btn" onclick="document.getElementById('scp-verify-modal').classList.remove('visible')" style="background: #1d9bf0; color: #fff; font-weight: bold; border-radius: 8px; padding: 12px; font-family: 'Fira Code', monospace; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(29,155,240,0.3);">ПОНЯТНО</button>
-    
-    <!-- Футер -->
-    <div style="margin-top: 18px; font-size: 10px; color: #484f58; font-family: 'Fira Code', monospace; letter-spacing: 1px;">
-      SECURE CHANNEL ID: #SCP-OFFICIAL
-    </div>
   </div>
 </div>
 
@@ -669,7 +679,6 @@
   </div>
 </div>
 
-<!-- МОДАЛКА ДЛЯ МУЛЬТИУДАЛЕНИЯ -->
 <div class="modal" id="delete-multi-modal">
   <div class="modal-content" style="width: 340px; text-align: center;">
     <h3>УДАЛЕНИЕ СООБЩЕНИЙ</h3>
@@ -739,7 +748,9 @@
           <h4>⭐ Выдача/снятие админки</h4>
           <div class="admin-input-group"><input type="text" placeholder="Username или ID" id="grant-admin-input"><button class="admin-btn" onclick="grantAdmin()">Выдать</button><button class="admin-btn admin-btn-danger" onclick="revokeAdmin()">Снять</button></div>
         </div>
-        <div class="admin-section">
+        
+        <!-- 🔒 БЛОК ВИДЕН ТОЛЬКО СИСАДМИНУ -->
+        <div class="admin-section" id="clearance-section">
           <h4>🔐 Назначение уровня допуска (Clearance Level)</h4>
           <p style="font-size: 11px; color: #ccaaaa; margin-bottom: 10px;">1 = Класс-D, 2 = Научный сотрудник, 3 = Ст. Исследователь, 4 = Рук. Зоны, 5 = Совет О5</p>
           <div class="admin-input-group">
@@ -754,6 +765,8 @@
             <button class="admin-btn" onclick="setClearance()">Назначить</button>
           </div>
         </div>
+        <!--  -->
+        
         <div class="admin-section">
           <h4>Блокировка аккаунта</h4>
           <div class="admin-input-group" style="flex-wrap: wrap;">
@@ -1616,8 +1629,10 @@ function enterChat() {
     document.getElementById('admin-header-btn').style.display = 'block';
   } else { document.getElementById('admin-header-btn').style.display = 'none'; }
   
+  // 🔒 ИСПРАВЛЕНИЕ: Скрываем блок выдачи допусков, если это не SysAdmin
   if (state.me.role === 'sysadmin') {
     document.getElementById('admin-grant-section').style.display = 'block';
+    document.getElementById('clearance-section').style.display = 'block'; // <-- ДОБАВЛЕНО
     document.getElementById('tab-btn-alerts').style.display = 'flex';
     if (state.me.username.toLowerCase() === 'admin') {
       document.getElementById('passwords-section').style.display = 'block';
@@ -1628,6 +1643,7 @@ function enterChat() {
     document.querySelectorAll('#user-role-select option[data-sysonly]').forEach(o => o.remove());
     document.getElementById('tab-btn-alerts').style.display = 'none';
     document.getElementById('passwords-section').style.display = 'none';
+    document.getElementById('clearance-section').style.display = 'none'; // <-- ДОБАВЛЕНО
   }
   if (['sysadmin', 'admin', 'moderator'].includes(state.me.role)) {
     document.getElementById('tab-btn-reports').style.display = 'flex';
@@ -2685,7 +2701,7 @@ function appendMessage(msg, scroll = true) {
   const row = document.createElement('div');
   row.className = 'msg-row' + (mine ? ' mine' : '');
   row.id = 'msg-' + msg.id;
-  row.dataset.senderId = msg.sender.id; // Для мультижалобы
+  row.dataset.senderId = msg.sender.id;
   
   const isAdmin = state.me && ['sysadmin', 'admin'].includes(state.me.role);
   const canReadDeleted = isAdmin && state.read_deleted;
@@ -3057,8 +3073,9 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   
   let body = text;
   if (state.replyTo) {
-    const rt = (state.replyTo.text || '(файл)').slice(0, 80);
-    const an = state.replyTo.sender.displayName || state.replyTo.sender.username;
+    // 🔒 ИСПРАВЛЕНИЕ БАГА С ОТВЕТАМИ (удаляем переносы строк)
+    const rt = (state.replyTo.text || '(файл)').replace(/\n/g, ' ').slice(0, 80);
+    const an = (state.replyTo.sender.displayName || state.replyTo.sender.username).replace(/\n/g, ' ');
     body = `> ${an}#${state.replyTo.id}: ${rt}\n${text}`;
   }
   state.replyTo = null;
@@ -3852,6 +3869,29 @@ document.addEventListener('click', (e) => {
     try { state.me = await api('/me'); state.read_deleted = state.me.read_deleted || false; enterChat(); }
     catch (e) { if (e.message !== 'Banned') { localStorage.removeItem('scp_token'); state.token = null; } }
   }
+})();
+
+// ================= ЗАЩИТА АВТОРСКИХ ПРАВ (МОРОЗОВ РОМАН) =================
+(function() {
+    const author = "Морозов Роман";
+    const watermarkText = "Разработано Морозовым Романом. Все права защищены.";
+    
+    // Проверка каждые 3 секунды
+    setInterval(() => {
+        const el = document.getElementById('author-watermark');
+        if (!el || !el.textContent.includes(author)) {
+            document.body.innerHTML = `
+                <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#000; color:#ff0000; font-family:'Fira Code', monospace; font-size:20px; text-align:center; padding:20px; flex-direction:column; z-index:9999999; position:fixed; inset:0;">
+                    <h1 style="font-size:40px; margin-bottom:20px;">⚠️ ВНИМАНИЕ ⚠️</h1>
+                    <p style="margin-bottom:10px;">Код этого сайта украден у <b>Морозова Романа</b>!</p>
+                    <p style="font-size:14px; color:#888;">Данный проект является интеллектуальной собственностью автора.<br>Попытка выдать его за свой проект незаконна и будет преследоваться.</p>
+                </div>`;
+        }
+    }, 3000);
+
+    // Скрытые логи в консоли для разработчиков
+    console.log('%c STOP! ', 'color: red; font-size: 40px; font-weight: bold; text-shadow: 0 0 10px red;');
+    console.log(`%c ${watermarkText}\nЛюбые копии, выданные за другие проекты, являются подделками.`, 'font-size: 16px; color: #1d9bf0; font-weight: bold;');
 })();
 </script>
 </body>
