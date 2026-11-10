@@ -1750,6 +1750,17 @@ io.on('connection', (socket) => {
       db.chat_members.filter(m => m.chat_id === chatId && m.user_id !== socket.userId)
         .forEach(m => io.to(`user:${m.user_id}`).emit('userStopTyping', { chatId, userId: socket.userId }));
     });
+    
+    // ИНДИКАТОР ЗАПИСИ ГОЛОСОВОГО
+    socket.on('recording', ({ chatId }) => {
+      if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === socket.userId)) return;
+      db.chat_members.filter(m => m.chat_id === chatId && m.user_id !== socket.userId)
+        .forEach(m => io.to(`user:${m.user_id}`).emit('userRecording', { chatId, userId: socket.userId }));
+    });
+    socket.on('stopRecording', ({ chatId }) => {
+      db.chat_members.filter(m => m.chat_id === chatId && m.user_id !== socket.userId)
+        .forEach(m => io.to(`user:${m.user_id}`).emit('userStopRecording', { chatId, userId: socket.userId }));
+    });
 
     const myChatIds = db.chat_members.filter(cm => cm.user_id === socket.userId).map(cm => cm.chat_id);
     let changed = false;
