@@ -1234,6 +1234,8 @@ app.post('/api/messages/:messageId/vote', authMiddleware, (req, res) => {
     res.json({ ok: true, poll: msg.poll });
 });
 
+const messageCooldowns = {};
+
 app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
@@ -1254,8 +1256,19 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
     }
   }
 
+  // ПРОВЕРКА КУЛДАУНА
+  const cooldowns = {1: 4000, 2: 3000, 3: 2000, 4: 1000, 5: 0};
+  const cd = cooldowns[myClearance] || 4000;
+  const nowCheck = Date.now();
+  if (myClearance < 5 && messageCooldowns[req.userId] && nowCheck - messageCooldowns[req.userId] < cd) {
+      const remaining = Math.ceil((cd - (nowCheck - messageCooldowns[req.userId])) / 1000);
+      return res.status(429).json({ error: `Кулдаун L${myClearance}: подождите ${remaining} сек.` });
+  }
+
   const { text, expires_in } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
+
+  messageCooldowns[req.userId] = Date.now();
 
   if (me.role === 'user') {
       const today = new Date().toDateString();
@@ -1263,7 +1276,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
           me.last_msg_xp_date = today;
           me.daily_msg_xp = 0;
       }
-      if (me.daily_msg_xp < 100) {
+      if (me.daily_msg_xp < 200) {
           me.daily_msg_xp += 2;
           addXp(me.id, 2);
       }
@@ -1309,15 +1322,20 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       const cmd = text.trim().toLowerCase();
       let botReplyText = '';
       if (cmd.startsWith('/start')) {
-          botReplyText = `👋 Привет, агент **${me.display_name || me.username}**!\n\nДобро пожаловать в SCP Foundation. Я ваш личный помощник.\n\nВот что я умею:\n- /help — список команд\n- /profile — посмотреть ваш профиль\n- /clearance — узнать свой уровень допуска\n\nПомните: Фонд следит за вами.`;
+          botReplyText = `👋 Привет, агент **${me.display_name || me.username}**!\n\nДобро пожаловать в SCP Foundation. Я ваш личный помощник.\n\nВот что я умею:\n- /help — список команд\n- /profile — посмотреть ваш профиль\n- /clearance — узнать свой уровень допуска\n- /info — полная информация о терминале и системе\n\nПомните: Фонд следит за вами.`;
       } else if (cmd.startsWith('/help')) {
-          botReplyText = `📋 **Доступные команды:**\n/start — перезапустить меня\n/profile — ваша статистика\n/clearance — ваш уровень допуска\n/help — это сообщение`;
+          botReplyText = `📋 **Доступные команды:**\n/start — перезапустить меня\n/profile — ваша статистика\n/clearance — ваш уровень допуска\n/info — подробная информация о системе\n/help — это сообщение`;
       } else if (cmd.startsWith('/profile')) {
           botReplyText = `👤 **Ваш профиль:**\nЛогин: @${me.username}\nРоль: ${ROLE_LABEL[me.role] || me.role}\nУровень: L${me.clearance_level || 1} (${me.xp || 0} XP)`;
       } else if (cmd.startsWith('/clearance')) {
           const lvl = me.clearance_level || 1;
           const name = {1: 'Класс-D', 2: 'Научный сотрудник', 3: 'Старший исследователь', 4: 'Руководитель Зоны', 5: 'Совет О5'}[lvl];
           botReplyText = `🔐 **Ваш уровень допуска:** L${lvl} — ${name}\n\nВаш XP: ${me.xp || 0}.`;
+      } else if (cmd.startsWith('/info')) {
+          const lvl = me.clearance_level || 1;
+          const clearanceNames = {1: 'Персонал класса D', 2: 'Научный сотрудник', 3: 'Старший исследователь', 4: 'Руководитель Зоны', 5: 'Совет О5'};
+          const clearanceLabel = clearanceNames[lvl] || 'Персонал класса D';
+          botReplyText = `[ДОСТУП РАЗРЕШЕН] ОБРАТНЫЙ ОТСЧЕТ ТЕРМИНАЛА... ГОТОВО.\nДОБРО ПОЖАЛОВАТЬ В SCP FOUNDATION.\nВы подключены к защищенному каналу связи локальной сети Фонда.\n• Ваш текущий статус: ${clearanceLabel}\n• Ваш текущий уровень допуска: L${lvl} (${me.xp || 0} XP)\n\n📈 РЕГЛАМЕНТ ПОВЫШЕНИЯ ДОПУСКА (СИСТЕМА XP)\n\nДля получения доступа к более засекреченным материалам выполняйте протоколы активности. Начисление опыта происходит мгновенно в режиме реального времени (Live-Update) — обновление страницы терминала не требуется.\n• Ежедневная авторизация: +50 XP (один раз в сутки).\n• Текстовые рапорты: +2 XP за сообщение. Суточный лимит: 200 XP (первые 100 сообщений).\n• Одобрение коллег: +5 XP за каждую реакцию на ваши сообщения.\n• Вербовка полевых агентов: +200 XP за реферальный код. Суточный лимит: 2 активации.\n\n🎯 ИЕРАРХИЯ ДОПУСКА, ПРИВИЛЕГИИ И ТАЙМАУТЫ\n\n• L1 [0 XP]: Базовый доступ сотрудника класса D. Задержка отправки сообщений: 1 раз в 4 секунд.\n• L2 [500 XP]: Разрешено формирование оперативных групп. Лимит передачи данных: до 50 МБ. Задержка отправки сообщений: 1 раз в 3 секунд.\n• L3 [2 000 XP]: Открыт доступ к публичным информационным каналам. Лимит данных: до 200 МБ. Задержка отправки сообщений: 1 раз в 2 секунды.\n• L4 [10 000 XP]: Допуск к засекреченным каналам и спец-архивам. Лимит данных: до 1 ГБ. Задержка отправки сообщений: 1 раз в 1 секунду (режим Трекли).\n• L5 [50 000 XP]: Максимальный уровень сингулярного контроля. Лимит данных: до 10 ГБ. Отправка сообщений без ограничений.\n\n⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА СБ)\n\nКатегорически запрещена регистрация нескольких учетных записей с одного IP-адреса. Система классифицирует это как саботаж внутренней сети и дюп опыта.\n• При обнаружении повторного подключения система выдает системное уведомление.\n• Внимание: С данного IP-адреса зафиксирована регистрация учетной записи. Вынесено предупреждение 1 из 2. Осталось 2 предупреждения.\n• После фиксации 3-го аккаунта на одном сетевом узле автоматическая система безопасности Фонда инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.`;
       }
       if (botReplyText) {
           setTimeout(() => {
