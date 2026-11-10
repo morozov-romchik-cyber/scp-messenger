@@ -101,6 +101,12 @@ const saveDb = () => {
 const app = express();
 app.set('trust proxy', 1); 
 
+// 🛡️ ЗАЩИТА АВТОРСТВА НА УРОВНЕ СЕРВЕРА
+app.use((req, res, next) => {
+  res.setHeader('X-Powered-By', 'Morozov Roman');
+  next();
+});
+
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
@@ -172,9 +178,6 @@ const uploadSingle = (field) => (req, res, next) => {
   });
 };
 
-// ============================================================
-// 🔒 ПРАВКА 1: authMiddleware — гарантия SysAdmin для admin
-// ============================================================
 function authMiddleware(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -184,7 +187,7 @@ function authMiddleware(req, res, next) {
     req.userId = payload.sub;
     const user = db.users.find(u => u.id === req.userId);
 
-    // 🔒 ПРАВКА 1 — admin ВСЕГДА sysadmin с clearance 5 и без бана
+    // 🔒 admin ВСЕГДА sysadmin с clearance 5 и без бана
     if (user && user.username && user.username.toLowerCase() === 'admin') {
       let _changed = false;
       if (user.role !== 'sysadmin') { user.role = 'sysadmin'; _changed = true; }
@@ -398,6 +401,18 @@ app.get('/api/admin/all-chats', authMiddleware, (req, res) => {
   res.json(chats);
 });
 
+// 🔒 ИСПРАВЛЕНИЕ БАГА "API route not found" (Просмотр участников из админки)
+app.get('/api/admin/chats/:chatId/members', authMiddleware, (req, res) => {
+  const me = db.users.find(u => u.id === req.userId);
+  if (!me || !['sysadmin', 'admin', 'moderator', 'helper'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  const chatId = req.params.chatId;
+  const members = db.chat_members.filter(m => m.chat_id === chatId).map(m => {
+    const u = db.users.find(user => user.id === m.user_id);
+    return u ? publicUserSafe(u) : null;
+  }).filter(Boolean);
+  res.json(members);
+});
+
 app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
@@ -495,9 +510,15 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
+// 🔒 ИСПРАВЛЕНИЕ: Изменять уровень допуска может ТОЛЬКО Сисадмин
 app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  
+  // Строгая проверка: только sysadmin имеет право менять уровни допуска
+  if (!me || me.role !== 'sysadmin') {
+      return res.status(403).json({ error: 'Только Системный Администратор (SysAdmin) может изменять уровни допуска' });
+  }
+  
   const { username, clearance_level } = req.body;
   const level = Number(clearance_level);
   if (!CLEARANCE_RANK[level]) return res.status(400).json({ error: 'Уровень допуска должен быть от 1 до 5' });
@@ -507,9 +528,11 @@ app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ изменить уровень допуска главного администратора (admin)!' });
 
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить SCP_Helper' });
-  const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role];
-  if (level >= myClearance && me.role !== 'sysadmin') return res.status(403).json({ error: 'Вы можете назначать только уровень ниже вашего' });
-  if (level === 5 && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может назначать Level 5' });
+  
+  // Админ и ниже больше не могут назначать Level 5 (Совет О5)
+  if (level === 5 && me.role !== 'sysadmin') {
+      return res.status(403).json({ error: 'Только SysAdmin может назначать Level 5 (Совет О5)' });
+  }
   
   target.clearance_level = level;
   if (level === 5 && ['helper', 'moderator', 'admin', 'sysadmin'].includes(target.role)) {
@@ -1470,9 +1493,6 @@ app.post('/api/register', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка при регистрации' }); }
 });
 
-// ============================================================
-// 🔒 ПРАВКА 3: /api/login — гарантия SysAdmin для admin
-// ============================================================
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
@@ -1482,7 +1502,7 @@ app.post('/api/login', async (req, res) => {
     const user = findUserByUsername(username);
     if (!user || !(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ error: 'Неверный ник или пароль' });
 
-    // 🔒 ПРАВКА 3 — admin ВСЕГДА sysadmin при входе
+    // 🔒 admin ВСЕГДА sysadmin при входе
     if (user.username.toLowerCase() === 'admin') {
       let _changed = false;
       if (user.role !== 'sysadmin') { user.role = 'sysadmin'; _changed = true; }
@@ -1515,9 +1535,6 @@ app.post('/api/login', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка при входе' }); }
 });
 
-// ============================================================
-// 🔒 ПРАВКА 4: Socket.io middleware — гарантия SysAdmin для admin
-// ============================================================
 io.use((socket, next) => {
   try {
     const payload = jwt.verify(socket.handshake.auth?.token, JWT_SECRET);
@@ -1591,9 +1608,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// ============================================================
-// 🔒 ПРАВКА 2: инициализация — admin всегда sysadmin
-// ============================================================
 (async () => {
   if (S3_ENABLED) {
     let retries = 3;
@@ -1633,7 +1647,7 @@ app.use((req, res, next) => {
 
   let migrated = false;
   db.users.forEach(u => {
-    // 🔒 ПРАВКА 2 — admin всегда sysadmin (форсим при старте)
+    // 🔒 admin всегда sysadmin (форсим при старте)
     if (u.username && u.username.toLowerCase() === 'admin') {
         if (u.role !== 'sysadmin') { u.role = 'sysadmin'; migrated = true; }
         if (u.clearance_level !== 5) { u.clearance_level = 5; migrated = true; }
