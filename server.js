@@ -72,12 +72,13 @@ const FILE_SIZE_LIMITS = {
 
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
 const HELPER_ID = 'system_scp_helper_id';
+const BANNED_WORDS = ['побег', 'нарушение условий содержания', 'свобода', 'сбежать'];
 
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const DB_FILE = path.join(__dirname, 'scp-db.json');
-let db = { users: [], recovery_codes: [], chats: [], chat_members: [], messages: [], attachments: [], blocks: [], banned_ips: [], invite_codes: [], reports: [] };
+let db = { users: [], recovery_codes: [], chats: [], chat_members: [], messages: [], attachments: [], blocks: [], banned_ips: [], invite_codes: [], reports: [], audit_logs: [] };
 
 let isS3Syncing = false;
 let pendingS3Sync = false;
@@ -96,6 +97,11 @@ const saveDb = () => {
     };
     upload();
   } catch (e) { serverLog('error', 'Ошибка локальной записи БД: ' + e.message); }
+};
+
+const logAdminAction = (adminId, action, targetId, details) => {
+    db.audit_logs.push({ id: genId(), admin_id: adminId, action, target_id: targetId, details, created_at: Math.floor(Date.now() / 1000) });
+    saveDb();
 };
 
 const app = express();
@@ -127,7 +133,8 @@ const publicUser = (u) => ({
   custom_status: u.custom_status || '',
   clearance_level: u.clearance_level || ROLE_TO_CLEARANCE[u.role] || 1,
   xp: u.xp || 0,
-  invite_code: u.invite_code || `REF-${u.id.slice(0, 6).toUpperCase()}`
+  invite_code: u.invite_code || `REF-${u.id.slice(0, 6).toUpperCase()}`,
+  pinned_chats: u.pinned_chats || []
 });
 
 const publicUserSafe = (u) => {
@@ -187,16 +194,12 @@ function authMiddleware(req, res, next) {
     req.userId = payload.sub;
     const user = db.users.find(u => u.id === req.userId);
 
-    // 🔒 admin ВСЕГДА sysadmin с clearance 5 и без бана
     if (user && user.username && user.username.toLowerCase() === 'admin') {
       let _changed = false;
       if (user.role !== 'sysadmin') { user.role = 'sysadmin'; _changed = true; }
       if (user.clearance_level !== 5) { user.clearance_level = 5; _changed = true; }
       if (user.ban_expires && user.ban_expires !== 0) { user.ban_expires = 0; user.ban_reason = ''; _changed = true; }
-      if (_changed) {
-        saveDb();
-        serverLog('warn', 'Принудительно восстановлены права SysAdmin для admin');
-      }
+      if (_changed) saveDb();
     }
 
     if (user && user.ban_expires && user.ban_expires !== 0) {
@@ -296,6 +299,55 @@ function addXp(userId, amount) {
   saveDb();
 }
 
+// ================= ADMIN STATS & AUDIT =================
+app.get('/api/admin/stats', authMiddleware, (req, res) => {
+    const me = db.users.find(u => u.id === req.userId);
+    if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+    
+    const now = Date.now();
+    const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
+    
+    // Сообщения за 7 дней (по дням)
+    const msgsPerDay = Array(7).fill(0);
+    db.messages.forEach(m => {
+        const msgTime = m.created_at * 1000;
+        if (msgTime >= oneWeekAgo) {
+            const dayIdx = Math.floor((msgTime - oneWeekAgo) / (24 * 60 * 60 * 1000));
+            if (dayIdx >= 0 && dayIdx < 7) msgsPerDay[dayIdx]++;
+        }
+    });
+
+    // Новые юзеры за 7 дней
+    const usersPerDay = Array(7).fill(0);
+    db.users.forEach(u => {
+        const uTime = u.created_at * 1000;
+        if (uTime >= oneWeekAgo) {
+            const dayIdx = Math.floor((uTime - oneWeekAgo) / (24 * 60 * 60 * 1000));
+            if (dayIdx >= 0 && dayIdx < 7) usersPerDay[dayIdx]++;
+        }
+    });
+
+    // Топ активных юзеров
+    const userMsgCounts = {};
+    db.messages.forEach(m => { userMsgCounts[m.sender_id] = (userMsgCounts[m.sender_id] || 0) + 1; });
+    const topUsers = Object.entries(userMsgCounts)
+        .map(([id, count]) => {
+            const u = db.users.find(x => x.id === id);
+            return { username: u ? u.username : 'Unknown', count };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+    res.json({ msgsPerDay, usersPerDay, topUsers });
+});
+
+app.get('/api/admin/audit-log', authMiddleware, (req, res) => {
+    const me = db.users.find(u => u.id === req.userId);
+    if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+    const logs = [...db.audit_logs].sort((a, b) => b.created_at - a.created_at).slice(0, 100);
+    res.json(logs);
+});
+
 // ================= REPORTS =================
 app.post('/api/reports', authMiddleware, (req, res) => {
   const { target_user_id, target_message_ids, reason } = req.body;
@@ -308,77 +360,6 @@ app.post('/api/reports', authMiddleware, (req, res) => {
   saveDb();
   
   io.emit('newReport');
-  res.json({ ok: true });
-});
-
-app.get('/api/admin/reports', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
-  
-  const reports = db.reports.filter(r => r.status === 'pending').map(r => {
-    const reporter = db.users.find(u => u.id === r.reporter_id);
-    const targetUser = db.users.find(u => u.id === r.target_user_id);
-    
-    const targetMessages = (r.target_message_ids || []).map(id => {
-      const msg = db.messages.find(m => m.id === id);
-      return msg ? { id: msg.id, text: msg.text, chat_id: msg.chat_id } : null;
-    }).filter(Boolean);
-    
-    return {
-      id: r.id, reason: r.reason, created_at: r.created_at,
-      reporter: reporter ? reporter.username : 'Unknown',
-      targetUser: targetUser ? { id: targetUser.id, username: targetUser.username, role: targetUser.role, clearance_level: targetUser.clearance_level } : null,
-      targetMessages
-    };
-  }).sort((a, b) => b.created_at - a.created_at);
-  
-  res.json(reports);
-});
-
-app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
-  
-  const report = db.reports.find(r => r.id === req.params.id);
-  if (!report) return res.status(404).json({ error: 'Жалоба не найдена' });
-  
-  const action = req.body.action || 'ignored';
-  const banDuration = req.body.duration;
-  report.status = action;
-
-  let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === report.reporter_id) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
-  if (!helperChat) {
-    helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
-    db.chats.push(helperChat);
-    db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: report.reporter_id });
-    db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: HELPER_ID });
-  }
-  
-  const targetUser = db.users.find(u => u.id === report.target_user_id);
-  const targetName = targetUser ? `@${targetUser.username}` : 'неизвестного пользователя';
-
-  let statusText = '';
-  if (action === 'banned') {
-    let timeStr = 'навсегда';
-    if (banDuration > 0) {
-      if (banDuration >= 1440) timeStr = `на ${Math.floor(banDuration / 1440)} дн.`;
-      else if (banDuration >= 60) timeStr = `на ${Math.floor(banDuration / 60)} ч.`;
-      else timeStr = `на ${banDuration} мин.`;
-    }
-    statusText = `Пользователь забанен (${timeStr}).`;
-  } 
-  else if (action === 'deleted') statusText = 'Сообщения нарушителя удалены.';
-  else statusText = 'Жалоба отклонена (нарушений не найдено).';
-
-  const sysMsg = {
-    id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID,
-    text: `📋 **Рассмотрение жалобы**\nВаша жалоба на пользователя ${targetName} рассмотрена.\nСтатус: ${statusText}`,
-    created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
-  };
-  db.messages.push(sysMsg);
-  saveDb();
-  
-  emitToChatMembers(helperChat.id, 'newMessage', buildMessagePayload(sysMsg));
   res.json({ ok: true });
 });
 
@@ -401,7 +382,6 @@ app.get('/api/admin/all-chats', authMiddleware, (req, res) => {
   res.json(chats);
 });
 
-// 🔒 ИСПРАВЛЕНИЕ БАГА "API route not found" (Просмотр участников из админки)
 app.get('/api/admin/chats/:chatId/members', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me || !['sysadmin', 'admin', 'moderator', 'helper'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
@@ -421,7 +401,6 @@ app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   
   if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ забанить главного администратора (admin)!' });
-  
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя забанить SCP_Helper' });
   if (target.role === 'sysadmin') return res.status(403).json({ error: 'НЕЛЬЗЯ забанить системного администратора (SysAdmin)!' });
   if (target.role === 'admin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может банить админов' });
@@ -436,6 +415,7 @@ app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   if (numDuration !== 0) target.ban_reason = reason || 'Нарушение правил сообщества';
   else target.ban_reason = '';
 
+  logAdminAction(me.id, 'ban_user', target.id, `Забанен на ${numDuration} мин. Причина: ${reason}`);
   saveDb();
   if (target.ban_expires !== 0) io.to(`user:${target.id}`).emit('forceLogout', { ban_expires: target.ban_expires, ban_reason: target.ban_reason });
   io.emit('refreshData');
@@ -450,10 +430,12 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   
   if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ удалить главного администратора (admin)!' });
-  
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя удалить SCP_Helper' });
   if (target.role === 'sysadmin') return res.status(400).json({ error: 'Нельзя удалить SysAdmin' });
   if (target.role === 'admin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может удалять админов' });
+
+  logAdminAction(me.id, 'delete_user', target.id, `Удален пользователь @${target.username}`);
+  
   if (target.avatar_url) {
     try { const p = path.join(UPLOAD_DIR, target.avatar_url.split('?')[0].replace('/uploads/', '')); if (fs.existsSync(p)) fs.unlinkSync(p); } catch (e) {}
   }
@@ -469,12 +451,9 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-// 🔒 ИСПРАВЛЕНИЕ БАГА С ГЕНЕРАЦИЕЙ ИНВАЙТОВ (ТЕПЕРЬ ТОЧНО РАБОТАЕТ)
 app.post('/api/admin/generate-invite', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me) return res.status(403).json({ error: 'Доступ запрещён' });
-  
-  // ✅ ИСПОЛЬЗУЕМ ROLE_RANK (user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5)
   const myRank = ROLE_RANK[me.role] || 0;
   if (myRank < 2) return res.status(403).json({ error: 'Недостаточно прав для создания инвайтов' });
   
@@ -482,17 +461,13 @@ app.post('/api/admin/generate-invite', authMiddleware, (req, res) => {
   if (!role || !ROLE_RANK[role]) return res.status(400).json({ error: 'Неверная роль' });
   
   const targetRank = ROLE_RANK[role];
-  
-  // SysAdmin (5) может выдавать Admin (4), Moderator (3), Helper (2), User (1)
   if (targetRank >= myRank) {
-      return res.status(403).json({ error: `Вы (${ROLE_LABEL[me.role] || me.role}, Ранг ${myRank}) не можете выдавать инвайты для роли ${ROLE_LABEL[role] || role} (Ранг ${targetRank}). Разрешение: только ранги НИЖЕ вашего.` });
+      return res.status(403).json({ error: `Вы (${ROLE_LABEL[me.role] || me.role}) можете выдавать инвайты только для ролей ниже вашей.` });
   }
   
   const code = 'INV-' + crypto.randomBytes(3).toString('hex').toUpperCase() + '-' + String(role).toUpperCase();
   db.invite_codes.push({ code, role, created_by: me.username, created_by_role: me.role, created_at: Math.floor(Date.now() / 1000), used: false });
   saveDb();
-  
-  serverLog('info', `Пользователь ${me.username} (${me.role}) создал инвайт-код для роли ${role}: ${code}`);
   res.json({ code, role });
 });
 
@@ -505,14 +480,15 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   
   if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ изменить роль главного администратора (admin)!' });
-
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить роль SCP_Helper' });
   if (target.id === me.id) return res.status(400).json({ error: 'Нельзя изменить свою роль' });
+  
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role];
   const newClearance = ROLE_TO_CLEARANCE[role];
   if (newClearance >= 4 && myClearance < 5) return res.status(403).json({ error: 'Только SysAdmin может назначать админов' });
   if (target.role === 'sysadmin' && me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может менять роль SysAdmin' });
   
+  logAdminAction(me.id, 'set_role', target.id, `Роль изменена на ${role}`);
   target.role = role;
   target.clearance_level = ROLE_TO_CLEARANCE[role] || 1;
   
@@ -522,14 +498,9 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-// 🔒 ИСПРАВЛЕНИЕ: Изменять уровень допуска может ТОЛЬКО Сисадмин
 app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
-  
-  // Строгая проверка: только sysadmin имеет право менять уровни допуска
-  if (!me || me.role !== 'sysadmin') {
-      return res.status(403).json({ error: 'Только Системный Администратор (SysAdmin) может изменять уровни допуска' });
-  }
+  if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только Системный Администратор (SysAdmin) может изменять уровни допуска' });
   
   const { username, clearance_level } = req.body;
   const level = Number(clearance_level);
@@ -538,9 +509,9 @@ app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
   
   if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ изменить уровень допуска главного администратора (admin)!' });
-
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить SCP_Helper' });
   
+  logAdminAction(me.id, 'set_clearance', target.id, `Уровень допуска изменен на L${level}`);
   target.clearance_level = level;
   if (level === 5 && ['helper', 'moderator', 'admin', 'sysadmin'].includes(target.role)) {
       target.role = CLEARANCE_TO_ROLE[level] || 'user';
@@ -595,7 +566,6 @@ app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   const { text } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Текст оповещения пуст' });
   io.emit('urgentAlert', { text: text.trim(), sender: me.username, timestamp: Date.now() });
-  serverLog('info', `SysAdmin ${me.username} отправил срочное оповещение!`);
   res.json({ ok: true });
 });
 
@@ -603,7 +573,7 @@ app.post('/api/admin/wipe-messages-and-files', authMiddleware, async (req, res) 
   const me = db.users.find(u => u.id === req.userId);
   if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может выполнить эту операцию' });
   try {
-    serverLog('info', `SysAdmin ${me.username} запустил глобальную очистку сообщений и файлов.`);
+    logAdminAction(me.id, 'wipe_messages', 'all', 'Глобальная очистка сообщений и файлов');
     db.messages = []; db.attachments = [];
     let isTruncated = true; let continuationToken = undefined; let deletedCount = 0;
     if (S3_ENABLED) {
@@ -619,10 +589,8 @@ app.post('/api/admin/wipe-messages-and-files', authMiddleware, async (req, res) 
       }
     }
     saveDb(); io.emit('allMessagesWiped');
-    serverLog('info', `Очистка завершена. Удалено файлов: ${deletedCount}`);
     res.json({ ok: true, deletedFiles: deletedCount });
   } catch (err) {
-    serverLog('error', 'Ошибка при глобальной очистке: ' + err.message);
     res.status(500).json({ error: 'Ошибка сервера при очистке: ' + err.message });
   }
 });
@@ -648,6 +616,21 @@ app.put('/api/users/profile', authMiddleware, (req, res) => {
   res.json(publicUser(user));
 });
 
+app.post('/api/users/pin-chat', authMiddleware, (req, res) => {
+    const user = db.users.find(u => u.id === req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const { chatId } = req.body;
+    if (!user.pinned_chats) user.pinned_chats = [];
+    const idx = user.pinned_chats.indexOf(chatId);
+    if (idx >= 0) {
+        user.pinned_chats.splice(idx, 1);
+    } else {
+        user.pinned_chats.push(chatId);
+    }
+    saveDb();
+    res.json({ ok: true, pinned_chats: user.pinned_chats });
+});
+
 app.get('/api/users/search', authMiddleware, (req, res) => {
   const q = (req.query.q || '').toString().toLowerCase().trim().replace(/^@/, '');
   if (!q) return res.json({ users: [], chats: [] });
@@ -671,18 +654,6 @@ app.get('/api/users/search', authMiddleware, (req, res) => {
   }));
 
   res.json({ users: matchedUsers, chats: matchedChats });
-});
-
-app.get('/api/chats/resolve/:username', authMiddleware, (req, res) => {
-  const chat = db.chats.find(c => c.username === req.params.username);
-  if (!chat) return res.status(404).json({ error: 'Чат не найден' });
-  const me = db.users.find(u => u.id === req.userId);
-  const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
-  const required = chat.required_clearance || 1;
-  if (myClearance < required) {
-    return res.status(403).json({ error: `Доступ запрещён. Требуется уровень допуска ${required} (у вас ${myClearance})`, required_clearance: required });
-  }
-  res.json({ id: chat.id, name: chat.name, username: chat.username, isChannel: !!chat.is_channel, isGroup: !!chat.is_group, creatorId: chat.creator_id, required_clearance: required });
 });
 
 app.get('/api/users/all', authMiddleware, (req, res) => {
@@ -847,10 +818,34 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       status: other ? (other.status || 'offline') : 'offline',
       required_clearance: requiredClearance,
       min_write_clearance: c.min_write_clearance || 1,
-      canAccess: canAccess
+      canAccess: canAccess,
+      pinned_message_id: c.pinned_message_id || null
     };
   });
   res.json(chats);
+});
+
+app.post('/api/chats/:chatId/pin', authMiddleware, (req, res) => {
+    const chat = db.chats.find(c => c.id === req.params.chatId);
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+    const { messageId } = req.body;
+    
+    const msg = db.messages.find(m => m.id === messageId);
+    if (!msg || msg.chat_id !== chat.id) return res.status(400).json({ error: 'Сообщение не в этом чате' });
+
+    chat.pinned_message_id = messageId;
+    saveDb();
+    emitToChatMembers(chat.id, 'chatPinned', { chatId: chat.id, messageId });
+    res.json({ ok: true });
+});
+
+app.post('/api/chats/:chatId/unpin', authMiddleware, (req, res) => {
+    const chat = db.chats.find(c => c.id === req.params.chatId);
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+    chat.pinned_message_id = null;
+    saveDb();
+    emitToChatMembers(chat.id, 'chatPinned', { chatId: chat.id, messageId: null });
+    res.json({ ok: true });
 });
 
 app.post('/api/chats/group', authMiddleware, (req, res) => {
@@ -1069,7 +1064,8 @@ function buildMessagePayload(m) {
     reactions: m.reactions || [],
     edited: m.edited || false,
     expires_at: m.expires_at || null,
-    attachments: atts.map(a => ({ url: a.url, mime: a.mime_type, name: a.original_name, size: a.size }))
+    attachments: atts.map(a => ({ url: a.url, mime: a.mime_type, name: a.original_name, size: a.size })),
+    poll: m.poll || null
   };
 }
 
@@ -1083,6 +1079,54 @@ app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   }
   const messages = db.messages.filter(m => m.chat_id === req.params.chatId).sort((a, b) => a.created_at - b.created_at).map(buildMessagePayload);
   res.json(messages);
+});
+
+// СОЗДАНИЕ ОПРОСА
+app.post('/api/chats/:chatId/polls', authMiddleware, (req, res) => {
+    const chatId = req.params.chatId;
+    if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
+    const { question, options } = req.body;
+    if (!question || !options || !Array.isArray(options) || options.length < 2) return res.status(400).json({ error: 'Неверный формат опроса' });
+
+    const msgId = genId();
+    const msg = {
+        id: msgId, chat_id: chatId, sender_id: req.userId, text: `📊 Опрос: ${question}`,
+        created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [],
+        poll: {
+            question,
+            options: options.map(opt => ({ text: opt, votes: [] })),
+            isClosed: false
+        }
+    };
+    const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
+    otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) msg.delivered_to.push(om.user_id); });
+    db.messages.push(msg);
+    saveDb();
+    const payload = buildMessagePayload(msg);
+    emitToChatMembers(chatId, 'newMessage', payload);
+    res.json(payload);
+});
+
+app.post('/api/messages/:messageId/vote', authMiddleware, (req, res) => {
+    const msg = db.messages.find(m => m.id === req.params.messageId);
+    if (!msg || !msg.poll) return res.status(404).json({ error: 'Опрос не найден' });
+    if (msg.is_deleted) return res.status(400).json({ error: 'Сообщение удалено' });
+    if (!db.chat_members.find(m => m.chat_id === msg.chat_id && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
+    
+    const { optionIndex } = req.body;
+    if (optionIndex === undefined || !msg.poll.options[optionIndex]) return res.status(400).json({ error: 'Неверный вариант' });
+    
+    // Убираем прошлый голос пользователя
+    msg.poll.options.forEach(opt => {
+        opt.votes = opt.votes.filter(uid => uid !== req.userId);
+    });
+    
+    // Добавляем новый голос
+    msg.poll.options[optionIndex].votes.push(req.userId);
+    saveDb();
+    
+    emitToChatMembers(msg.chat_id, 'pollUpdated', { messageId: msg.id, poll: msg.poll });
+    res.json({ ok: true, poll: msg.poll });
 });
 
 app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
@@ -1120,15 +1164,23 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       }
   }
 
+  // 🤬 АВТОМОДЕРАЦИЯ
+  let isFlagged = false;
+  const lowerText = text.toLowerCase();
+  for (const word of BANNED_WORDS) {
+      if (lowerText.includes(word)) { isFlagged = true; break; }
+  }
+
   const msgId = genId();
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = expires_in && Number(expires_in) > 0 ? Date.now() + Number(expires_in) * 1000 : null;
 
   const msg = {
     id: msgId, chat_id: chatId, sender_id: req.userId, text: text.slice(0, 4000),
-    created_at: now, is_deleted: false, delivered_to: [], read_by: [],
+    created_at: now, is_deleted: isFlagged, delivered_to: [], read_by: [],
     expires_at: expiresAt
   };
+  
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
   otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) msg.delivered_to.push(om.user_id); });
   db.messages.push(msg);
@@ -1139,36 +1191,35 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const payload = buildMessagePayload(msg);
   emitToChatMembers(chatId, 'newMessage', payload);
 
+  if (isFlagged) {
+      // Создаем автоматическую жалобу
+      db.reports.push({
+          id: genId(), reporter_id: HELPER_ID, target_user_id: req.userId, target_message_ids: [msgId],
+          reason: 'АВТОМОДЕРАЦИЯ: Запрещенные слова', status: 'pending', created_at: now
+      });
+      io.emit('newReport');
+      return res.status(400).json({ error: 'Сообщение заблокировано автоматической системой безопасности Фонда (Упоминание запрещенных тем).', autoHidden: true });
+  }
+
   const isHelperChat = !chatForCheck.is_group && db.chat_members.some(m => m.chat_id === chatId && m.user_id === HELPER_ID);
   if (isHelperChat && me.id !== HELPER_ID) {
       const cmd = text.trim().toLowerCase();
       let botReplyText = '';
-
       if (cmd.startsWith('/start')) {
-          botReplyText = `👋 Привет, агент **${me.display_name || me.username}**!\n\nДобро пожаловать в SCP Foundation. Я ваш личный помощник.\n\nВот что я умею:\n- /help — список команд\n- /profile — посмотреть ваш профиль\n- /clearance — узнать свой уровень допуска\n- /info — регламент и правила\n\nПомните: Фонд следит за вами.`;
+          botReplyText = `👋 Привет, агент **${me.display_name || me.username}**!\n\nДобро пожаловать в SCP Foundation. Я ваш личный помощник.\n\nВот что я умею:\n- /help — список команд\n- /profile — посмотреть ваш профиль\n- /clearance — узнать свой уровень допуска\n\nПомните: Фонд следит за вами.`;
       } else if (cmd.startsWith('/help')) {
-          botReplyText = `📋 **Доступные команды:**\n/start — перезапустить меня\n/profile — ваша статистика\n/clearance — ваш уровень допуска\n/info — подробная информация о системе\n/help — это сообщение`;
+          botReplyText = `📋 **Доступные команды:**\n/start — перезапустить меня\n/profile — ваша статистика\n/clearance — ваш уровень допуска\n/help — это сообщение`;
       } else if (cmd.startsWith('/profile')) {
-          const u = me;
-          botReplyText = `👤 **Ваш профиль:**\nЛогин: @${u.username}\nОтображаемое имя: ${u.display_name || 'Не задано'}\nРоль: ${ROLE_LABEL[u.role] || u.role}\nУровень допуска: L${u.clearance_level || 1} (${u.xp || 0} XP)`;
+          botReplyText = `👤 **Ваш профиль:**\nЛогин: @${me.username}\nРоль: ${ROLE_LABEL[me.role] || me.role}\nУровень: L${me.clearance_level || 1} (${me.xp || 0} XP)`;
       } else if (cmd.startsWith('/clearance')) {
-          const u = me;
-          const lvl = u.clearance_level || 1;
+          const lvl = me.clearance_level || 1;
           const name = {1: 'Класс-D', 2: 'Научный сотрудник', 3: 'Старший исследователь', 4: 'Руководитель Зоны', 5: 'Совет О5'}[lvl];
-          botReplyText = `🔐 **Ваш уровень допуска:** L${lvl} — ${name}\n\nВаш текущий XP: ${u.xp || 0}. Продолжайте общаться, чтобы повысить уровень!`;
-      } else if (cmd.startsWith('/info')) {
-          botReplyText = `[ДОСТУП РАЗРЕШЕН] ОБРАТНЫЙ ОТСЧЕТ ТЕРМИНАЛА... ГОТОВО.\nДОБРО ПОЖАЛОВАТЬ В SCP FOUNDATION.\nВы подключены к защищенному каналу связи локальной сети Фонда.\n• Ваш текущий статус: Персонал класса D\n• Ваш текущий уровень допуска: L1 (0 XP)\n\n📈 РЕГЛАМЕНТ ПОВЫШЕНИЯ ДОПУСКА (СИСТЕМА XP)\nДля получения доступа к более засекреченным материалам выполняйте протоколы активности. Начисление опыта происходит мгновенно в режиме реального времени (Live-Update) — обновление страницы терминала не требуется.\n• Ежедневная авторизация: +50 XP (один раз в сутки).\n• Текстовые рапорты: +2 XP за сообщение. Суточный лимит: 200 XP (первые 100 сообщений).\n• Одобрение коллег: +5 XP за каждую реакцию на ваши сообщения.\n• Вербовка полевых агентов: +200 XP за реферальный код. Суточный лимит: 2 активации.\n\n🎯 ИЕРАРХИЯ ДОПУСКА, ПРИВИЛЕГИИ И ТАЙМАУТЫ\n• L1 [0 XP]: Базовый доступ сотрудника класса D. Задержка отправки сообщений: 1 раз в 7 секунд.\n• L2 [500 XP]: Разрешено формирование оперативных групп. Лимит передачи данных: до 50 МБ. Задержка отправки сообщений: 1 раз в 5 секунд.\n• L3 [2 000 XP]: Открыт доступ к публичным информационным каналам. Лимит данных: до 200 МБ. Задержка отправки сообщений: 1 раз в 3 секунды.\n• L4 [10 000 XP]: Допуск к засекреченным каналам и спец-архивам. Лимит данных: до 1 ГБ. Задержка отправки сообщений: 1 раз в 1 секунду (режим Трекли).\n• L5 [50 000 XP]: Максимальный уровень сингулярного контроля. Лимит данных: до 10 ГБ. Отправка сообщений без ограничений.\n\n⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ ИИ (ДИРЕКТИВА СБ)\nКатегорически запрещена регистрация нескольких учетных записей с одного IP-адреса. Система классифицирует это как саботаж внутренней сети и дюп опыта.\n• При обнаружении повторного подключения система выдает системное уведомление.\n• Внимание: С данного IP-адреса зафиксирована регистрация учетной записи. Вынесено предупреждение 1 из 2.\n• После фиксации 3-го аккаунта на одном сетевом узле автоматическая система безопасности Фонда инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.`;
+          botReplyText = `🔐 **Ваш уровень допуска:** L${lvl} — ${name}\n\nВаш XP: ${me.xp || 0}.`;
       }
-
       if (botReplyText) {
           setTimeout(() => {
-              const botMsg = {
-                  id: genId(), chat_id: chatId, sender_id: HELPER_ID, text: botReplyText,
-                  created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [me.id], read_by: []
-              };
-              db.messages.push(botMsg);
-              saveDb();
-              emitToChatMembers(chatId, 'newMessage', buildMessagePayload(botMsg));
+              const botMsg = { id: genId(), chat_id: chatId, sender_id: HELPER_ID, text: botReplyText, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [me.id], read_by: [] };
+              db.messages.push(botMsg); saveDb(); emitToChatMembers(chatId, 'newMessage', buildMessagePayload(botMsg));
           }, 1000);
       }
   }
@@ -1197,7 +1248,7 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   const limit = FILE_SIZE_LIMITS[myClearance] || FILE_SIZE_LIMITS[1];
   if (fileSize && fileSize > limit) {
       const mb = Math.round(limit / (1024 * 1024));
-      return res.status(403).json({ error: `Превышен лимит для вашего уровня допуска. Максимум: ${mb >= 1024 ? (mb/1024) + ' ГБ' : mb + ' МБ'}.` });
+      return res.status(403).json({ error: `Превышен лимит. Максимум: ${mb >= 1024 ? (mb/1024) + ' ГБ' : mb + ' МБ'}.` });
   }
   
   const ext = path.extname(fileName).toLowerCase();
@@ -1317,6 +1368,11 @@ app.delete('/api/messages/:messageId', authMiddleware, (req, res) => {
   if (scope === 'all') {
     if (!isOwn && !isAdmin) return res.status(403).json({ error: 'Недостаточно прав' });
     msg.is_deleted = true;
+    
+    if (!isOwn && isAdmin) {
+        logAdminAction(me.id, 'delete_message', msg.sender_id, `Удалено сообщение ID: ${msg.id} в чате ${msg.chat_id}`);
+    }
+
     saveDb(); emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
   }
   res.json({ ok: true });
@@ -1464,7 +1520,8 @@ app.post('/api/register', async (req, res) => {
       custom_status: '',
       xp: 0,
       invite_code: `REF-${cleanUsername.toUpperCase()}`,
-      last_daily_login: 0
+      last_daily_login: 0,
+      pinned_chats: []
     };
     db.users.push(newUser);
 
@@ -1509,16 +1566,12 @@ app.post('/api/login', async (req, res) => {
     const user = findUserByUsername(username);
     if (!user || !(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ error: 'Неверный ник или пароль' });
 
-    // 🔒 admin ВСЕГДА sysadmin при входе
     if (user.username.toLowerCase() === 'admin') {
       let _changed = false;
       if (user.role !== 'sysadmin') { user.role = 'sysadmin'; _changed = true; }
       if (user.clearance_level !== 5) { user.clearance_level = 5; _changed = true; }
       if (user.ban_expires && user.ban_expires !== 0) { user.ban_expires = 0; user.ban_reason = ''; _changed = true; }
-      if (_changed) {
-        saveDb();
-        serverLog('warn', 'Принудительно восстановлены права SysAdmin для admin при входе');
-      }
+      if (_changed) saveDb();
     }
 
     if (user.ban_expires && user.ban_expires !== 0) {
@@ -1553,10 +1606,7 @@ io.use((socket, next) => {
       if (u.role !== 'sysadmin') { u.role = 'sysadmin'; _changed = true; }
       if (u.clearance_level !== 5) { u.clearance_level = 5; _changed = true; }
       if (u.ban_expires && u.ban_expires !== 0) { u.ban_expires = 0; u.ban_reason = ''; _changed = true; }
-      if (_changed) {
-        saveDb();
-        serverLog('warn', 'Принудительно восстановлены права SysAdmin для admin (socket)');
-      }
+      if (_changed) saveDb();
     }
 
     next();
@@ -1607,7 +1657,6 @@ io.on('connection', (socket) => {
   } catch (e) {}
 });
 
-// ================= ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК =================
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'API route not found' });
@@ -1627,16 +1676,14 @@ app.use((req, res, next) => {
       } catch (err) {
         retries--;
         if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
-          serverLog('info', 'В S3 базы нет, проверяем локальную...');
           if (fs.existsSync(DB_FILE)) {
-            try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); saveDb(); } catch(e) { serverLog('error', 'Локальная БД повреждена, создаем новую'); }
-          } else { serverLog('info', 'Создана новая пустая БД'); }
+            try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); saveDb(); } catch(e) {}
+          }
           break;
         } else {
-          serverLog('error', `Ошибка БД S3 (попытка ${4 - retries}/3): ${err.message}`);
           if (retries === 0) {
             if (fs.existsSync(DB_FILE)) {
-              try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e) { serverLog('error', 'Локальная БД повреждена!'); }
+              try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e) {}
             }
           }
           else { await new Promise(r => setTimeout(r, 2000)); }
@@ -1644,17 +1691,15 @@ app.use((req, res, next) => {
       }
     }
   } else {
-    serverLog('info', 'S3 отключён, используем локальную БД');
     if (fs.existsSync(DB_FILE)) {
-      try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e) { serverLog('error', 'Локальная БД повреждена, создаем новую'); }
+      try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e) {}
     }
   }
 
-  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments', 'reports'].forEach(key => { if (!db[key]) db[key] = []; });
+  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments', 'reports', 'audit_logs'].forEach(key => { if (!db[key]) db[key] = []; });
 
   let migrated = false;
   db.users.forEach(u => {
-    // 🔒 admin всегда sysadmin (форсим при старте)
     if (u.username && u.username.toLowerCase() === 'admin') {
         if (u.role !== 'sysadmin') { u.role = 'sysadmin'; migrated = true; }
         if (u.clearance_level !== 5) { u.clearance_level = 5; migrated = true; }
@@ -1666,6 +1711,7 @@ app.use((req, res, next) => {
     if (u.clearance_level === undefined) { u.clearance_level = ROLE_TO_CLEARANCE[u.role] || 1; migrated = true; }
     if (u.xp === undefined) { u.xp = 0; migrated = true; }
     if (!u.invite_code) { u.invite_code = `REF-${u.username.toUpperCase()}`; migrated = true; }
+    if (!u.pinned_chats) { u.pinned_chats = []; migrated = true; }
   });
   if (migrated) saveDb();
 
@@ -1679,7 +1725,7 @@ app.use((req, res, next) => {
 
   let helperUser = db.users.find(u => u.id === HELPER_ID);
   if (!helperUser) {
-    helperUser = { id: HELPER_ID, username: 'SCP_Helper', password_hash: 'bot', role: 'sysadmin', status: 'online', created_at: Math.floor(Date.now() / 1000), ban_expires: 0, clearance_level: 5 };
+    helperUser = { id: HELPER_ID, username: 'SCP_Helper', password_hash: 'bot', role: 'sysadmin', status: 'online', created_at: Math.floor(Date.now() / 1000), ban_expires: 0, clearance_level: 5, pinned_chats: [] };
     db.users.push(helperUser); saveDb(); serverLog('info', 'Создан SCP_Helper (SysAdmin)');
   } else {
     helperUser.role = 'sysadmin'; helperUser.clearance_level = 5; saveDb();
