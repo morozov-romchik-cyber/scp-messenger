@@ -258,7 +258,6 @@ function scheduleMessageExpiry(msgId, expiresAt) {
   }
 }
 
-// ================= XP SYSTEM =================
 function addXp(userId, amount) {
   const user = db.users.find(u => u.id === userId);
   if (!user || user.role !== 'user') return;
@@ -875,6 +874,15 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     const canAccess = myClearance >= requiredClearance;
     
     let pinnedMessages = c.pinned_messages || [];
+    
+    // Обогащаем закрепленные сообщения временем их отправки и сортируем (сначала самые новые)
+    pinnedMessages = pinnedMessages.map(p => {
+        const msg = db.messages.find(m => m.id === p.messageId);
+        return { ...p, created_at: msg ? msg.created_at : 0 };
+    }).filter(p => p.created_at > 0); // Убираем битые ссылки
+
+    pinnedMessages.sort((a, b) => b.created_at - a.created_at);
+
     if (!c.is_group) {
         pinnedMessages = pinnedMessages.filter(p => p.forAll || p.pinnedBy === req.userId);
     }
@@ -918,8 +926,15 @@ app.post('/api/chats/:chatId/pin', authMiddleware, (req, res) => {
     }
 
     saveDb();
-    emitToChatMembers(chat.id, 'chatPinned', { chatId: chat.id, pinned_messages: chat.pinned_messages });
-    res.json({ ok: true, pinned_messages: chat.pinned_messages });
+    
+    // Сортируем перед отправкой
+    let pinnedMessages = chat.pinned_messages.map(p => {
+        const m = db.messages.find(x => x.id === p.messageId);
+        return { ...p, created_at: m ? m.created_at : 0 };
+    }).filter(p => p.created_at > 0).sort((a, b) => b.created_at - a.created_at);
+
+    emitToChatMembers(chat.id, 'chatPinned', { chatId: chat.id, pinned_messages: pinnedMessages });
+    res.json({ ok: true, pinned_messages: pinnedMessages });
 });
 
 app.post('/api/chats/:chatId/unpin', authMiddleware, (req, res) => {
@@ -931,8 +946,14 @@ app.post('/api/chats/:chatId/unpin', authMiddleware, (req, res) => {
     chat.pinned_messages = chat.pinned_messages.filter(p => !(p.messageId === messageId && (p.forAll || p.pinnedBy === req.userId)));
     
     saveDb();
-    emitToChatMembers(chat.id, 'chatPinned', { chatId: chat.id, pinned_messages: chat.pinned_messages });
-    res.json({ ok: true, pinned_messages: chat.pinned_messages });
+    
+    let pinnedMessages = chat.pinned_messages.map(p => {
+        const m = db.messages.find(x => x.id === p.messageId);
+        return { ...p, created_at: m ? m.created_at : 0 };
+    }).filter(p => p.created_at > 0).sort((a, b) => b.created_at - a.created_at);
+
+    emitToChatMembers(chat.id, 'chatPinned', { chatId: chat.id, pinned_messages: pinnedMessages });
+    res.json({ ok: true, pinned_messages: pinnedMessages });
 });
 
 app.post('/api/chats/group', authMiddleware, (req, res) => {
