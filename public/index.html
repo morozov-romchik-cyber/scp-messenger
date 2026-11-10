@@ -113,7 +113,6 @@
   .chat-item:hover { background: var(--card); }
   .chat-item.active { background: var(--card); border-left: 3px solid var(--accent); }
   
-  /* ✨ СТИЛИ ДЛЯ ЗАКРЕПЛЕННОГО ЧАТА */
   .chat-item.pinned {
       background: rgba(0, 255, 157, 0.04);
       border-left: 3px solid #00ff9d;
@@ -406,16 +405,15 @@
   .wb-color.active { border-color: #fff; }
   .wb-select { background: #3d3d3d; border: 1px solid #555; color: #fff; border-radius: 4px; padding: 4px; font-size: 12px; outline: none; }
   
-  /* ОБНОВЛЕННЫЕ СТИЛИ ДЛЯ ХОЛСТА */
   .wb-canvas-wrapper { 
     flex: 1; background: #000; border-radius: 8px; 
     position: relative; 
-    overflow: auto; /* Прокрутка */
+    overflow: auto;
     border: 1px solid #333;
   }
   #wb-canvas-container { 
     position: relative; 
-    width: 4000px; /* Фиксированный размер для скролла */
+    width: 4000px;
     height: 4000px; 
   }
   #wb-canvas { 
@@ -425,7 +423,6 @@
     touch-action: none; 
   }
   
-  /* Поле ввода текста */
   .wb-text-input-overlay {
     position: absolute;
     background: transparent;
@@ -441,124 +438,29 @@
     min-width: 10px;
     min-height: 1.2em;
     white-space: pre;
-    transform-origin: top left; /* Важно для поворота */
+    transform-origin: top left;
   }
 
   .wb-send-btn { background: #00ff9d; color: #000; border: none; font-weight: bold; margin-left: auto; }
   .wb-close-btn { background: #ff4d4d; border: none; }
   #wb-coords-panel { position: absolute; bottom: 15px; right: 20px; font-family: 'Fira Code'; font-size: 11px; color: rgba(255,255,255,0.5); background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; pointer-events: none; z-index: 10; }
 
-  /* ========================================================= */
-  /* ОКНО ПРОСМОТРА ФАЙЛОВ (ATT-VIEWER)                        */
-  /* ========================================================= */
-  #att-viewer {
-    background: rgba(0, 0, 0, 0.3) !important;
-    backdrop-filter: none !important;
-  }
-  #att-viewer .modal-content {
-    width: 400px;
-    height: auto;
-    min-height: 250px;
-    max-height: 80vh;
-    padding: 0;
-    border-radius: 12px;
-    background: var(--panel);
-    border: 1px solid var(--border-hover);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    resize: both;
-  }
-  #att-viewer .att-viewer-header {
-    padding: 12px 16px;
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: move;
-    user-select: none;
-  }
-  #att-viewer .att-viewer-header h3 {
-    margin: 0;
-    padding: 0;
-    border: none;
-    font-size: 14px;
-    color: var(--text);
-    cursor: move;
-  }
-  #att-viewer .att-viewer-close {
-    background: transparent;
-    border: none;
-    color: var(--muted);
-    font-size: 20px;
-    cursor: pointer;
-    line-height: 1;
-    transition: color 0.2s;
-  }
-  #att-viewer .att-viewer-close:hover {
-    color: #ff4d4d;
-  }
-  #att-viewer .att-viewer-meta {
-    padding: 8px 16px;
-    font-size: 11px;
-    color: var(--muted);
-    font-family: 'Fira Code', monospace;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    text-align: center;
-  }
-  #att-viewer .att-viewer-body {
-    flex: 1;
-    padding: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: auto;
-    background: var(--bg);
-    border-radius: 0;
-    margin: 0;
-    border: none;
-  }
-  #att-viewer .att-viewer-body img,
-  #att-viewer .att-viewer-body video {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    border-radius: 4px;
-  }
-  #att-viewer .att-viewer-nav {
-    padding: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 15px;
-    background: var(--card);
-    border-top: 1px solid var(--border);
-    font-family: 'Fira Code', monospace;
-    font-size: 12px;
-  }
+  #att-viewer { background: rgba(0, 0, 0, 0.3) !important; backdrop-filter: none !important; }
+  #att-viewer .modal-content { width: 400px; height: auto; min-height: 250px; max-height: 80vh; padding: 0; border-radius: 12px; background: var(--panel); border: 1px solid var(--border-hover); box-shadow: 0 10px 40px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow: hidden; resize: both; }
+  #att-viewer .att-viewer-header { padding: 12px 16px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: move; user-select: none; }
+  #att-viewer .att-viewer-header h3 { margin: 0; padding: 0; border: none; font-size: 14px; color: var(--text); cursor: move; }
+  #att-viewer .att-viewer-close { background: transparent; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; transition: color 0.2s; }
+  #att-viewer .att-viewer-close:hover { color: #ff4d4d; }
+  #att-viewer .att-viewer-meta { padding: 8px 16px; font-size: 11px; color: var(--muted); font-family: 'Fira Code', monospace; background: var(--bg); border-bottom: 1px solid var(--border); text-align: center; }
+  #att-viewer .att-viewer-body { flex: 1; padding: 16px; display: flex; align-items: center; justify-content: center; overflow: auto; background: var(--bg); border-radius: 0; margin: 0; border: none; }
+  #att-viewer .att-viewer-body img, #att-viewer .att-viewer-body video { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; }
+  #att-viewer .att-viewer-nav { padding: 10px; display: flex; justify-content: center; align-items: center; gap: 15px; background: var(--card); border-top: 1px solid var(--border); font-family: 'Fira Code', monospace; font-size: 12px; }
 
-  /* 🔒 АДАПТИВНАЯ АДМИН-ПАНЕЛЬ ДЛЯ ТЕЛЕФОНОВ */
   @media (max-width: 768px) {
-    #admin-dashboard-modal .modal-content { 
-        flex-direction: column; 
-        width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; 
-        border-radius: 0; border: none;
-    }
-    .admin-sidebar { 
-        width: 100%; flex-direction: row; overflow-x: auto; 
-        border-right: none; border-bottom: 1px solid var(--admin-border); 
-        flex-shrink: 0; padding-bottom: 0;
-    }
-    .admin-sidebar .admin-tab { 
-        white-space: nowrap; padding: 12px 16px; 
-        border-left: none; border-bottom: 3px solid transparent; 
-    }
-    .admin-sidebar .admin-tab.active { 
-        border-left: none; border-bottom: 3px solid var(--admin-accent); 
-    }
+    #admin-dashboard-modal .modal-content { flex-direction: column; width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; border-radius: 0; border: none; }
+    .admin-sidebar { width: 100%; flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--admin-border); flex-shrink: 0; padding-bottom: 0; }
+    .admin-sidebar .admin-tab { white-space: nowrap; padding: 12px 16px; border-left: none; border-bottom: 3px solid transparent; }
+    .admin-sidebar .admin-tab.active { border-left: none; border-bottom: 3px solid var(--admin-accent); }
     .admin-main { padding: 15px; }
     .admin-header { flex-direction: column; align-items: flex-start; gap: 10px; }
     .admin-input-group { flex-direction: column; }
@@ -772,6 +674,16 @@
     <button class="modal-btn" onclick="addPollOption()" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">+ Добавить вариант</button>
     <button class="modal-btn" onclick="createPoll()" style="background: var(--accent); color: #000; margin-bottom: 8px;">Создать</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('poll-modal').classList.remove('visible')">Отмена</button>
+  </div>
+</div>
+
+<!-- Окно закрепления сообщения -->
+<div class="modal" id="pin-choice-modal">
+  <div class="modal-content">
+    <h3>📌 ЗАКРЕПИТЬ СООБЩЕНИЕ</h3>
+    <button class="modal-btn" onclick="pinSelectedMsg(true)" style="background: #00ff9d; color: #000; margin-bottom: 10px;">Закрепить у всех</button>
+    <button class="modal-btn" onclick="pinSelectedMsg(false)" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Закрепить только у меня</button>
+    <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('pin-choice-modal').classList.remove('visible')">Отмена</button>
   </div>
 </div>
 
@@ -1225,10 +1137,10 @@
     </div>
 
     <!-- ЗАКРЕПЛЕННОЕ СООБЩЕНИЕ -->
-    <div id="pinned-banner" onclick="scrollToPinnedMsg()">
+    <div id="pinned-banner" onclick="cyclePin()">
       <span class="pin-icon">📌</span>
-      <span class="pin-text" id="pinned-text">Закрепленное сообщение</span>
-      <button class="unpin-btn" onclick="event.stopPropagation(); unpinMsg()" title="Открепить">✖</button>
+      <span class="pin-text" id="pinned-text">Закрепленное сообщение (0/0)</span>
+      <button class="unpin-btn" onclick="event.stopPropagation(); unpinCurrentMsg()" title="Открепить">✖</button>
     </div>
 
     <div id="user-banned-banner">⛔ Пользователь заблокирован</div>
@@ -1290,7 +1202,11 @@
 <script>
 let favoriteChats = JSON.parse(localStorage.getItem('scp_fav_chats') || '[]');
 let chatDrafts = JSON.parse(localStorage.getItem('scp_drafts') || '{}');
-const state = { token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false, pinnedMessageId: null };
+const state = { 
+  token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, 
+  unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false, 
+  currentPinnedIndex: 0, visiblePinnedMessages: [] 
+};
 
 let isSelectionMode = false;
 let selectedMsgIds = new Set();
@@ -1539,34 +1455,58 @@ window.votePoll = async function(msgId, optIdx) {
 };
 
 // ================= ЗАКРЕПЛЕННЫЕ СООБЩЕНИЯ =================
-window.pinActiveMsg = async function() {
+window.pinActiveMsg = function() {
+    if (!state.activeMsg || !state.currentChat) return;
+    document.getElementById('pin-choice-modal').classList.add('visible');
+};
+
+window.pinSelectedMsg = async function(forAll) {
     if (!state.activeMsg || !state.currentChat) return;
     try {
-        await api(`/chats/${state.currentChat.id}/pin`, { method: 'POST', body: JSON.stringify({ messageId: state.activeMsg.id }) });
+        await api(`/chats/${state.currentChat.id}/pin`, { method: 'POST', body: JSON.stringify({ messageId: state.activeMsg.id, forAll }) });
         document.getElementById('msg-actions-modal').classList.remove('visible');
+        document.getElementById('pin-choice-modal').classList.remove('visible');
     } catch(e) { alert(e.message); }
 };
 
-window.unpinMsg = async function() {
-    if (!state.currentChat) return;
+window.unpinCurrentMsg = async function() {
+    if (!state.currentChat || !state.visiblePinnedMessages.length) return;
+    const currentPin = state.visiblePinnedMessages[state.currentPinnedIndex];
+    if (!currentPin) return;
     try {
-        await api(`/chats/${state.currentChat.id}/unpin`, { method: 'POST' });
+        await api(`/chats/${state.currentChat.id}/unpin`, { method: 'POST', body: JSON.stringify({ messageId: currentPin.messageId }) });
     } catch(e) { alert(e.message); }
 };
 
-window.scrollToPinnedMsg = function() {
-    if (state.pinnedMessageId) scrollToMsg(state.pinnedMessageId);
+window.cyclePin = function() {
+    if (!state.visiblePinnedMessages || state.visiblePinnedMessages.length === 0) return;
+    state.currentPinnedIndex = (state.currentPinnedIndex + 1) % state.visiblePinnedMessages.length;
+    updatePinBanner();
+    const pin = state.visiblePinnedMessages[state.currentPinnedIndex];
+    if (pin) scrollToMsg(pin.messageId);
 };
 
-// ================= ЗАКРЕПЛЕННЫЕ ЧАТЫ =================
-window.togglePinChat = async function(chatId, event) {
-    if (event) event.stopPropagation();
-    try {
-        const res = await api('/users/pin-chat', { method: 'POST', body: JSON.stringify({ chatId }) });
-        state.me.pinned_chats = res.pinned_chats;
-        renderChatList();
-    } catch(e) { alert(e.message); }
-};
+function updatePinBanner() {
+    const banner = document.getElementById('pinned-banner');
+    const pins = state.visiblePinnedMessages || [];
+    if (pins.length === 0) {
+        banner.style.display = 'none';
+        return;
+    }
+    banner.style.display = 'flex';
+    const currentPin = pins[state.currentPinnedIndex];
+    const msgEl = document.getElementById('msg-' + currentPin.messageId);
+    let previewText = 'Закрепленное сообщение (прокрутите наверх)';
+    if (msgEl) {
+        const who = msgEl.querySelector('.who');
+        const textEl = msgEl.querySelector('.msg');
+        if (textEl) {
+            const text = textEl.innerText.substring(0, 50).replace(/\n/g, ' ');
+            previewText = `${who ? who.innerText : ''} ${text}...`;
+        }
+    }
+    document.getElementById('pinned-text').innerHTML = `<b>(${state.currentPinnedIndex + 1}/${pins.length})</b> ${previewText}`;
+}
 
 // ================= КОНТЕКСТНОЕ МЕНЮ ЧАТА =================
 window.showChatContextMenu = function(e, chatId, isPinned) {
@@ -1576,14 +1516,12 @@ window.showChatContextMenu = function(e, chatId, isPinned) {
     menu.dataset.chatId = chatId;
     document.getElementById('ctx-pin-btn').innerHTML = isPinned ? '📌 Открепить' : '📌 Закрепить';
     
-    // Позиционирование
     let x = e.clientX;
     let y = e.clientY;
     menu.style.left = x + 'px';
     menu.style.top = y + 'px';
     menu.classList.add('visible');
 
-    // Проверка, чтобы не вылезало за экран
     const rect = menu.getBoundingClientRect();
     if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 5) + 'px';
     if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 5) + 'px';
@@ -1618,6 +1556,7 @@ window.ctxDeleteChat = function() {
                     document.getElementById('clear-chat-btn').style.display = 'none';
                     document.getElementById('header-avatar').style.display = 'none';
                     document.getElementById('group-members-btn').style.display = 'none';
+                    document.getElementById('pinned-banner').style.display = 'none';
                 }
                 loadChats();
             }).catch(e => alert(e.message));
@@ -1626,7 +1565,6 @@ window.ctxDeleteChat = function() {
     menu.classList.remove('visible');
 };
 
-// Закрытие контекстного меню при клике
 document.addEventListener('click', (e) => {
     const menu = document.getElementById('chat-context-menu');
     if (menu && !menu.contains(e.target)) menu.classList.remove('visible');
@@ -2220,7 +2158,7 @@ window.loadAuditLog = async function() {
         if (!logs.length) { box.innerHTML = '<div class="empty">Логи пусты</div>'; return; }
         box.innerHTML = logs.map(l => {
             const date = new Date(l.created_at * 1000).toLocaleString();
-            return `<div class="audit-item"><b>${date}</b> | ${esc(l.details)}</div>`;
+            return `<div class="audit-item"><b>${date}</b> [@${esc(l.admin_name)}] ${esc(l.details)}</div>`;
         }).join('');
     } catch(e) { alert(e.message); }
 };
@@ -2753,7 +2691,6 @@ function renderChatList() {
   if (!state.chats.length) { list.innerHTML = '<div class="empty">НЕТ ЧАТОВ<br><br>Используйте поиск выше</div>'; return; }
   let sorted = [...state.chats];
   
-  // Сортировка: сначала закрепленные, потом избранные (если вкл), потом остальные
   sorted.sort((a, b) => {
       const aPinned = state.me.pinned_chats && state.me.pinned_chats.includes(a.id);
       const bPinned = state.me.pinned_chats && state.me.pinned_chats.includes(b.id);
@@ -2778,7 +2715,6 @@ function renderChatList() {
     const avatar = `<div class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')">${avInner}</div>`;
     const active = state.currentChat && state.currentChat.id === c.id ? ' active' : '';
     
-    // Иконки звезды и пина
     const starBtn = visualSettings.favorites ? `<div onclick="toggleFavorite('${escAttr(c.id)}', event)" style="font-size: 16px; cursor: pointer; color: ${isFav ? '#ffd700' : 'var(--border)'}; margin-left: 4px;">★</div>` : '';
     
     const lockedClass = !c.canAccess ? ' locked' : '';
@@ -2851,8 +2787,8 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   
   state.currentChat = { id: chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires, isGroup, creatorId, isChannel, username, isHelper, blockedByMe, blockedByThem, required_clearance, canAccess };
   state.unreadCounts[chatId] = 0;
-  state.pinnedMessageId = null;
-  document.getElementById('pinned-banner').style.display = 'none';
+  state.currentPinnedIndex = 0;
+  state.visiblePinnedMessages = [];
   updatePageTitle();
   
   document.getElementById('chat-title').textContent = name;
@@ -2971,8 +2907,12 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
 
     // Проверка на пин
     const chat = state.chats.find(c => c.id === chatId);
-    if (chat && chat.pinned_message_id) {
-        updatePinnedBanner(chat.pinned_message_id, msgs);
+    if (chat && chat.pinned_messages && chat.pinned_messages.length > 0) {
+        state.visiblePinnedMessages = chat.pinned_messages;
+        state.currentPinnedIndex = 0;
+        updatePinBanner();
+    } else {
+        document.getElementById('pinned-banner').style.display = 'none';
     }
   } catch (e) { msgsEl.innerHTML = '<div class="empty">Ошибка: ' + esc(e.message) + '</div>'; }
   
@@ -2983,17 +2923,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   document.getElementById('sidebar').classList.remove('mobile-open');
 }
 window.openChat = openChat;
-
-function updatePinnedBanner(msgId, msgs) {
-    const banner = document.getElementById('pinned-banner');
-    if (!msgId) { banner.style.display = 'none'; state.pinnedMessageId = null; return; }
-    const pinnedMsg = msgs.find(m => m.id === msgId);
-    if (!pinnedMsg) { banner.style.display = 'none'; state.pinnedMessageId = null; return; }
-    
-    state.pinnedMessageId = msgId;
-    banner.style.display = 'flex';
-    document.getElementById('pinned-text').textContent = `@${pinnedMsg.sender.displayName || pinnedMsg.sender.username}: ${pinnedMsg.text || '(вложение)'}`;
-}
 
 // ================= FORMAT MESSAGE =================
 function formatMessageText(rawText) {
@@ -3508,7 +3437,6 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   } catch (e) { 
       if (!e.message.includes('автоматической системой')) alert(e.message); 
       else {
-          // Очищаем инпут если автомодерация заблокировала
           alert(e.message);
       }
   }
@@ -3625,6 +3553,7 @@ document.getElementById('leave-group-btn').addEventListener('click', async () =>
     document.getElementById('clear-chat-btn').style.display = 'none';
     document.getElementById('header-avatar').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
+    document.getElementById('pinned-banner').style.display = 'none';
     loadChats();
   } catch (e) { alert(e.message); }
 });
@@ -3642,6 +3571,7 @@ document.getElementById('delete-group-btn').addEventListener('click', async () =
     document.getElementById('clear-chat-btn').style.display = 'none';
     document.getElementById('header-avatar').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
+    document.getElementById('pinned-banner').style.display = 'none';
     loadChats();
   } catch (e) { alert(e.message); }
 });
@@ -3662,6 +3592,7 @@ document.getElementById('delete-chat-btn').addEventListener('click', async () =>
     document.getElementById('header-chat-role-badge').innerHTML = '';
     document.getElementById('chat-clearance-badge').innerHTML = '';
     document.getElementById('chat-settings-modal').classList.remove('visible');
+    document.getElementById('pinned-banner').style.display = 'none';
     await loadChats();
     document.getElementById('sidebar').classList.remove('mobile-open');
   } catch (e) { alert(e.message); }
@@ -3841,24 +3772,17 @@ function connectSocket() {
         <div class="poll-footer">Всего голосов: ${totalVotes}</div>
     `;
   });
-  state.socket.on('chatPinned', ({ chatId, messageId }) => {
+  state.socket.on('chatPinned', ({ chatId, pinned_messages }) => {
       if (state.currentChat && state.currentChat.id === chatId) {
-          if (!messageId) {
+          if (!pinned_messages || pinned_messages.length === 0) {
               document.getElementById('pinned-banner').style.display = 'none';
-              state.pinnedMessageId = null;
+              state.visiblePinnedMessages = [];
+              state.currentPinnedIndex = 0;
           } else {
-              const msgEl = document.getElementById('msg-' + messageId);
-              if (msgEl) {
-                  const who = msgEl.querySelector('.who');
-                  const text = msgEl.querySelector('.msg').innerText.substring(0, 50);
-                  document.getElementById('pinned-text').textContent = `${who ? who.innerText : ''} ${text}...`;
-                  document.getElementById('pinned-banner').style.display = 'flex';
-                  state.pinnedMessageId = messageId;
-              } else {
-                  document.getElementById('pinned-banner').style.display = 'flex';
-                  document.getElementById('pinned-text').textContent = 'Сообщение закреплено (прокрутите вверх)';
-                  state.pinnedMessageId = messageId;
-              }
+              const visible = pinned_messages.filter(p => p.forAll || p.pinnedBy === state.me.id);
+              state.visiblePinnedMessages = visible;
+              if (state.currentPinnedIndex >= visible.length) state.currentPinnedIndex = 0;
+              updatePinBanner();
           }
       }
   });
@@ -4347,16 +4271,14 @@ document.addEventListener('click', (e) => {
     const author = "Морозов Роман";
     const watermarkText = "Разработано Морозовым Романом. Все права защищены.";
 
-    // 🛡️ Определяем, запущено ли это как ПРИЛОЖЕНИЕ (APK, Electron, локальный файл), а не как сайт
     const isApp = (typeof window !== 'undefined') && (
-        window.cordova !== undefined || // Cordova / PhoneGap (Android APK)
-        window.electron !== undefined || // Electron (Windows .exe)
-        (window.process && window.process.type === 'renderer') || // Electron
-        window.ReactNativeWebView !== undefined || // React Native
-        window.location.protocol === 'file:' // Открыт как локальный файл (часто при упаковке)
+        window.cordova !== undefined ||
+        window.electron !== undefined ||
+        (window.process && window.process.type === 'renderer') ||
+        window.ReactNativeWebView !== undefined ||
+        window.location.protocol === 'file:'
     );
 
-    // Если это ПРИЛОЖЕНИЕ - включаем жесткую защиту от кражи
     if (isApp) {
         setInterval(() => {
             const el = document.getElementById('author-watermark');
@@ -4370,7 +4292,6 @@ document.addEventListener('click', (e) => {
             }
         }, 1000);
     } else {
-        // Если это обычный САЙТ - никакой блокировки, только скрытые логи в консоли для разработчиков
         console.log('%c STOP! ', 'color: red; font-size: 40px; font-weight: bold; text-shadow: 0 0 10px red;');
         console.log(`%c ${watermarkText}\nЛюбые копии, выданные за другие проекты, являются подделками.`, 'font-size: 16px; color: #1d9bf0; font-weight: bold;');
     }
