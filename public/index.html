@@ -2608,6 +2608,12 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   else headerAvatar.style.display = 'none';
   
   const inputEl = document.getElementById('msg-input');
+  // 🔒 АВТОЗАПОЛНЕНИЕ /START ДЛЯ ХЕЛПЕРА
+  if (isHelper && !chatDrafts[chatId]) {
+      chatDrafts[chatId] = '/start';
+      localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
+      updateChatPreview(chatId);
+  }
   inputEl.value = chatDrafts[chatId] || '';
   inputEl.style.height = 'auto';
   if (inputEl.value) inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
