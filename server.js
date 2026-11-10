@@ -307,7 +307,6 @@ app.get('/api/admin/stats', authMiddleware, (req, res) => {
     const now = Date.now();
     const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
     
-    // Сообщения за 7 дней (по дням)
     const msgsPerDay = Array(7).fill(0);
     db.messages.forEach(m => {
         const msgTime = m.created_at * 1000;
@@ -317,7 +316,6 @@ app.get('/api/admin/stats', authMiddleware, (req, res) => {
         }
     });
 
-    // Новые юзеры за 7 дней
     const usersPerDay = Array(7).fill(0);
     db.users.forEach(u => {
         const uTime = u.created_at * 1000;
@@ -327,7 +325,6 @@ app.get('/api/admin/stats', authMiddleware, (req, res) => {
         }
     });
 
-    // Топ активных юзеров
     const userMsgCounts = {};
     db.messages.forEach(m => { userMsgCounts[m.sender_id] = (userMsgCounts[m.sender_id] || 0) + 1; });
     const topUsers = Object.entries(userMsgCounts)
@@ -344,7 +341,10 @@ app.get('/api/admin/stats', authMiddleware, (req, res) => {
 app.get('/api/admin/audit-log', authMiddleware, (req, res) => {
     const me = db.users.find(u => u.id === req.userId);
     if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
-    const logs = [...db.audit_logs].sort((a, b) => b.created_at - a.created_at).slice(0, 100);
+    const logs = [...db.audit_logs].sort((a, b) => b.created_at - a.created_at).slice(0, 100).map(l => {
+        const admin = db.users.find(u => u.id === l.admin_id);
+        return { ...l, admin_name: admin ? admin.username : 'Unknown' };
+    });
     res.json(logs);
 });
 
@@ -360,6 +360,77 @@ app.post('/api/reports', authMiddleware, (req, res) => {
   saveDb();
   
   io.emit('newReport');
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/reports', authMiddleware, (req, res) => {
+  const me = db.users.find(u => u.id === req.userId);
+  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  
+  const reports = db.reports.filter(r => r.status === 'pending').map(r => {
+    const reporter = db.users.find(u => u.id === r.reporter_id);
+    const targetUser = db.users.find(u => u.id === r.target_user_id);
+    
+    const targetMessages = (r.target_message_ids || []).map(id => {
+      const msg = db.messages.find(m => m.id === id);
+      return msg ? { id: msg.id, text: msg.text, chat_id: msg.chat_id } : null;
+    }).filter(Boolean);
+    
+    return {
+      id: r.id, reason: r.reason, created_at: r.created_at,
+      reporter: reporter ? reporter.username : 'Unknown',
+      targetUser: targetUser ? { id: targetUser.id, username: targetUser.username, role: targetUser.role, clearance_level: targetUser.clearance_level } : null,
+      targetMessages
+    };
+  }).sort((a, b) => b.created_at - a.created_at);
+  
+  res.json(reports);
+});
+
+app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
+  const me = db.users.find(u => u.id === req.userId);
+  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  
+  const report = db.reports.find(r => r.id === req.params.id);
+  if (!report) return res.status(404).json({ error: 'Жалоба не найдена' });
+  
+  const action = req.body.action || 'ignored';
+  const banDuration = req.body.duration;
+  report.status = action;
+
+  let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === report.reporter_id) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
+  if (!helperChat) {
+    helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
+    db.chats.push(helperChat);
+    db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: report.reporter_id });
+    db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: HELPER_ID });
+  }
+  
+  const targetUser = db.users.find(u => u.id === report.target_user_id);
+  const targetName = targetUser ? `@${targetUser.username}` : 'неизвестного пользователя';
+
+  let statusText = '';
+  if (action === 'banned') {
+    let timeStr = 'навсегда';
+    if (banDuration > 0) {
+      if (banDuration >= 1440) timeStr = `на ${Math.floor(banDuration / 1440)} дн.`;
+      else if (banDuration >= 60) timeStr = `на ${Math.floor(banDuration / 60)} ч.`;
+      else timeStr = `на ${banDuration} мин.`;
+    }
+    statusText = `Пользователь забанен (${timeStr}).`;
+  } 
+  else if (action === 'deleted') statusText = 'Сообщения нарушителя удалены.';
+  else statusText = 'Жалоба отклонена (нарушений не найдено).';
+
+  const sysMsg = {
+    id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID,
+    text: `📋 **Рассмотрение жалобы**\nВаша жалоба на пользователя ${targetName} рассмотрена.\nСтатус: ${statusText}`,
+    created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+  };
+  db.messages.push(sysMsg);
+  saveDb();
+  
+  emitToChatMembers(helperChat.id, 'newMessage', buildMessagePayload(sysMsg));
   res.json({ ok: true });
 });
 
@@ -803,6 +874,12 @@ app.get('/api/chats', authMiddleware, (req, res) => {
 
     const requiredClearance = c.required_clearance || 1;
     const canAccess = myClearance >= requiredClearance;
+    
+    // Фильтруем закрепленные сообщения (только для этого пользователя)
+    let pinnedMessages = c.pinned_messages || [];
+    if (!c.is_group) {
+        pinnedMessages = pinnedMessages.filter(p => p.forAll || p.pinnedBy === req.userId);
+    }
 
     return {
       id: c.id, name: chatName, avatarUrl: chatAvatar,
@@ -819,7 +896,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       required_clearance: requiredClearance,
       min_write_clearance: c.min_write_clearance || 1,
       canAccess: canAccess,
-      pinned_message_id: c.pinned_message_id || null
+      pinned_messages: pinnedMessages
     };
   });
   res.json(chats);
@@ -828,24 +905,39 @@ app.get('/api/chats', authMiddleware, (req, res) => {
 app.post('/api/chats/:chatId/pin', authMiddleware, (req, res) => {
     const chat = db.chats.find(c => c.id === req.params.chatId);
     if (!chat) return res.status(404).json({ error: 'Chat not found' });
-    const { messageId } = req.body;
+    const { messageId, forAll } = req.body;
     
     const msg = db.messages.find(m => m.id === messageId);
     if (!msg || msg.chat_id !== chat.id) return res.status(400).json({ error: 'Сообщение не в этом чате' });
 
-    chat.pinned_message_id = messageId;
+    if (!chat.pinned_messages) chat.pinned_messages = [];
+
+    // Если уже закреплено - открепляем
+    const existingIdx = chat.pinned_messages.findIndex(p => p.messageId === messageId && (p.forAll || p.pinnedBy === req.userId));
+    if (existingIdx >= 0) {
+        chat.pinned_messages.splice(existingIdx, 1);
+    } else {
+        chat.pinned_messages.push({ messageId, forAll: !!forAll, pinnedBy: req.userId });
+    }
+
     saveDb();
-    emitToChatMembers(chat.id, 'chatPinned', { chatId: chat.id, messageId });
-    res.json({ ok: true });
+    emitToChatMembers(chat.id, 'chatPinned', { chatId: chat.id, pinned_messages: chat.pinned_messages });
+    res.json({ ok: true, pinned_messages: chat.pinned_messages });
 });
 
 app.post('/api/chats/:chatId/unpin', authMiddleware, (req, res) => {
     const chat = db.chats.find(c => c.id === req.params.chatId);
     if (!chat) return res.status(404).json({ error: 'Chat not found' });
-    chat.pinned_message_id = null;
+    const { messageId } = req.body;
+    
+    if (!chat.pinned_messages) chat.pinned_messages = [];
+    
+    // Удаляем только то, что закреплено этим пользователем или для всех
+    chat.pinned_messages = chat.pinned_messages.filter(p => !(p.messageId === messageId && (p.forAll || p.pinnedBy === req.userId)));
+    
     saveDb();
-    emitToChatMembers(chat.id, 'chatPinned', { chatId: chat.id, messageId: null });
-    res.json({ ok: true });
+    emitToChatMembers(chat.id, 'chatPinned', { chatId: chat.id, pinned_messages: chat.pinned_messages });
+    res.json({ ok: true, pinned_messages: chat.pinned_messages });
 });
 
 app.post('/api/chats/group', authMiddleware, (req, res) => {
@@ -886,7 +978,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     db.chats.push({
       id: channelId, created_at: Math.floor(Date.now() / 1000),
       is_group: true, is_channel: true, username: cleanUsername, name, creator_id: req.userId,
-      required_clearance: reqClearance, min_write_clearance: writeClearance
+      required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: []
     });
 
     const groupId = genId();
@@ -894,7 +986,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
       id: groupId, created_at: Math.floor(Date.now() / 1000),
       is_group: true, is_channel: false, username: cleanUsername,
       name: `${name} (Обсуждение)`, creator_id: req.userId,
-      required_clearance: reqClearance, min_write_clearance: writeClearance
+      required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: []
     });
 
     uniqueMembers.forEach(uid => {
@@ -922,7 +1014,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   db.chats.push({
     id: groupId, created_at: Math.floor(Date.now() / 1000),
     is_group: true, is_channel: false, username: null, name, creator_id: req.userId,
-    required_clearance: reqClearance, min_write_clearance: writeClearance
+    required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: []
   });
   uniqueMembers.forEach(uid => {
     db.chat_members.push({ id: genId(), chat_id: groupId, user_id: uid });
@@ -1036,7 +1128,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
     }
   }
   const chatId = genId();
-  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: false });
+  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: false, pinned_messages: [] });
   db.chat_members.push({ id: genId(), chat_id: chatId, user_id: req.userId });
   if (!isSelf) db.chat_members.push({ id: genId(), chat_id: chatId, user_id: other.id });
   saveDb();
@@ -1116,12 +1208,10 @@ app.post('/api/messages/:messageId/vote', authMiddleware, (req, res) => {
     const { optionIndex } = req.body;
     if (optionIndex === undefined || !msg.poll.options[optionIndex]) return res.status(400).json({ error: 'Неверный вариант' });
     
-    // Убираем прошлый голос пользователя
     msg.poll.options.forEach(opt => {
         opt.votes = opt.votes.filter(uid => uid !== req.userId);
     });
     
-    // Добавляем новый голос
     msg.poll.options[optionIndex].votes.push(req.userId);
     saveDb();
     
@@ -1164,7 +1254,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       }
   }
 
-  // 🤬 АВТОМОДЕРАЦИЯ
   let isFlagged = false;
   const lowerText = text.toLowerCase();
   for (const word of BANNED_WORDS) {
@@ -1192,7 +1281,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   emitToChatMembers(chatId, 'newMessage', payload);
 
   if (isFlagged) {
-      // Создаем автоматическую жалобу
       db.reports.push({
           id: genId(), reporter_id: HELPER_ID, target_user_id: req.userId, target_message_ids: [msgId],
           reason: 'АВТОМОДЕРАЦИЯ: Запрещенные слова', status: 'pending', created_at: now
@@ -1526,7 +1614,7 @@ app.post('/api/register', async (req, res) => {
     db.users.push(newUser);
 
     if (warningMessage) {
-        let helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false };
+        let helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false, pinned_messages: [] };
         db.chats.push(helperChat);
         db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: id });
         db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: HELPER_ID });
@@ -1712,6 +1800,16 @@ app.use((req, res, next) => {
     if (u.xp === undefined) { u.xp = 0; migrated = true; }
     if (!u.invite_code) { u.invite_code = `REF-${u.username.toUpperCase()}`; migrated = true; }
     if (!u.pinned_chats) { u.pinned_chats = []; migrated = true; }
+  });
+  if (migrated) saveDb();
+
+  db.chats.forEach(c => {
+      if (!c.pinned_messages) { c.pinned_messages = []; migrated = true; }
+      else if (c.pinned_message_id && c.pinned_messages.length === 0) {
+          c.pinned_messages.push({ messageId: c.pinned_message_id, forAll: true, pinnedBy: c.creator_id || 'system' });
+          delete c.pinned_message_id;
+          migrated = true;
+      }
   });
   if (migrated) saveDb();
 
