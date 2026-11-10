@@ -107,7 +107,6 @@ const logAdminAction = (adminId, action, targetId, details) => {
 const app = express();
 app.set('trust proxy', 1); 
 
-// 🛡️ ЗАЩИТА АВТОРСТВА НА УРОВНЕ СЕРВЕРА
 app.use((req, res, next) => {
   res.setHeader('X-Powered-By', 'Morozov Roman');
   next();
@@ -875,7 +874,6 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     const requiredClearance = c.required_clearance || 1;
     const canAccess = myClearance >= requiredClearance;
     
-    // Фильтруем закрепленные сообщения (только для этого пользователя)
     let pinnedMessages = c.pinned_messages || [];
     if (!c.is_group) {
         pinnedMessages = pinnedMessages.filter(p => p.forAll || p.pinnedBy === req.userId);
@@ -912,7 +910,6 @@ app.post('/api/chats/:chatId/pin', authMiddleware, (req, res) => {
 
     if (!chat.pinned_messages) chat.pinned_messages = [];
 
-    // Если уже закреплено - открепляем
     const existingIdx = chat.pinned_messages.findIndex(p => p.messageId === messageId && (p.forAll || p.pinnedBy === req.userId));
     if (existingIdx >= 0) {
         chat.pinned_messages.splice(existingIdx, 1);
@@ -931,8 +928,6 @@ app.post('/api/chats/:chatId/unpin', authMiddleware, (req, res) => {
     const { messageId } = req.body;
     
     if (!chat.pinned_messages) chat.pinned_messages = [];
-    
-    // Удаляем только то, что закреплено этим пользователем или для всех
     chat.pinned_messages = chat.pinned_messages.filter(p => !(p.messageId === messageId && (p.forAll || p.pinnedBy === req.userId)));
     
     saveDb();
@@ -1156,7 +1151,7 @@ function buildMessagePayload(m) {
     reactions: m.reactions || [],
     edited: m.edited || false,
     expires_at: m.expires_at || null,
-    attachments: atts.map(a => ({ url: a.url, mime: a.mime_type, name: a.original_name, size: a.size })),
+    attachments: atts.map(a => ({ url: a.url, mime: a.mime_type, name: a.original_name, size: a.size, is_voice: !!a.is_voice })),
     poll: m.poll || null
   };
 }
@@ -1173,7 +1168,6 @@ app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   res.json(messages);
 });
 
-// СОЗДАНИЕ ОПРОСА
 app.post('/api/chats/:chatId/polls', authMiddleware, (req, res) => {
     const chatId = req.params.chatId;
     if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
@@ -1358,7 +1352,7 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
     if (myClearance < (chatForCheck.min_write_clearance || 1)) return res.status(403).json({ error: 'Недостаточный уровень допуска' });
   }
 
-  const { files, caption, expires_in } = req.body;
+  const { files, caption, expires_in, is_voice } = req.body;
   if (!files || !files.length) return res.status(400).json({ error: 'Нет файлов' });
   const msgId = genId();
   const now = Math.floor(Date.now() / 1000);
@@ -1371,7 +1365,13 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
   otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) msg.delivered_to.push(om.user_id); });
   db.messages.push(msg);
-  files.forEach(f => { db.attachments.push({ id: genId(), message_id: msgId, storage_key: f.key, url: `/api/files/${f.key}`, mime_type: f.type, original_name: f.name, size: f.size }); });
+  files.forEach(f => { 
+      db.attachments.push({ 
+          id: genId(), message_id: msgId, storage_key: f.key, 
+          url: `/api/files/${f.key}`, mime_type: f.type, 
+          original_name: f.name, size: f.size, is_voice: !!is_voice 
+      }); 
+  });
   saveDb();
 
   if (expiresAt) scheduleMessageExpiry(msgId, expiresAt);
@@ -1486,7 +1486,13 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
   otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) newMsg.delivered_to.push(om.user_id); });
   db.messages.push(newMsg);
-  db.attachments.filter(a => a.message_id === src.id).forEach(a => { db.attachments.push({ id: genId(), message_id: newMsg.id, storage_key: a.storage_key, url: a.url, mime_type: a.mime_type, original_name: a.original_name, size: a.size }); });
+  db.attachments.filter(a => a.message_id === src.id).forEach(a => { 
+      db.attachments.push({ 
+          id: genId(), message_id: newMsg.id, storage_key: a.storage_key, 
+          url: a.url, mime_type: a.mime_type, original_name: a.original_name, 
+          size: a.size, is_voice: a.is_voice 
+      }); 
+  });
   saveDb();
   const payload = buildMessagePayload(newMsg);
   emitToChatMembers(chatId, 'newMessage', payload);
@@ -1808,6 +1814,19 @@ app.use((req, res, next) => {
       else if (c.pinned_message_id && c.pinned_messages.length === 0) {
           c.pinned_messages.push({ messageId: c.pinned_message_id, forAll: true, pinnedBy: c.creator_id || 'system' });
           delete c.pinned_message_id;
+          migrated = true;
+      }
+  });
+  if (migrated) saveDb();
+
+  // Миграция старых голосовых сообщений
+  db.attachments.forEach(a => {
+      if (a.is_voice === undefined) {
+          if (a.original_name && a.original_name.startsWith('voice_') && a.mime_type && a.mime_type.startsWith('audio/')) {
+              a.is_voice = true;
+          } else {
+              a.is_voice = false;
+          }
           migrated = true;
       }
   });
