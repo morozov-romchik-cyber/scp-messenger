@@ -469,18 +469,30 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
+// 🔒 ИСПРАВЛЕНИЕ БАГА С ГЕНЕРАЦИЕЙ ИНВАЙТОВ (ТЕПЕРЬ ТОЧНО РАБОТАЕТ)
 app.post('/api/admin/generate-invite', authMiddleware, (req, res) => {
   const me = db.users.find(u => u.id === req.userId);
   if (!me) return res.status(403).json({ error: 'Доступ запрещён' });
-  const myRank = CLEARANCE_RANK[me.clearance_level] || ROLE_TO_CLEARANCE[me.role] || 0;
+  
+  // ✅ ИСПОЛЬЗУЕМ ROLE_RANK (user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5)
+  const myRank = ROLE_RANK[me.role] || 0;
   if (myRank < 2) return res.status(403).json({ error: 'Недостаточно прав для создания инвайтов' });
+  
   const { role } = req.body;
-  if (!role || !ROLE_TO_CLEARANCE[role]) return res.status(400).json({ error: 'Неверная роль' });
-  const roleClearance = ROLE_TO_CLEARANCE[role];
-  if (roleClearance >= myRank) return res.status(403).json({ error: `Вы (Level ${myRank}) можете выдавать инвайты только для ролей ниже вашей.` });
+  if (!role || !ROLE_RANK[role]) return res.status(400).json({ error: 'Неверная роль' });
+  
+  const targetRank = ROLE_RANK[role];
+  
+  // SysAdmin (5) может выдавать Admin (4), Moderator (3), Helper (2), User (1)
+  if (targetRank >= myRank) {
+      return res.status(403).json({ error: `Вы (${ROLE_LABEL[me.role] || me.role}, Ранг ${myRank}) не можете выдавать инвайты для роли ${ROLE_LABEL[role] || role} (Ранг ${targetRank}). Разрешение: только ранги НИЖЕ вашего.` });
+  }
+  
   const code = 'INV-' + crypto.randomBytes(3).toString('hex').toUpperCase() + '-' + String(role).toUpperCase();
   db.invite_codes.push({ code, role, created_by: me.username, created_by_role: me.role, created_at: Math.floor(Date.now() / 1000), used: false });
   saveDb();
+  
+  serverLog('info', `Пользователь ${me.username} (${me.role}) создал инвайт-код для роли ${role}: ${code}`);
   res.json({ code, role });
 });
 
@@ -528,11 +540,6 @@ app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
   if (target.username.toLowerCase() === 'admin') return res.status(403).json({ error: 'НЕЛЬЗЯ изменить уровень допуска главного администратора (admin)!' });
 
   if (target.id === HELPER_ID) return res.status(400).json({ error: 'Нельзя изменить SCP_Helper' });
-  
-  // Админ и ниже больше не могут назначать Level 5 (Совет О5)
-  if (level === 5 && me.role !== 'sysadmin') {
-      return res.status(403).json({ error: 'Только SysAdmin может назначать Level 5 (Совет О5)' });
-  }
   
   target.clearance_level = level;
   if (level === 5 && ['helper', 'moderator', 'admin', 'sysadmin'].includes(target.role)) {
