@@ -3875,23 +3875,34 @@ document.addEventListener('click', (e) => {
 (function() {
     const author = "Морозов Роман";
     const watermarkText = "Разработано Морозовым Романом. Все права защищены.";
-    
-    // Проверка каждые 3 секунды
-    setInterval(() => {
-        const el = document.getElementById('author-watermark');
-        if (!el || !el.textContent.includes(author)) {
-            document.body.innerHTML = `
-                <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#000; color:#ff0000; font-family:'Fira Code', monospace; font-size:20px; text-align:center; padding:20px; flex-direction:column; z-index:9999999; position:fixed; inset:0;">
-                    <h1 style="font-size:40px; margin-bottom:20px;">⚠️ ВНИМАНИЕ ⚠️</h1>
-                    <p style="margin-bottom:10px;">Код этого сайта украден у <b>Морозова Романа</b>!</p>
-                    <p style="font-size:14px; color:#888;">Данный проект является интеллектуальной собственностью автора.<br>Попытка выдать его за свой проект незаконна и будет преследоваться.</p>
-                </div>`;
-        }
-    }, 3000);
 
-    // Скрытые логи в консоли для разработчиков
-    console.log('%c STOP! ', 'color: red; font-size: 40px; font-weight: bold; text-shadow: 0 0 10px red;');
-    console.log(`%c ${watermarkText}\nЛюбые копии, выданные за другие проекты, являются подделками.`, 'font-size: 16px; color: #1d9bf0; font-weight: bold;');
+    // 🛡️ Определяем, запущено ли это как ПРИЛОЖЕНИЕ (APK, Electron, локальный файл), а не как сайт
+    const isApp = (typeof window !== 'undefined') && (
+        window.cordova !== undefined || // Cordova / PhoneGap (Android APK)
+        window.electron !== undefined || // Electron (Windows .exe)
+        (window.process && window.process.type === 'renderer') || // Electron
+        window.ReactNativeWebView !== undefined || // React Native
+        window.location.protocol === 'file:' // Открыт как локальный файл (часто при упаковке)
+    );
+
+    // Если это ПРИЛОЖЕНИЕ - включаем жесткую защиту от кражи
+    if (isApp) {
+        setInterval(() => {
+            const el = document.getElementById('author-watermark');
+            if (!el || !el.textContent.includes(author)) {
+                document.body.innerHTML = `
+                    <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#000; color:#ff0000; font-family:'Fira Code', monospace; font-size:20px; text-align:center; padding:20px; flex-direction:column; z-index:9999999; position:fixed; inset:0;">
+                        <h1 style="font-size:40px; margin-bottom:20px;">⚠️ ВНИМАНИЕ ⚠️</h1>
+                        <p style="margin-bottom:10px;">Код этого приложения украден с you tube канала <b>Aldernx-scp</b>!</p>
+                        <p style="font-size:14px; color:#888;">Данный проект является интеллектуальной собственностью автора.<br>Попытка выдать его за свой проект незаконна и будет преследоваться.</p>
+                    </div>`;
+            }
+        }, 1000);
+    } else {
+        // Если это обычный САЙТ - никакой блокировки, только скрытые логи в консоли для разработчиков
+        console.log('%c STOP! ', 'color: red; font-size: 40px; font-weight: bold; text-shadow: 0 0 10px red;');
+        console.log(`%c ${watermarkText}\nЛюбые копии, выданные за другие проекты, являются подделками.`, 'font-size: 16px; color: #1d9bf0; font-weight: bold;');
+    }
 })();
 </script>
 </body>
