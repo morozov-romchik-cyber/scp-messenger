@@ -26,9 +26,15 @@ const S3_ENABLED = process.env.S3_ENABLED !== 'false';
 const s3 = new S3Client({
   endpoint: S3_ENDPOINT,
   region: S3_REGION,
-  credentials: { accessKeyId: S3_ACCESS_KEY, secretAccessKey: S3_SECRET_KEY },
+  credentials: { 
+      accessKeyId: S3_ACCESS_KEY, 
+      secretAccessKey: S3_SECRET_KEY 
+  },
   forcePathStyle: true,
-  requestHandler: { connectionTimeout: 5000, socketTimeout: 10000 }
+  requestHandler: { 
+      connectionTimeout: 5000, 
+      socketTimeout: 10000 
+  }
 });
 
 const serverLog = (type, text) => {
@@ -56,24 +62,28 @@ setInterval(() => {
 const rateLimiter = (req, res, next) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
+    
     if (!rateLimitMap.has(ip)) {
         rateLimitMap.set(ip, { count: 1, resetTime: now + API_RATE_WINDOW });
         return next();
     }
+    
     const data = rateLimitMap.get(ip);
     if (now > data.resetTime) {
         data.count = 1;
         data.resetTime = now + API_RATE_WINDOW;
         return next();
     }
+    
     data.count++;
     if (data.count > API_RATE_LIMIT) {
         return res.status(429).json({ error: 'Слишком много запросов. Подождите.' });
     }
+    
     next();
 };
 
-// Белый список безопасных расширений
+// Белый список безопасных расширений (без .js, .html, .svg)
 const ALLOWED_EXT = new Set([
   '.ai', '.all', '.apk', '.accdb', '.asm', '.app', '.arj', '.avi', '.bak', '.bat',
   '.bin', '.bmp', '.bz2', '.c', '.cab', '.cc', '.cfg', '.class', '.cmd', '.conf',
@@ -137,7 +147,7 @@ let db = {
 let isS3Syncing = false;
 let pendingS3Sync = false;
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Асинхронная запись БД (чтобы не блокировать Event Loop)
+// Асинхронная запись БД (защита от блокировки Event Loop)
 let isDbSaving = false;
 let pendingDbSave = false;
 
@@ -200,7 +210,7 @@ const logAdminAction = (adminId, action, targetId, details) => {
 };
 
 const app = express();
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Доверяем прокси только если это указано в .env
+// Доверяем прокси только если это указано в .env
 app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false); 
 app.disable('x-powered-by');
 
@@ -216,9 +226,27 @@ app.use(rateLimiter);
 
 const server = http.createServer(app);
 
+// ================= ЗАЩИТА ОТ КРАЖИ (CORS) =================
+const allowedOrigins = [
+    "https://scp-messenger.online",
+    "http://scp-messenger.online",
+    "https://www.scp-messenger.online",
+    "http://www.scp-messenger.online",
+    "http://localhost:3000", 
+    "http://localhost:5173"
+];
+
 const io = new Server(server, { 
     cors: { 
-        origin: ["https://scp-messenger.online", "http://localhost:3000", "http://localhost:5173"], 
+        origin: function (origin, callback) {
+            // Разрешаем запросы без origin (например, мобильные приложения или Postman)
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.indexOf(origin) !== -1) {
+                callback(null, true);
+            } else {
+                callback(new Error('CORS policy violation: Domain not allowed'));
+            }
+        },
         methods: ["GET", "POST"],
         credentials: true
     } 
@@ -294,7 +322,6 @@ const storage = multer.diskStorage({
   }
 });
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Строгий лимит на аватар (макс 2 МБ)
 const uploadAvatar = multer({
   storage, 
   limits: { fileSize: 2 * 1024 * 1024 },
@@ -414,20 +441,31 @@ const chatIsBlocked = (chatId, myId) => {
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
-function scheduleMessageExpiry(msgId, expiresAt) {
-  const delay = expiresAt - Date.now();
-  if (delay > 0) {
-    setTimeout(() => {
-      const msgIdx = db.messages.findIndex(m => m.id === msgId);
-      if (msgIdx !== -1 && !db.messages[msgIdx].is_deleted) {
-        db.messages.splice(msgIdx, 1);
-        db.attachments = db.attachments.filter(a => a.message_id !== msgId);
+// Единый интервал для удаления исчезающих сообщений (Защита от OOM)
+setInterval(() => {
+    const now = Date.now();
+    let changed = false;
+    const expiredMsgIds = [];
+    
+    db.messages.forEach(m => {
+        if (m.expires_at && m.expires_at <= now && !m.is_deleted) {
+            expiredMsgIds.push(m.id);
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        db.messages = db.messages.filter(m => !expiredMsgIds.includes(m.id));
+        db.attachments = db.attachments.filter(a => !expiredMsgIds.includes(a.message_id));
         saveDb();
-        emitToChatMembers(db.messages[msgIdx]?.chat_id || '', 'messageDeleted', { messageId: msgId, type: 'all' });
-      }
-    }, delay);
-  }
-}
+        expiredMsgIds.forEach(id => {
+            const chatId = db.messages.find(m => m.id === id)?.chat_id || '';
+            if (chatId) {
+                emitToChatMembers(chatId, 'messageDeleted', { messageId: id, type: 'all' });
+            }
+        });
+    }
+}, 10000);
 
 function addXp(userId, amount) {
   const user = db.users.find(u => u.id === userId);
@@ -1139,7 +1177,6 @@ app.post('/api/users/avatar', authMiddleware, uploadAvatar.single('avatar'), (re
         return res.status(400).json({ error: 'Файл не получен' });
     }
     
-    // УСТРАНЕНИЕ УЯЗВИМОСТИ: Правильное удаление старого аватара при Race Condition
     const newAvatarUrl = '/uploads/' + req.file.filename + '?v=' + Date.now();
     const oldAvatarUrl = user.avatar_url;
     
@@ -1895,14 +1932,12 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       return res.status(400).json({ error: 'Empty message' });
   }
 
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ: E2EE обязательно для личных сообщений
   if (!chatForCheck.is_group && !is_encrypted) {
       return res.status(400).json({ error: 'Для личных сообщений требуется сквозное шифрование (E2EE).' });
   }
 
   messageCooldowns[req.userId] = Date.now();
 
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Защита от Race Condition
   if (me.role === 'user' && !processingXP.has(me.id)) {
       processingXP.add(me.id);
       const today = new Date().toDateString();
@@ -1918,7 +1953,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   }
 
   let isFlagged = false;
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Не проверяем шифрованный текст на стоп-слова
   if (!is_encrypted) { 
       const lowerText = text.toLowerCase();
       for (const word of BANNED_WORDS) {
@@ -1938,7 +1972,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       expiresAt = Date.now() + seconds * 1000;
   }
 
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Увеличен лимит для Base64 (100000) и отключена санитизация для E2EE
   const finalText = is_encrypted ? text.slice(0, 100000) : sanitizeString(text).slice(0, 4000);
 
   const msg = {
@@ -1963,8 +1996,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   
   db.messages.push(msg);
   saveDb();
-
-  if (expiresAt) scheduleMessageExpiry(msgId, expiresAt);
 
   const payload = buildMessagePayload(msg);
   emitToChatMembers(chatId, 'newMessage', payload);
@@ -2074,7 +2105,6 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
       return res.status(400).json({ error: 'Недопустимый тип файла: ' + ext });
   }
 
-  // УСТРАНЕНИЕ ОШИБКИ ZIP: Принимаем несколько MIME-типов для архивов
   const mimeMap = {
     '.png': ['image/png'], 
     '.jpg': ['image/jpeg'], 
@@ -2180,8 +2210,6 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   });
   
   saveDb();
-
-  if (expiresAt) scheduleMessageExpiry(msgId, expiresAt);
 
   const payload = buildMessagePayload(msg);
   emitToChatMembers(chatId, 'newMessage', payload);
@@ -2352,7 +2380,6 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
       return res.status(404).json({ error: 'Message not found' });
   }
   
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ: IDOR в исходном чате
   if (!db.chat_members.find(m => m.chat_id === src.chat_id && m.user_id === req.userId)) {
       return res.status(403).json({ error: 'Вы не состоите в чате, откуда пересылается сообщение' });
   }
@@ -2370,7 +2397,6 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   
   if (targetChat) {
-    // УСТРАНЕНИЕ УЯЗВИМОСТИ: Обход лимитов L5
     if ((targetChat.required_clearance || 1) > myClearance) {
         return res.status(403).json({ error: 'Недостаточный уровень допуска для пересылки в этот чат' });
     }
@@ -2382,7 +2408,6 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
       if (myClearance < (targetChat.min_write_clearance || 1)) {
           return res.status(403).json({ error: 'Недостаточный уровень допуска' });
       }
-      // Запрет пересылки E2EE в группы
       if (src.is_encrypted) {
           return res.status(400).json({ error: 'Нельзя пересылать зашифрованные (E2EE) сообщения в групповые чаты.' });
       }
@@ -2584,6 +2609,8 @@ app.post('/api/register', async (req, res) => {
         clearance_level = 5; 
     }
 
+    const randomRefCode = 'REF-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+
     const newUser = {
       id, 
       username: cleanUsername, 
@@ -2600,7 +2627,7 @@ app.post('/api/register', async (req, res) => {
       clearance_level,
       custom_status: '',
       xp: 0,
-      invite_code: `REF-${cleanUsername.toUpperCase()}`,
+      invite_code: randomRefCode, 
       last_daily_login: 0,
       pinned_chats: []
     };
@@ -2942,9 +2969,6 @@ app.use((req, res, next) => {
   }
 
   db.messages.forEach(m => {
-    if (m.expires_at && !m.is_deleted && m.expires_at > now) {
-      scheduleMessageExpiry(m.id, m.expires_at);
-    }
     if (m.is_encrypted === undefined) { m.is_encrypted = false; migrated = true; }
     if (m.deleted_for === undefined) { m.deleted_for = []; migrated = true; }
   });
