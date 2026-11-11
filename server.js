@@ -275,7 +275,7 @@ const publicUser = (u) => ({
   ip: u.ip || 'Скрыт', 
   role: u.role || 'user', 
   invited_by: u.invited_by || null, 
-  ban_expires: u.ban_expires || 0, 
+  ban_expires: Number(u.ban_expires) || 0, // ИСПРАВЛЕНО: Строгая конвертация в число
   ban_reason: u.ban_reason || '',
   custom_status: u.custom_status || '',
   clearance_level: u.clearance_level || ROLE_TO_CLEARANCE[u.role] || 1,
@@ -380,7 +380,7 @@ function authMiddleware(req, res, next) {
           user.clearance_level = 5; 
           _changed = true; 
       }
-      if (user.ban_expires && user.ban_expires !== 0) { 
+      if (user.ban_expires && Number(user.ban_expires) !== 0) { 
           user.ban_expires = 0; 
           user.ban_reason = ''; 
           _changed = true; 
@@ -388,12 +388,13 @@ function authMiddleware(req, res, next) {
       if (_changed) saveDb();
     }
 
-    if (user.ban_expires && user.ban_expires !== 0) {
+    const banExp = Number(user.ban_expires);
+    if (banExp && banExp !== 0) {
       const now = Date.now();
-      if (user.ban_expires === -1 || user.ban_expires > now) {
+      if (banExp === -1 || banExp > now) {
         return res.status(403).json({ 
             error: 'BANNED', 
-            ban_expires: user.ban_expires, 
+            ban_expires: banExp, 
             ban_reason: user.ban_reason || 'Нарушение правил' 
         });
       } else {
@@ -787,13 +788,13 @@ app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   saveDb();
   
   if (target.ban_expires !== 0) {
-      io.to(`user:${target.id}`).emit('forceLogout', { ban_expires: target.ban_expires, ban_reason: target.ban_reason });
+      io.to(`user:${target.id}`).emit('forceLogout', { ban_expires: Number(target.ban_expires), ban_reason: target.ban_reason });
       const userSockets = [...io.sockets.sockets.values()].filter(s => s.userId === target.id);
       userSockets.forEach(s => s.disconnect(true));
   }
   
   io.emit('refreshData');
-  res.json({ ok: true, ban_expires: target.ban_expires, ban_reason: target.ban_reason });
+  res.json({ ok: true, ban_expires: Number(target.ban_expires), ban_reason: target.ban_reason });
 });
 
 app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
@@ -977,7 +978,7 @@ app.get('/api/admin/users-list', authMiddleware, (req, res) => {
       status: u.status || 'offline',
       avatarUrl: u.avatar_url || null, 
       ip: canSeeIp ? (u.ip || 'Скрыт') : 'Скрыт',
-      ban_expires: u.ban_expires || 0, 
+      ban_expires: Number(u.ban_expires) || 0, 
       created_at: u.created_at || 0,
       clearance_level: u.clearance_level || ROLE_TO_CLEARANCE[u.role] || 1,
       xp: u.xp || 0
@@ -1117,7 +1118,7 @@ app.get('/api/users/search', authMiddleware, (req, res) => {
       level: u.level || 1, 
       role: u.role || 'user', 
       ip: 'Скрыт', 
-      ban_expires: u.ban_expires || 0,
+      ban_expires: Number(u.ban_expires) || 0,
       clearance_level: u.clearance_level || ROLE_TO_CLEARANCE[u.role] || 1
     }));
 
@@ -1156,7 +1157,7 @@ app.get('/api/users/:userId', authMiddleware, (req, res) => {
     avatarUrl: target.avatar_url || null, 
     status: target.status || 'offline',
     role: target.role || 'user', 
-    ban_expires: target.ban_expires || 0,
+    ban_expires: Number(target.ban_expires) || 0,
     created_at: target.created_at || 0, 
     ip: canSeeIp ? (target.ip || 'Скрыт') : 'Скрыт',
     custom_status: target.custom_status || '',
@@ -1323,7 +1324,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       otherClearance = other.clearance_level || ROLE_TO_CLEARANCE[other.role] || 1;
     }
 
-    let banExpires = other ? (other.ban_expires || 0) : 0;
+    let banExpires = other ? (Number(other.ban_expires) || 0) : 0;
     if (banExpires > 0 && banExpires <= Date.now()) banExpires = 0;
 
     let blockedByMe = false;
@@ -1745,7 +1746,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
           blockedByMe, 
           blockedByThem, 
           isSelf: false, 
-          ban_expires: other.ban_expires || 0, 
+          ban_expires: Number(other.ban_expires) || 0, 
           isGroup: false 
       });
     }
@@ -1770,7 +1771,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
       blockedByMe: false, 
       blockedByThem: false, 
       isSelf: isSelf, 
-      ban_expires: isSelf ? 0 : (other.ban_expires || 0), 
+      ban_expires: isSelf ? 0 : (Number(other.ban_expires) || 0), 
       isGroup: false 
   });
 });
@@ -2580,10 +2581,11 @@ app.post('/api/register', async (req, res) => {
 
     const existing = findUserByUsername(cleanUsername);
     if (existing) {
-      if (existing.ban_expires && existing.ban_expires !== 0) {
+      if (existing.ban_expires && Number(existing.ban_expires) !== 0) {
         const now = Date.now();
-        if (existing.ban_expires === -1 || existing.ban_expires > now) {
-            return res.status(403).json({ error: 'Этот никнейм заблокирован', ban_expires: existing.ban_expires, ban_reason: existing.ban_reason });
+        const exp = Number(existing.ban_expires);
+        if (exp === -1 || exp > now) {
+            return res.status(403).json({ error: 'Этот никнейм заблокирован', ban_expires: exp, ban_reason: existing.ban_reason });
         }
       }
       return res.status(409).json({ error: 'Ник занят' });
@@ -2734,7 +2736,8 @@ app.post('/api/login', async (req, res) => {
     }
 
     const user = findUserByUsername(username);
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    // Проверка на существование хэша пароля, чтобы избежать падения
+    if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
         return res.status(401).json({ error: 'Неверный ник или пароль' });
     }
 
@@ -2742,14 +2745,15 @@ app.post('/api/login', async (req, res) => {
       let _changed = false;
       if (user.role !== 'sysadmin') { user.role = 'sysadmin'; _changed = true; }
       if (user.clearance_level !== 5) { user.clearance_level = 5; _changed = true; }
-      if (user.ban_expires && user.ban_expires !== 0) { user.ban_expires = 0; user.ban_reason = ''; _changed = true; }
+      if (user.ban_expires && Number(user.ban_expires) !== 0) { user.ban_expires = 0; user.ban_reason = ''; _changed = true; }
       if (_changed) saveDb();
     }
 
-    if (user.ban_expires && user.ban_expires !== 0) {
+    const banExp = Number(user.ban_expires);
+    if (banExp && banExp !== 0) {
       const now = Date.now();
-      if (user.ban_expires === -1 || user.ban_expires > now) {
-          return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires, ban_reason: user.ban_reason || 'Нарушение правил' });
+      if (banExp === -1 || banExp > now) {
+          return res.status(403).json({ error: 'BANNED', ban_expires: banExp, ban_reason: user.ban_reason || 'Нарушение правил' });
       }
       else { 
           user.ban_expires = 0; 
@@ -2819,13 +2823,14 @@ io.use((socket, next) => {
       let _changed = false;
       if (u.role !== 'sysadmin') { u.role = 'sysadmin'; _changed = true; }
       if (u.clearance_level !== 5) { u.clearance_level = 5; _changed = true; }
-      if (u.ban_expires && u.ban_expires !== 0) { u.ban_expires = 0; u.ban_reason = ''; _changed = true; }
+      if (u.ban_expires && Number(u.ban_expires) !== 0) { u.ban_expires = 0; u.ban_reason = ''; _changed = true; }
       if (_changed) saveDb();
     }
     
-    if (u.ban_expires && u.ban_expires !== 0) {
+    const banExp = Number(u.ban_expires);
+    if (banExp && banExp !== 0) {
       const now = Date.now();
-      if (u.ban_expires === -1 || u.ban_expires > now) {
+      if (banExp === -1 || banExp > now) {
         return next(new Error('banned'));
       } else {
         u.ban_expires = 0;
@@ -2960,7 +2965,7 @@ app.use((req, res, next) => {
     if (u.username && u.username.toLowerCase() === 'admin') {
         if (u.role !== 'sysadmin') { u.role = 'sysadmin'; migrated = true; }
         if (u.clearance_level !== 5) { u.clearance_level = 5; migrated = true; }
-        if (u.ban_expires && u.ban_expires !== 0) { u.ban_expires = 0; u.ban_reason = ''; migrated = true; }
+        if (u.ban_expires && Number(u.ban_expires) !== 0) { u.ban_expires = 0; u.ban_reason = ''; migrated = true; }
     }
     
     if (!u.role) u.role = 'user';
@@ -2970,6 +2975,12 @@ app.use((req, res, next) => {
     if (u.xp === undefined) { u.xp = 0; migrated = true; }
     if (!u.invite_code) { u.invite_code = `REF-${u.username.toUpperCase()}`; migrated = true; }
     if (!u.pinned_chats) { u.pinned_chats = []; migrated = true; }
+    
+    // Принудительная конвертация ban_expires в число при загрузке
+    if (typeof u.ban_expires !== 'number') {
+        u.ban_expires = Number(u.ban_expires) || 0;
+        migrated = true;
+    }
   });
   if (migrated) saveDb();
 
