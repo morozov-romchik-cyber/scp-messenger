@@ -412,7 +412,19 @@ function authMiddleware(req, res, next) {
 
 function emitToChatMembers(chatId, event, payload) {
   const members = db.chat_members.filter(m => m.chat_id === chatId);
-  members.forEach(m => io.to(`user:${m.user_id}`).emit(event, payload));
+  members.forEach(m => {
+      let customPayload = payload;
+      if (payload && payload.poll && payload.poll.isQuiz) {
+          customPayload = { ...payload };
+          let pollCopy = JSON.parse(JSON.stringify(payload.poll));
+          const hasVoted = pollCopy.options.some(o => o.votes.includes(m.user_id));
+          if (!hasVoted) {
+              delete pollCopy.correctOptionIndex;
+          }
+          customPayload.poll = pollCopy;
+      }
+      io.to(`user:${m.user_id}`).emit(event, customPayload);
+  });
 }
 
 const findUserByUsername = (username) => {
@@ -1337,7 +1349,6 @@ app.get('/api/chats', authMiddleware, (req, res) => {
         pinnedMessages = pinnedMessages.filter(p => p.forAll || p.pinnedBy === req.userId);
     }
     
-    // Считаем непрочитанные сообщения
     const unreadCount = db.messages.filter(m => 
         m.chat_id === c.id && 
         m.sender_id !== req.userId && 
@@ -1369,7 +1380,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       min_write_clearance: c.min_write_clearance || 1,
       canAccess: canAccess,
       pinned_messages: pinnedMessages,
-      e2ee_enabled: (c.is_group || isHelperChat) ? false : true, // Отключаем E2EE для бота
+      e2ee_enabled: (c.is_group || isHelperChat) ? false : true,
       unreadCount: unreadCount
     };
   });
@@ -1764,7 +1775,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
   });
 });
 
-function buildMessagePayload(m) {
+function buildMessagePayload(m, reqUserId = null) {
   const sender = db.users.find(u => u.id === m.sender_id);
   const atts = db.attachments.filter(a => a.message_id === m.id);
   const members = db.chat_members.filter(cm => cm.chat_id === m.chat_id);
@@ -1777,6 +1788,14 @@ function buildMessagePayload(m) {
     const readBy = m.read_by || [];
     delivered = otherMembers.every(om => deliveredTo.includes(om.user_id));
     read = otherMembers.every(om => readBy.includes(om.user_id));
+  }
+  
+  let poll = m.poll ? JSON.parse(JSON.stringify(m.poll)) : null;
+  if (poll && poll.isQuiz) {
+      const hasVoted = reqUserId && poll.options.some(o => o.votes.includes(reqUserId));
+      if (!hasVoted) {
+          delete poll.correctOptionIndex;
+      }
   }
   
   return {
@@ -1794,7 +1813,7 @@ function buildMessagePayload(m) {
     expires_at: m.expires_at || null,
     is_encrypted: m.is_encrypted || false,
     attachments: atts.map(a => ({ url: a.url, mime: a.mime_type, name: a.original_name, size: a.size, is_voice: !!a.is_voice })),
-    poll: m.poll || null
+    poll: poll
   };
 }
 
@@ -1814,7 +1833,7 @@ app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const messages = db.messages
     .filter(m => m.chat_id === req.params.chatId && (!m.deleted_for || !m.deleted_for.includes(req.userId)))
     .sort((a, b) => a.created_at - b.created_at)
-    .map(buildMessagePayload);
+    .map(m => buildMessagePayload(m, req.userId));
   
   res.json(messages);
 });
@@ -1825,7 +1844,7 @@ app.post('/api/chats/:chatId/polls', authMiddleware, (req, res) => {
         return res.status(403).json({ error: 'Not a member' });
     }
     
-    const { question, options } = req.body;
+    const { question, options, is_quiz, correct_option_index } = req.body;
     if (!question || !options || !Array.isArray(options) || options.length < 2) {
         return res.status(400).json({ error: 'Неверный формат опроса' });
     }
@@ -1844,7 +1863,9 @@ app.post('/api/chats/:chatId/polls', authMiddleware, (req, res) => {
         poll: {
             question: sanitizeString(question),
             options: options.map(opt => ({ text: sanitizeString(opt), votes: [] })),
-            isClosed: false
+            isClosed: false,
+            isQuiz: !!is_quiz,
+            correctOptionIndex: is_quiz ? Number(correct_option_index) : null
         }
     };
     
@@ -1857,9 +1878,8 @@ app.post('/api/chats/:chatId/polls', authMiddleware, (req, res) => {
     db.messages.push(msg);
     saveDb();
     
-    const payload = buildMessagePayload(msg);
-    emitToChatMembers(chatId, 'newMessage', payload);
-    res.json(payload);
+    emitToChatMembers(chatId, 'newMessage', buildMessagePayload(msg));
+    res.json(buildMessagePayload(msg, req.userId));
 });
 
 app.post('/api/messages/:messageId/vote', authMiddleware, (req, res) => {
@@ -1875,14 +1895,23 @@ app.post('/api/messages/:messageId/vote', authMiddleware, (req, res) => {
         return res.status(403).json({ error: 'Not a member' });
     }
     
+    if (msg.poll.isQuiz) {
+        const hasVoted = msg.poll.options.some(o => o.votes.includes(req.userId));
+        if (hasVoted) {
+            return res.status(400).json({ error: 'Вы уже ответили на этот вопрос. Изменить ответ нельзя.' });
+        }
+    }
+    
     const { optionIndex } = req.body;
     if (optionIndex === undefined || !msg.poll.options[optionIndex]) {
         return res.status(400).json({ error: 'Неверный вариант' });
     }
     
-    msg.poll.options.forEach(opt => {
-        opt.votes = opt.votes.filter(uid => uid !== req.userId);
-    });
+    if (!msg.poll.isQuiz) {
+        msg.poll.options.forEach(opt => {
+            opt.votes = opt.votes.filter(uid => uid !== req.userId);
+        });
+    }
     
     if (!msg.poll.options[optionIndex].votes.includes(req.userId)) {
         msg.poll.options[optionIndex].votes.push(req.userId);
@@ -1891,7 +1920,7 @@ app.post('/api/messages/:messageId/vote', authMiddleware, (req, res) => {
     saveDb();
     
     emitToChatMembers(msg.chat_id, 'pollUpdated', { messageId: msg.id, poll: msg.poll });
-    res.json({ ok: true, poll: msg.poll });
+    res.json({ ok: true, poll: JSON.parse(JSON.stringify(msg.poll)) });
 });
 
 const messageCooldowns = {};
@@ -2066,7 +2095,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       }
   }
 
-  res.json(payload);
+  res.json(buildMessagePayload(msg, req.userId));
 });
 
 app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) => {
@@ -2223,7 +2252,7 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
 
   const payload = buildMessagePayload(msg);
   emitToChatMembers(chatId, 'newMessage', payload);
-  res.json(payload);
+  res.json(buildMessagePayload(msg, req.userId));
 });
 
 app.get('/api/files/*', (req, res, next) => {
@@ -2435,8 +2464,13 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
       read_by: [], 
       expires_at: null, 
       deleted_for: [], 
-      is_encrypted: src.is_encrypted 
+      is_encrypted: src.is_encrypted,
+      poll: src.poll ? JSON.parse(JSON.stringify(src.poll)) : null
   };
+  
+  if (newMsg.poll) {
+      newMsg.poll.options.forEach(opt => opt.votes = []);
+  }
   
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
   otherMembers.forEach(om => { 
@@ -2462,7 +2496,7 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   saveDb();
   const payload = buildMessagePayload(newMsg);
   emitToChatMembers(chatId, 'newMessage', payload);
-  res.json(payload);
+  res.json(buildMessagePayload(newMsg, req.userId));
 });
 
 app.post('/api/messages/:messageId/react', authMiddleware, (req, res) => {
