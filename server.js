@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
-const cookieParser = require('cookie-parser'); // ДОБАВЛЕНО ДЛЯ БЕЗОПАСНЫХ КУКИ
+const cookieParser = require('cookie-parser'); // Парсер куки
 const { Server } = require('socket.io');
 
 const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
@@ -41,8 +41,8 @@ process.on('unhandledRejection', (err) => serverLog('error', 'Необработ
 
 // УСТРАНЕНИЕ УЯЗВИМОСТИ: Rate Limiting
 const rateLimitMap = new Map();
-const API_RATE_LIMIT = 150; // 150 запросов
-const API_RATE_WINDOW = 60000; // в минуту
+const API_RATE_LIMIT = 150;
+const API_RATE_WINDOW = 60000;
 
 const rateLimiter = (req, res, next) => {
     const ip = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) || 'unknown';
@@ -134,6 +134,7 @@ const app = express();
 app.set('trust proxy', 1); 
 app.disable('x-powered-by');
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Защитные заголовки
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -141,12 +142,12 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(cookieParser()); // Инициализация парсера куки
+app.use(cookieParser()); // Инициализация cookie-parser (ВАЖНО: до роутов)
 app.use(rateLimiter);
 
 const server = http.createServer(app);
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: CORS и строгая проверка Origin
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Строгая проверка Origin для WebSocket
 const io = new Server(server, { 
     cors: { 
         origin: ["https://scp-messenger.online", "http://localhost:3000", "http://localhost:5173"], 
@@ -182,16 +183,15 @@ const publicUserSafe = (u) => {
   return safe;
 };
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Строгая проверка заголовков для предотвращения подделки IP
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Строгая проверка IP
 const getRealIp = (req) => {
   let ip = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) || 'unknown';
   return ip.replace('::ffff:', '');
 };
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Санитизация входящих строк (защита от XSS)
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Санитизация (XSS)
 const sanitizeString = (str) => {
     if (typeof str !== 'string') return '';
-    // Удаляем HTML-теги и опасные символы
     return str.replace(/<[^>]*>?/gm, '').replace(/[<>]/g, '').trim();
 };
 
@@ -705,11 +705,9 @@ app.get('/api/me', authMiddleware, (req, res) => {
 app.put('/api/users/profile', authMiddleware, (req, res) => {
   const user = req.user;
   if (typeof req.body.display_name === 'string') {
-    // УСТРАНЕНИЕ УЯЗВИМОСТИ: XSS Санитизация
     user.display_name = sanitizeString(req.body.display_name).slice(0, 32);
   }
   if (typeof req.body.custom_status === 'string') {
-    // УСТРАНЕНИЕ УЯЗВИМОСТИ: XSS Санитизация
     user.custom_status = sanitizeString(req.body.custom_status).slice(0, 64);
   }
   saveDb();
@@ -931,7 +929,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       min_write_clearance: c.min_write_clearance || 1,
       canAccess: canAccess,
       pinned_messages: pinnedMessages,
-      e2ee_enabled: c.is_group ? false : true // УСТРАНЕНИЕ УЯЗВИМОСТИ: E2EE всегда включено для личек
+      e2ee_enabled: c.is_group ? false : true 
     };
   });
   res.json(chats);
@@ -1311,7 +1309,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   }
 
   let isFlagged = false;
-  if (!is_encrypted) { // Если текст зашифрован, автобан по словам не работает (это нормально для E2EE)
+  if (!is_encrypted) { 
       const lowerText = text.toLowerCase();
       for (const word of BANNED_WORDS) {
           if (lowerText.includes(word)) { isFlagged = true; break; }
@@ -1677,7 +1675,6 @@ app.post('/api/register', async (req, res) => {
       created_at: Math.floor(Date.now() / 1000), read_deleted: false, ip,
       role: userRole, invited_by: inviter, ban_expires: 0, ban_reason: '',
       privacy_accepted_at: Math.floor(Date.now() / 1000),
-      // УСТРАНЕНИЕ УЯЗВИМОСТИ: Поле plain_password ПОЛНОСТЬЮ УДАЛЕНО
       clearance_level,
       custom_status: '',
       xp: 0,
@@ -1716,7 +1713,6 @@ app.post('/api/register', async (req, res) => {
     saveDb(); io.emit('refreshData');
     
     const token = signToken(id);
-    // УСТРАНЕНИЕ УЯЗВИМОСТИ: HttpOnly Cookie
     res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000 });
     
     res.json({ user: publicUser(newUser), recoveryCodes: plainCodes, warning: warningMessage });
@@ -1759,14 +1755,12 @@ app.post('/api/login', async (req, res) => {
     saveDb(); io.emit('refreshData');
     
     const token = signToken(user.id);
-    // УСТРАНЕНИЕ УЯЗВИМОСТИ: HttpOnly Cookie
     res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000 });
     
     res.json({ user: publicUser(user) });
   } catch (e) { res.status(500).json({ error: 'Ошибка при входе' }); }
 });
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Парсинг куки для Socket.IO
 const parseCookies = (cookieHeader) => {
     const list = {};
     if (!cookieHeader) return list;
@@ -1908,11 +1902,7 @@ app.use((req, res, next) => {
 
   let migrated = false;
   db.users.forEach(u => {
-    // УСТРАНЕНИЕ УЯЗВИМОСТИ: Удаляем старые поля plain_password при миграции
-    if (u.plain_password) {
-        delete u.plain_password;
-        migrated = true;
-    }
+    if (u.plain_password) { delete u.plain_password; migrated = true; }
     if (u.username && u.username.toLowerCase() === 'admin') {
         if (u.role !== 'sysadmin') { u.role = 'sysadmin'; migrated = true; }
         if (u.clearance_level !== 5) { u.clearance_level = 5; migrated = true; }
