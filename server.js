@@ -39,7 +39,7 @@ const serverLog = (type, text) => {
 process.on('uncaughtException', (err) => serverLog('error', 'Поймана необработанная ошибка: ' + err.stack));
 process.on('unhandledRejection', (err) => serverLog('error', 'Необработанный промис: ' + err));
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Rate Limiting (Увеличен лимит, чтобы избежать 429)
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Rate Limiting (Защита от DDoS/брутфорса)
 const rateLimitMap = new Map();
 const API_RATE_LIMIT = 500; 
 const API_RATE_WINDOW = 60000;
@@ -64,7 +64,7 @@ const rateLimiter = (req, res, next) => {
     next();
 };
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Удалены опасные расширения (.js, .html, .svg и т.д.)
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Белый список безопасных расширений (без .js, .html, .svg)
 const ALLOWED_EXT = new Set([
   '.ai', '.all', '.apk', '.accdb', '.asm', '.app', '.arj', '.avi', '.bak', '.bat',
   '.bin', '.bmp', '.bz2', '.c', '.cab', '.cc', '.cfg', '.class', '.cmd', '.conf',
@@ -82,6 +82,9 @@ const ALLOWED_EXT = new Set([
   '.url', '.var', '.vb', '.vdi', '.vhd', '.vhdx', '.vmdk', '.wav', '.webm', '.webp',
   '.wma', '.wmv', '.xls', '.xlsx', '.xpi', '.xz', '.yaml', '.yml', '.zip', '.zst', '.torrent', '.blend'
 ]);
+
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Race Condition для инвайтов
+const processingInvites = new Set();
 
 const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
 const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
@@ -135,7 +138,7 @@ const app = express();
 app.set('trust proxy', 1); 
 app.disable('x-powered-by');
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Защитные заголовки
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Защитные заголовки (CSP, XSS Protection)
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -148,7 +151,7 @@ app.use(rateLimiter);
 
 const server = http.createServer(app);
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Строгая проверка Origin для WebSocket
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Строгая проверка Origin для WebSocket (Защита от CSWSH)
 const io = new Server(server, { 
     cors: { 
         origin: ["https://scp-messenger.online", "http://localhost:3000", "http://localhost:5173"], 
@@ -184,7 +187,7 @@ const publicUserSafe = (u) => {
   return safe;
 };
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Строгая проверка IP
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Строгая проверка реального IP
 const getRealIp = (req) => {
   let ip = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) || 'unknown';
   return ip.replace('::ffff:', '');
@@ -235,7 +238,7 @@ const uploadSingle = (field) => (req, res, next) => {
   });
 };
 
-// JWT берется из HttpOnly Cookie
+// JWT берется из HttpOnly Cookie (Защита от кражи через XSS)
 function authMiddleware(req, res, next) {
   const token = req.cookies.token; 
   if (!token) return res.status(401).json({ error: 'No token' });
@@ -304,7 +307,7 @@ function scheduleMessageExpiry(msgId, expiresAt) {
     setTimeout(() => {
       const msgIdx = db.messages.findIndex(m => m.id === msgId);
       if (msgIdx !== -1 && !db.messages[msgIdx].is_deleted) {
-        db.messages.splice(msgIdx, 1); // Удаляем физически
+        db.messages.splice(msgIdx, 1);
         db.attachments = db.attachments.filter(a => a.message_id !== msgId);
         saveDb();
         emitToChatMembers(db.messages[msgIdx]?.chat_id || '', 'messageDeleted', { messageId: msgId, type: 'all' });
@@ -1230,6 +1233,7 @@ app.post('/api/chats/:chatId/polls', authMiddleware, (req, res) => {
         created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], is_encrypted: false,
         poll: {
             question: sanitizeString(question),
+            // УСТРАНЕНИЕ УЯЗВИМОСТИ: Санитизация вариантов ответа (XSS)
             options: options.map(opt => ({ text: sanitizeString(opt), votes: [] })),
             isClosed: false
         }
@@ -1274,6 +1278,11 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   if (!chatForCheck) return res.status(404).json({ error: 'Chat not found' });
   const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
+
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Проверка required_clearance (защита от IDOR)
+  if ((chatForCheck.required_clearance || 1) > myClearance) {
+    return res.status(403).json({ error: `Доступ запрещён. Требуется уровень допуска ${chatForCheck.required_clearance}` });
+  }
 
   if (chatForCheck.is_group) {
     if (chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
@@ -1387,6 +1396,11 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Проверка required_clearance (защита от IDOR)
+  if (chatForCheck && (chatForCheck.required_clearance || 1) > myClearance) {
+    return res.status(403).json({ error: 'Недостаточный уровень допуска для доступа к этому чату' });
+  }
+
   if (chatForCheck && chatForCheck.is_group) {
     if (chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может загружать файлы' });
     if (myClearance < (chatForCheck.min_write_clearance || 1)) return res.status(403).json({ error: 'Недостаточный уровень допуска для отправки файлов' });
@@ -1405,6 +1419,17 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   
   const ext = path.extname(fileName).toLowerCase();
   if (!ALLOWED_EXT.has(ext)) return res.status(400).json({ error: 'Недопустимый тип файла: ' + ext });
+
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Проверка MIME-типа (защита от подмены расширения)
+  const mimeMap = {
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
+    '.mp4': 'video/mp4', '.webm': 'video/webm', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg',
+    '.pdf': 'application/pdf', '.zip': 'application/zip', '.rar': 'application/x-rar-compressed', '.txt': 'text/plain'
+  };
+  if (mimeMap[ext] && fileType && fileType !== mimeMap[ext] && !fileType.startsWith('application/octet-stream')) {
+      return res.status(400).json({ error: 'Несоответствие расширения и MIME-типа файла' });
+  }
+
   const key = `uploads/${genId()}${ext}`;
   const command = new PutObjectCommand({ Bucket: S3_BUCKET, Key: key, ContentType: fileType });
   try { const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 }); res.json({ uploadUrl, key }); } catch (err) { res.status(500).json({ error: 'Ошибка S3' }); }
@@ -1417,6 +1442,11 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Проверка required_clearance (защита от IDOR)
+  if (chatForCheck && (chatForCheck.required_clearance || 1) > myClearance) {
+    return res.status(403).json({ error: 'Недостаточный уровень допуска для доступа к этому чату' });
+  }
+
   if (chatForCheck && chatForCheck.is_group) {
     if (chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель канала может отправлять файлы' });
     if (myClearance < (chatForCheck.min_write_clearance || 1)) return res.status(403).json({ error: 'Недостаточный уровень допуска' });
@@ -1467,6 +1497,7 @@ app.get('/api/files/*', (req, res, next) => {
     const me = db.users.find(u => u.id === req.userId);
     const myClearance = me?.clearance_level || ROLE_TO_CLEARANCE[me?.role] || 1;
     const chat = db.chats.find(c => c.id === msg.chat_id);
+    // УСТРАНЕНИЕ УЯЗВИМОСТИ: Проверка допуска для скачивания файла
     if (chat && (chat.required_clearance || 1) > myClearance) return res.status(403).send('Недостаточный уровень допуска');
     if (!S3_ENABLED) return res.status(503).send('S3 отключён');
     const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
@@ -1531,7 +1562,6 @@ app.delete('/api/messages/:messageId', authMiddleware, (req, res) => {
         logAdminAction(me.id, 'delete_message', msg.sender_id, `Удалено сообщение ID: ${msg.id} в чате ${msg.chat_id}`);
     }
 
-    // Физическое удаление сообщения и вложений
     db.attachments = db.attachments.filter(a => a.message_id !== msg.id);
     db.messages.splice(msgIdx, 1);
     
@@ -1655,21 +1685,31 @@ app.post('/api/register', async (req, res) => {
     let isRefInvite = false;
 
     if (invited_by) {
-      const adminInvite = db.invite_codes.find(i => i.code === invited_by && !i.used);
-      if (adminInvite) {
-          if (!ROLE_TO_CLEARANCE[adminInvite.role]) return res.status(400).json({ error: 'Повреждённый инвайт-код' });
-          userRole = adminInvite.role;
-          clearance_level = ROLE_TO_CLEARANCE[userRole] || 1;
-          inviter = adminInvite.created_by;
-          adminInvite.used = true;
-      } else {
-          const refUser = db.users.find(u => u.invite_code === invited_by);
-          if (refUser) {
-              inviter = refUser.username;
-              isRefInvite = true;
+      // УСТРАНЕНИЕ УЯЗВИМОСТИ: Защита от Race Condition при активации инвайта
+      if (processingInvites.has(invited_by)) {
+          return res.status(429).json({ error: 'Код уже активируется, подождите.' });
+      }
+      processingInvites.add(invited_by);
+
+      try {
+          const adminInvite = db.invite_codes.find(i => i.code === invited_by && !i.used);
+          if (adminInvite) {
+              if (!ROLE_TO_CLEARANCE[adminInvite.role]) return res.status(400).json({ error: 'Повреждённый инвайт-код' });
+              userRole = adminInvite.role;
+              clearance_level = ROLE_TO_CLEARANCE[userRole] || 1;
+              inviter = adminInvite.created_by;
+              adminInvite.used = true;
           } else {
-              return res.status(400).json({ error: 'Неверный или уже использованный инвайт-код' });
+              const refUser = db.users.find(u => u.invite_code === invited_by);
+              if (refUser) {
+                  inviter = refUser.username;
+                  isRefInvite = true;
+              } else {
+                  return res.status(400).json({ error: 'Неверный или уже использованный инвайт-код' });
+              }
           }
+      } finally {
+          processingInvites.delete(invited_by);
       }
     }
 
