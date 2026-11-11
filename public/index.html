@@ -72,7 +72,6 @@
   .status-dot.offline { background: #8b949e; }
 
   .chat-item.locked { opacity: 0.5; cursor: not-allowed; }
-  .lock-icon { font-size: 12px; margin-left: 4px; }
 
   #auth { display: flex; align-items: center; justify-content: center; height: 100%; padding: 20px; position: relative; z-index: 1; }
   .auth-card { width: 100%; max-width: 420px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 40px 32px; box-shadow: 0 20px 40px rgba(0,0,0,0.8); backdrop-filter: blur(10px); }
@@ -852,7 +851,7 @@
         </div>
         
         <div class="admin-section" id="clearance-section">
-          <h4>🔐 Назначение уровня допуска (Clearance Level)</h4>
+          <h4>Назначение уровня допуска (Clearance Level)</h4>
           <p style="font-size: 11px; color: #ccaaaa; margin-bottom: 10px;">1 = Класс-D, 2 = Научный сотрудник, 3 = Ст. Исследователь, 4 = Рук. Зоны, 5 = Совет О5</p>
           <div class="admin-input-group">
             <input type="text" placeholder="Username или ID" id="clearance-user-input">
@@ -942,7 +941,7 @@
     </div>
     
     <div id="clearance-required-container" style="display: none; margin-bottom: 10px; flex-shrink: 0;">
-      <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">🔒 Требуемый уровень допуска (для входа):</label>
+      <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">Требуемый уровень допуска (для входа):</label>
       <select id="channel-required-clearance" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; font-family: inherit; outline: none;">
         <option value="1">Level 1 — Все пользователи</option>
         <option value="2">Level 2 — Научный сотрудник и выше</option>
@@ -953,7 +952,7 @@
     </div>
 
     <div id="min-write-clearance-container" style="display: none; margin-bottom: 10px; flex-shrink: 0;">
-      <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">✍️ Мин. уровень для отправки сообщений:</label>
+      <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">Мин. уровень для отправки сообщений:</label>
       <select id="channel-min-write-clearance" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; font-family: inherit; outline: none;">
         <option value="1">Level 1 — Все пользователи</option>
         <option value="2">Level 2 — Научный сотрудник и выше</option>
@@ -1022,11 +1021,6 @@
     <div id="set-channel-username-section" style="display:none; margin-bottom: 15px;">
       <input type="text" id="modal-set-username" placeholder="юзернейм" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:6px; font-family:inherit; margin-bottom:8px; outline:none;" />
       <button class="modal-btn" onclick="setChannelUsername()" style="margin-top:0; padding:8px;">Установить ссылку</button>
-    </div>
-    
-    <div class="admin-toggle-row" style="margin-bottom: 15px; padding: 10px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); cursor: not-allowed; opacity: 0.8;">
-        <span style="color: var(--accent); font-weight: bold;">🔒 Сквозное шифрование (E2EE)</span>
-        <span style="color: #00ff9d; font-size: 12px; font-weight: bold;">ВСЕГДА ВКЛ</span>
     </div>
 
     <button class="modal-btn" id="view-profile-btn" style="background: var(--accent); color: #000; margin-bottom: 10px;">👤 Профиль собеседника</button>
@@ -1197,7 +1191,6 @@
             <span id="chat-clearance-badge"></span>
             <svg id="verified-star" style="width: 18px; height: 18px; fill: #1d9bf0; display: none; vertical-align: middle; flex-shrink: 0; margin-left: 6px; cursor: pointer;" viewBox="0 0 24 24" onclick="openScpVerifyModal()"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
             <span id="header-chat-role-badge"></span>
-            <span id="e2ee-indicator" style="display: none; font-size: 12px; color: #00ff9d; margin-left: 6px;" title="Сквозное шифрование включено">🔒</span>
             <button class="clear-chat-btn" id="clear-chat-btn" title="Очистить" style="display: none;">🔥</button>
           </h2>
           <small id="chat-subtitle" style="color: var(--muted); font-size: 11px; font-family: 'Fira Code', monospace;"></small>
@@ -1225,7 +1218,7 @@
     
     <div class="file-progress" id="file-progress">
       <span id="file-progress-text">⏳ Загрузка... 0%</span>
-      <button id="cancel-upload-btn" type="button">Отмена</button>
+      <button id="cancel-upload-btn" type="button">✖</button>
     </div>
 
     <div id="recording-ui" style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid #ff4d4d; border-radius: 20px; padding: 10px 20px; align-items: center; gap: 15px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
@@ -1234,7 +1227,7 @@
       <div style="width: 100px; height: 6px; background: #333; border-radius: 3px; overflow: hidden;">
           <div id="rec-volume-bar" style="height: 100%; width: 0%; background: #00ff9d; transition: width 0.1s;"></div>
       </div>
-      <button id="rec-cancel-btn" style="background: transparent; border: none; color: #ff4d4d; font-weight: bold; cursor: pointer;">Отмена</button>
+      <button id="rec-cancel-btn" style="background: transparent; border: none; color: #ff4d4d; font-weight: bold; cursor: pointer;">✖</button>
     </div>
 
     <div id="reply-bar">
@@ -2186,17 +2179,16 @@ async function api(path, opts = {}) {
     let data = {};
     const text = await res.text();
     try { if (text) data = JSON.parse(text); } catch (e) { if (!res.ok) throw new Error(`Сервер вернул ошибку ${res.status}`); }
+    
     if (res.status === 401) { 
-        if (path !== '/login' && path !== '/register') {
-            window.location.reload();
-            throw new Error('Сессия истекла.');
-        }
+        // НЕ ПЕРЕЗАГРУЖАЕМ СТРАНИЦУ, ЧТОБЫ НЕ БЫЛО БЕСКОНЕЧНОГО ЦИКЛА
+        throw new Error('Сессия истекла. Войдите снова.');
     }
     if (res.status === 403 && data.error === 'BANNED') { 
         if (data.ban_expires === -1 || data.ban_expires > Date.now()) {
             showBanMessage(data.ban_expires, data.ban_reason); 
         } else {
-            window.location.reload();
+            showBanMessage(0, 'Бан истек. Попробуйте войти.'); 
         }
         throw new Error('Banned'); 
     }
@@ -2209,7 +2201,7 @@ async function api(path, opts = {}) {
 }
 
 function showBanMessage(ban_expires, ban_reason) {
-  let timeStr = ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(ban_expires).toLocaleString();
+  let timeStr = ban_expires === -1 ? 'НАВСЕГДА' : (ban_expires === 0 ? 'истек' : 'до ' + new Date(ban_expires).toLocaleString());
   document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;margin-bottom:10px;font-size:13px;">⛔ <b>ЗАБЛОКИРОВАН</b><br>Срок: ${timeStr}<br>Причина: ${esc(ban_reason || 'Нарушение правил')}</div>`;
 }
 
@@ -3061,7 +3053,6 @@ function renderChatList() {
     const starBtn = visualSettings.favorites ? `<div onclick="toggleFavorite('${escAttr(c.id)}', event)" style="font-size: 16px; cursor: pointer; color: ${isFav ? '#ffd700' : 'var(--border)'}; margin-left: 4px;">★</div>` : '';
     
     const lockedClass = !c.canAccess ? ' locked' : '';
-    const lockIcon = !c.canAccess ? '<span class="lock-icon">🔒</span>' : '';
     
     let clearanceBadgeHtml = '';
     if (c.required_clearance > 1) clearanceBadgeHtml = clearanceBadge(c.required_clearance);
@@ -3079,7 +3070,7 @@ function renderChatList() {
     } else if (c.otherStatus && !c.isGroup) {
       previewHtml = `<span style="color: #00ccff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block;">💬 ${esc(c.otherStatus)}</span>`;
     } else if (!c.canAccess) {
-      previewHtml = `<span style="color: #ff4d4d;">🔒 Требуется Level ${c.required_clearance}</span>`;
+      previewHtml = `<span style="color: #ff4d4d;">Требуется Level ${c.required_clearance}</span>`;
     } else {
       previewHtml = isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован' : (c.isSelf ? 'Личные заметки' : (c.isChannel ? 'Канал' : (c.isGroup ? 'Группа' : 'Открыть чат'))));
     }
@@ -3091,7 +3082,7 @@ function renderChatList() {
       <div class="chat-info" style="flex: 1; min-width: 0;">
         <div class="name" style="display:flex; align-items:center;">
           <span style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${pinIcon}${esc(c.name)}</span>
-          ${checkmarkHtml}${roleBadgeHtml}${lockIcon}
+          ${checkmarkHtml}${roleBadgeHtml}
         </div>
         <div class="preview" style="display: flex; align-items: center;">
           ${previewHtml}
@@ -3116,7 +3107,7 @@ function updateChatPreview(chatId) {
   let html = '';
   if (draft) html = `<span style="color: #ff9933; font-weight: bold; margin-right: 4px;">[Черновик]</span> <span style="color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; display: inline-block;">${esc(draft)}</span>`;
   else if (chat.otherStatus && !chat.isGroup) html = `<span style="color: #00ccff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block;">💬 ${esc(chat.otherStatus)}</span>`;
-  else if (!chat.canAccess) html = `<span style="color: #ff4d4d;">🔒 Level ${chat.required_clearance}</span>`;
+  else if (!chat.canAccess) html = `<span style="color: #ff4d4d;">Требуется Level ${chat.required_clearance}</span>`;
   else html = isBanned ? '⛔ Заблокирован' : (chat.isBlocked ? '🚫 Заблокирован' : (chat.isSelf ? 'Личные заметки' : (chat.isChannel ? 'Канал' : (chat.isGroup ? 'Группа' : 'Открыть чат'))));
   pv.innerHTML = `${html} ${unread ? ` <span class="badge" style="margin-left: auto;">${unread}</span>` : ''}`;
 }
@@ -3125,7 +3116,7 @@ function updateChatPreview(chatId) {
 async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires = 0, isGroup = false, creatorId = '', isChannel = false, username = '', isHelper = false, blockedByMe = false, blockedByThem = false, required_clearance = 1, canAccess = true) {
   const myClearance = state.me.clearance_level || 1;
   if (!canAccess && myClearance < required_clearance) {
-    return alert(`🔒 Доступ запрещён\n\nТребуется уровень допуска: L${required_clearance}\nВаш уровень: L${myClearance}`);
+    return alert(`Доступ запрещён\n\nТребуется уровень допуска: L${required_clearance}\nВаш уровень: L${myClearance}`);
   }
   
   state.currentChat = { id: chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires, isGroup, creatorId, isChannel, username, isHelper, blockedByMe, blockedByThem, required_clearance, canAccess };
@@ -3177,13 +3168,9 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   
   const chatObj = state.chats.find(c => c.id === chatId);
   const e2eeEnabled = chatObj && !chatObj.isGroup;
-  const e2eeIndicator = document.getElementById('e2ee-indicator');
   
   if (e2eeEnabled) {
-      e2eeIndicator.style.display = 'inline-block';
       await getE2EEKey(chatId);
-  } else {
-      e2eeIndicator.style.display = 'none';
   }
 
   const isCreator = !isGroup || (creatorId === state.me.id);
@@ -3260,7 +3247,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
         if (m.is_encrypted && e2eeEnabled) {
             displayText = await decryptMessage(m.text, chatId);
         } else if (m.is_encrypted && !e2eeEnabled) {
-            displayText = "🔒 [Зашифровано. E2EE доступно только в личных сообщениях]";
+            displayText = "[Зашифровано]";
         }
         appendMessage({ ...m, text: displayText }, false);
     }
@@ -3438,10 +3425,9 @@ function appendMessage(msg, scroll = true) {
 
     if (Array.isArray(msg.attachments) && msg.attachments.length) {
       window._attStore = window._attStore || {};
-      const atts = msg.attachments.map(a => ({ ...a, url: a.url })); // БЕЗ ТОКЕНА
+      const atts = msg.attachments.map(a => ({ ...a, url: a.url })); 
       window._attStore[msg.id] = { attachments: atts, chatName: state.currentChat ? state.currentChat.name : '', senderName: msg.sender.displayName || msg.sender.username };
       
-      // Голосовые сообщения — встроенный плеер
       const voices = msg.attachments.filter(a => a.is_voice);
       voices.forEach((v) => {
           const idx = msg.attachments.indexOf(v);
@@ -3455,7 +3441,6 @@ function appendMessage(msg, scroll = true) {
           </div>`;
       });
       
-      // Изображения
       const images = msg.attachments.filter(a => !a.is_voice && a.mime && a.mime.startsWith('image/'));
       images.forEach((img) => {
         const idx = msg.attachments.indexOf(img);
@@ -3464,7 +3449,6 @@ function appendMessage(msg, scroll = true) {
         content += `<img src="${escAttr(fullUrl)}" onclick="event.stopPropagation(); openLightbox(${JSON.stringify(allUrls).replace(/"/g, '&quot;')}, ${images.indexOf(img)})" style="max-width: 100%; max-height: 300px; border-radius: 6px; margin-top: 8px; display: block; border: 1px solid var(--border); cursor: zoom-in;" />`;
       });
       
-      // Остальные файлы (музыка, архивы, документы)
       const files = msg.attachments.filter(a => !a.is_voice && (!a.mime || !a.mime.startsWith('image/')));
       if (files.length) {
         content += `<div class="att-grid">`;
@@ -3482,7 +3466,7 @@ function appendMessage(msg, scroll = true) {
   const expiryHtml = renderExpiryBadge(msg);
   const editedLabel = msg.edited ? ' <span class="msg-edited">(изменено)</span>' : '';
   const isExpiring = msg.expires_at && msg.expires_at > Date.now();
-  const e2eeLabel = msg.is_encrypted ? ' <span class="msg-edited" style="color:#00ff9d;" title="Сквозное шифрование">🔒</span>' : '';
+  const e2eeLabel = ''; // Убрали замочек E2EE
   
   const timeStr = new Date(msg.createdAt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   let statusHtml = '';
@@ -3599,7 +3583,7 @@ function openMsgActions(msg) {
     dl.style.display = 'block';
     dl.onclick = () => {
       msg.attachments.forEach(a => {
-        const url = a.url; // БЕЗ ТОКЕНА
+        const url = a.url; 
         const el = document.createElement('a');
         el.href = url; el.download = a.name || 'file';
         document.body.appendChild(el); el.click(); el.remove();
@@ -4040,6 +4024,15 @@ function connectSocket() {
   if (state.socket) state.socket.disconnect();
   state.socket = io({ withCredentials: true });
   
+  state.socket.on('connect_error', (err) => {
+      console.error('Socket error:', err.message);
+      if (err.message === 'Auth error' || err.message === 'invalid token' || err.message === 'banned' || err.message === 'user not found') {
+          state.socket.disconnect();
+          document.getElementById('chat').classList.remove('visible');
+          document.getElementById('auth').style.display = 'flex';
+      }
+  });
+
   state.socket.on('forceLogout', (data) => {
     state.socket.disconnect();
     document.getElementById('chat').classList.remove('visible');
@@ -4051,7 +4044,6 @@ function connectSocket() {
     try { state.me = await api('/me'); enterChat(); if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList(); } catch (e) {}
   });
   
-  // ДЕБАУНС ДЛЯ ПРЕДОТВРАЩЕНИЯ 429 ОШИБКИ
   let refreshTimeout;
   state.socket.on('refreshData', () => {
     clearTimeout(refreshTimeout);
@@ -4063,7 +4055,7 @@ function connectSocket() {
         document.getElementById('my-xp-bar').innerHTML = renderXpBar(state.me);
         if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList();
       } catch (e) {}
-    }, 1500); // Пауза 1.5 секунды
+    }, 1500);
   });
 
   state.socket.on('xpUpdated', (data) => {
@@ -4092,7 +4084,7 @@ function connectSocket() {
     if (msg.is_encrypted && e2eeEnabled) {
         displayText = await decryptMessage(msg.text, msg.chatId);
     } else if (msg.is_encrypted && !e2eeEnabled) {
-        displayText = "🔒 [Зашифровано. Доступно только в личных сообщениях]";
+        displayText = "[Зашифровано]";
     }
     
     const finalMsg = { ...msg, text: displayText };
@@ -4729,9 +4721,11 @@ document.addEventListener('click', (e) => {
       enterChat(); 
   }
   catch (e) { 
-      if (e.message !== 'Banned') { 
-          // Если куки невалидны, ничего не делаем, пользователь увидит экран входа
-      } 
+      document.getElementById('auth').style.display = 'flex';
+      document.getElementById('chat').classList.remove('visible');
+      if (e.message !== 'Сессия истекла.' && e.message !== 'Banned') {
+          document.getElementById('a-error').textContent = e.message;
+      }
   }
 })();
 
