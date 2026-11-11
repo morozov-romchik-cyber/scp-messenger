@@ -2151,8 +2151,9 @@ async function api(path, opts = {}) {
         throw new Error('Сессия истекла. Войдите снова.');
     }
     if (res.status === 403 && data.error === 'BANNED') { 
-        if (data.ban_expires === -1 || data.ban_expires > Date.now()) {
-            showBanMessage(data.ban_expires, data.ban_reason); 
+        const exp = Number(data.ban_expires);
+        if (exp === -1 || exp > Date.now()) {
+            showBanMessage(exp, data.ban_reason); 
         } else {
             showBanMessage(0, 'Бан истек. Попробуйте войти.'); 
         }
@@ -2167,7 +2168,8 @@ async function api(path, opts = {}) {
 }
 
 function showBanMessage(ban_expires, ban_reason) {
-  let timeStr = ban_expires === -1 ? 'НАВСЕГДА' : (ban_expires === 0 ? 'истек' : 'до ' + new Date(ban_expires).toLocaleString());
+  const exp = Number(ban_expires);
+  let timeStr = exp === -1 ? 'НАВСЕГДА' : (exp === 0 ? 'истек' : 'до ' + new Date(exp).toLocaleString());
   document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;margin-bottom:10px;font-size:13px;">⛔ <b>ЗАБЛОКИРОВАН</b><br>Срок: ${timeStr}<br>Причина: ${esc(ban_reason || 'Нарушение правил')}</div>`;
 }
 
@@ -2441,7 +2443,8 @@ window.openProfile = async function(userId) {
     if (u.status === 'online') { onlineEl.textContent = '🟢 В сети'; onlineEl.style.color = 'var(--online-green)'; }
     else { onlineEl.textContent = '⚪ Не в сети'; onlineEl.style.color = 'var(--muted)'; }
     const banEl = document.getElementById('profile-ban');
-    if (u.ban_expires && u.ban_expires !== 0) { banEl.style.display = 'block'; banEl.textContent = `⛔ Заблокирован`; }
+    // ИСПРАВЛЕНИЕ: Проверка на число
+    if (u.ban_expires && Number(u.ban_expires) !== 0) { banEl.style.display = 'block'; banEl.textContent = `⛔ Заблокирован`; }
     else banEl.style.display = 'none';
     document.getElementById('profile-modal').classList.add('visible');
   } catch (e) { alert(e.message); }
@@ -3064,7 +3067,8 @@ function renderChatList() {
     if (c.isHelper) checkmarkHtml = `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: var(--link-blue); display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
     if (c.role && c.role !== 'user' && !c.isGroup) roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 4px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
     
-    const isBanned = c.ban_expires && c.ban_expires !== 0 && (c.ban_expires === -1 || c.ban_expires > Date.now());
+    // ИСПРАВЛЕНИЕ: Проверка на число
+    const isBanned = c.ban_expires && Number(c.ban_expires) !== 0 && (Number(c.ban_expires) === -1 || Number(c.ban_expires) > Date.now());
     const draftText = chatDrafts[c.id];
     let previewHtml = '';
     if (draftText) {
@@ -3103,7 +3107,7 @@ function updateChatPreview(chatId) {
   if (!item) return;
   const pv = item.querySelector('.preview');
   if (!pv) return;
-  const isBanned = chat.ban_expires && chat.ban_expires !== 0 && (chat.ban_expires === -1 || chat.ban_expires > Date.now());
+  const isBanned = chat.ban_expires && Number(chat.ban_expires) !== 0 && (Number(chat.ban_expires) === -1 || Number(chat.ban_expires) > Date.now());
   const draft = chatDrafts[chatId];
   const unread = state.unreadCounts[chatId] || chat.unreadCount || 0;
   let html = '';
@@ -3197,8 +3201,9 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   else blockedBanner.style.display = 'none';
   
   const userBannedBanner = document.getElementById('user-banned-banner');
-  const isBanned = ban_expires && ban_expires !== 0 && (ban_expires === -1 || ban_expires > Date.now());
-  if (isBanned) { userBannedBanner.style.display = 'block'; userBannedBanner.textContent = `⛔ Заблокирован (${ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(ban_expires).toLocaleString()})`; }
+  // ИСПРАВЛЕНИЕ: Проверка на число
+  const isBanned = ban_expires && Number(ban_expires) !== 0 && (Number(ban_expires) === -1 || Number(ban_expires) > Date.now());
+  if (isBanned) { userBannedBanner.style.display = 'block'; userBannedBanner.textContent = `⛔ Заблокирован (${Number(ban_expires) === -1 ? 'НАВСЕГДА' : 'до ' + new Date(Number(ban_expires)).toLocaleString()})`; }
   else userBannedBanner.style.display = 'none';
   
   document.getElementById('clear-chat-btn').style.display = isHelper ? 'none' : 'inline-block';
@@ -3393,17 +3398,24 @@ function renderPollHtml(msgId, poll, isSelfChat, meId) {
         }
 
         const clickHandler = (!isQuiz || !hasVoted) ? `onclick="event.stopPropagation(); votePoll('${msgId}', ${idx})"` : '';
+        
+        // СКРЫВАЕМ ПРОЦЕНТЫ ДЛЯ ВИКТОРИНЫ
+        const displayBar = isQuiz ? '' : `<div class="poll-option-bar" style="width: ${pct}%;"></div>`;
+        const displayPct = isQuiz ? '' : `<span class="poll-option-pct">${pct}%</span>`;
 
         return `<div class="poll-option ${voted ? 'voted' : ''}" style="${extraStyle}" ${clickHandler}>
-            <div class="poll-option-bar" style="width: ${pct}%;"></div>
-            <div class="poll-option-text"><span>${esc(o.text)}</span> <span class="poll-option-pct">${pct}%${extraHtml}</span></div>
+            ${displayBar}
+            <div class="poll-option-text"><span>${esc(o.text)}</span> ${displayPct}${extraHtml}</div>
         </div>`;
     }).join('');
+
+    // СКРЫВАЕМ ОБЩЕЕ КОЛИЧЕСТВО ГОЛОСОВ ДЛЯ ВИКТОРИНЫ
+    const footerText = isQuiz ? '' : `Всего голосов: ${totalVotes}`;
 
     return `<div class="poll-container" onclick="event.stopPropagation();">
         <div class="poll-question">${esc(poll.question)} ${isQuiz ? '📝' : '📊'}</div>
         ${optsHtml}
-        <div class="poll-footer">Всего голосов: ${totalVotes} ${isQuiz && !hasVoted ? '<br><span style="color: var(--muted); font-size: 10px;">Ответьте, чтобы увидеть правильный вариант</span>' : ''}</div>
+        ${footerText ? `<div class="poll-footer">${footerText} ${isQuiz && !hasVoted ? '<br><span style="color: var(--muted); font-size: 10px;">Ответьте, чтобы увидеть правильный вариант</span>' : ''}</div>` : ''}
     </div>`;
 }
 
