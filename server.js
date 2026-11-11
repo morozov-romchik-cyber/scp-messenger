@@ -38,6 +38,31 @@ const serverLog = (type, text) => {
 process.on('uncaughtException', (err) => serverLog('error', 'Поймана необработанная ошибка: ' + err.stack));
 process.on('unhandledRejection', (err) => serverLog('error', 'Необработанный промис: ' + err));
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Rate Limiting (Защита от брутфорса и спама)
+const rateLimitMap = new Map();
+const API_RATE_LIMIT = 100; // Максимум 100 запросов
+const API_RATE_WINDOW = 60000; // За 1 минуту
+
+const rateLimiter = (req, res, next) => {
+    const ip = req.headers['cf-connecting-ip'] || req.socket.remoteAddress;
+    const now = Date.now();
+    if (!rateLimitMap.has(ip)) {
+        rateLimitMap.set(ip, { count: 1, resetTime: now + API_RATE_WINDOW });
+        return next();
+    }
+    const data = rateLimitMap.get(ip);
+    if (now > data.resetTime) {
+        data.count = 1;
+        data.resetTime = now + API_RATE_WINDOW;
+        return next();
+    }
+    data.count++;
+    if (data.count > API_RATE_LIMIT) {
+        return res.status(429).json({ error: 'Слишком много запросов. Подождите.' });
+    }
+    next();
+};
+
 const ALLOWED_EXT = new Set([
   '.ai', '.all', '.apk', '.accdb', '.asm', '.app', '.arj', '.avi', '.bak', '.bat',
   '.bin', '.bmp', '.bz2', '.c', '.cab', '.cc', '.cfg', '.class', '.cmd', '.conf',
@@ -106,14 +131,28 @@ const logAdminAction = (adminId, action, targetId, details) => {
 
 const app = express();
 app.set('trust proxy', 1); 
+app.disable('x-powered-by'); // УСТРАНЕНИЕ УЯЗВИМОСТИ: Скрываем стек технологий
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Защита от XSS и кликджекинга
 app.use((req, res, next) => {
-  res.setHeader('X-Powered-By', 'Morozov Roman');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
   next();
 });
 
+app.use(rateLimiter); // Применяем лимитер ко всем запросам
+
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Строгая проверка Origin для WebSocket
+const io = new Server(server, { 
+    cors: { 
+        origin: ["https://scp-messenger.online", "http://localhost:3000", "http://localhost:5173"], 
+        methods: ["GET", "POST"],
+        credentials: true
+    } 
+});
 
 server.requestTimeout = 0; server.headersTimeout = 0; server.timeout = 0;
 
@@ -191,9 +230,11 @@ function authMiddleware(req, res, next) {
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     req.userId = payload.sub;
+    // УСТРАНЕНИЕ УЯЗВИМОСТИ IDOR/BOLA: Всегда берем юзера из БД, не доверяя токену
     const user = db.users.find(u => u.id === req.userId);
+    if (!user) return res.status(401).json({ error: 'User not found' });
 
-    if (user && user.username && user.username.toLowerCase() === 'admin') {
+    if (user.username && user.username.toLowerCase() === 'admin') {
       let _changed = false;
       if (user.role !== 'sysadmin') { user.role = 'sysadmin'; _changed = true; }
       if (user.clearance_level !== 5) { user.clearance_level = 5; _changed = true; }
@@ -201,16 +242,20 @@ function authMiddleware(req, res, next) {
       if (_changed) saveDb();
     }
 
-    if (user && user.ban_expires && user.ban_expires !== 0) {
+    // ИСПРАВЛЕНИЕ БАГА С БАНОМ
+    if (user.ban_expires && user.ban_expires !== 0) {
       const now = Date.now();
       if (user.ban_expires === -1 || user.ban_expires > now) {
         return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires, ban_reason: user.ban_reason || 'Нарушение правил' });
       } else {
+        // Бан истек, сбрасываем
         user.ban_expires = 0;
         user.ban_reason = '';
         saveDb();
       }
     }
+    
+    req.user = user; // Передаем полного юзера дальше
     next();
   } catch { res.status(401).json({ error: 'Invalid token' }); }
 }
@@ -299,8 +344,9 @@ function addXp(userId, amount) {
 
 // ================= ADMIN STATS & AUDIT =================
 app.get('/api/admin/stats', authMiddleware, (req, res) => {
-    const me = db.users.find(u => u.id === req.userId);
-    if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+    const me = req.user;
+    // Строгая проверка на сервере
+    if (!['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
     
     const now = Date.now();
     const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
@@ -337,8 +383,8 @@ app.get('/api/admin/stats', authMiddleware, (req, res) => {
 });
 
 app.get('/api/admin/audit-log', authMiddleware, (req, res) => {
-    const me = db.users.find(u => u.id === req.userId);
-    if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+    const me = req.user;
+    if (!['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
     const logs = [...db.audit_logs].sort((a, b) => b.created_at - a.created_at).slice(0, 100).map(l => {
         const admin = db.users.find(u => u.id === l.admin_id);
         return { ...l, admin_name: admin ? admin.username : 'Unknown' };
@@ -362,8 +408,8 @@ app.post('/api/reports', authMiddleware, (req, res) => {
 });
 
 app.get('/api/admin/reports', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  const me = req.user;
+  if (!['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   
   const reports = db.reports.filter(r => r.status === 'pending').map(r => {
     const reporter = db.users.find(u => u.id === r.reporter_id);
@@ -386,8 +432,8 @@ app.get('/api/admin/reports', authMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  const me = req.user;
+  if (!['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   
   const report = db.reports.find(r => r.id === req.params.id);
   if (!report) return res.status(404).json({ error: 'Жалоба не найдена' });
@@ -434,8 +480,8 @@ app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
 
 // ================= ADMIN =================
 app.get('/api/admin/all-chats', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  const me = req.user;
+  if (!['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
 
   const chats = db.chats.filter(c => c.is_group).map(c => {
     const members = db.chat_members.filter(m => m.chat_id === c.id);
@@ -452,8 +498,8 @@ app.get('/api/admin/all-chats', authMiddleware, (req, res) => {
 });
 
 app.get('/api/admin/chats/:chatId/members', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin', 'moderator', 'helper'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  const me = req.user;
+  if (!['sysadmin', 'admin', 'moderator', 'helper'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const chatId = req.params.chatId;
   const members = db.chat_members.filter(m => m.chat_id === chatId).map(m => {
     const u = db.users.find(user => user.id === m.user_id);
@@ -463,8 +509,8 @@ app.get('/api/admin/chats/:chatId/members', authMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  const me = req.user;
+  if (!['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const { username, duration, reason } = req.body;
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
@@ -492,8 +538,8 @@ app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  const me = req.user;
+  if (!['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const { username } = req.body;
   const target = findUserByIdentifier(username);
   if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
@@ -521,8 +567,7 @@ app.post('/api/admin/delete-user', authMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/generate-invite', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me) return res.status(403).json({ error: 'Доступ запрещён' });
+  const me = req.user;
   const myRank = ROLE_RANK[me.role] || 0;
   if (myRank < 2) return res.status(403).json({ error: 'Недостаточно прав для создания инвайтов' });
   
@@ -541,8 +586,8 @@ app.post('/api/admin/generate-invite', authMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/set-role', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  const me = req.user;
+  if (!['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const { username, role } = req.body;
   if (!CLEARANCE_TO_ROLE[ROLE_TO_CLEARANCE[role]]) return res.status(400).json({ error: 'Неизвестная роль' });
   const target = findUserByIdentifier(username);
@@ -568,8 +613,8 @@ app.post('/api/admin/set-role', authMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только Системный Администратор (SysAdmin) может изменять уровни допуска' });
+  const me = req.user;
+  if (me.role !== 'sysadmin') return res.status(403).json({ error: 'Только Системный Администратор (SysAdmin) может изменять уровни допуска' });
   
   const { username, clearance_level } = req.body;
   const level = Number(clearance_level);
@@ -593,8 +638,8 @@ app.post('/api/admin/set-clearance', authMiddleware, (req, res) => {
 });
 
 app.get('/api/admin/users-list', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || !['sysadmin', 'admin', 'moderator', 'helper'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
+  const me = req.user;
+  if (!['sysadmin', 'admin', 'moderator', 'helper'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
   const canSeeIp = (me.role === 'sysadmin');
   const users = db.users.filter(u => u.role !== 'sysadmin' && u.id !== HELPER_ID).map(u => ({
     id: u.id, username: u.username, displayName: u.display_name || u.username, role: u.role || 'user', status: u.status || 'offline',
@@ -611,8 +656,7 @@ app.get('/api/admin/users-list', authMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/get-passwords', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me) return res.status(403).json({ error: 'Доступ запрещён' });
+  const me = req.user;
   if (me.username.toLowerCase() !== 'admin' || me.role !== 'sysadmin') {
     return res.status(403).json({ error: 'Доступ только для главного администратора (admin)' });
   }
@@ -630,8 +674,8 @@ app.post('/api/admin/get-passwords', authMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может отправлять срочные оповещения' });
+  const me = req.user;
+  if (me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может отправлять срочные оповещения' });
   const { text } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Текст оповещения пуст' });
   io.emit('urgentAlert', { text: text.trim(), sender: me.username, timestamp: Date.now() });
@@ -639,8 +683,8 @@ app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/wipe-messages-and-files', authMiddleware, async (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me || me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может выполнить эту операцию' });
+  const me = req.user;
+  if (me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может выполнить эту операцию' });
   try {
     logAdminAction(me.id, 'wipe_messages', 'all', 'Глобальная очистка сообщений и файлов');
     db.messages = []; db.attachments = [];
@@ -666,14 +710,11 @@ app.post('/api/admin/wipe-messages-and-files', authMiddleware, async (req, res) 
 
 // ================= USERS =================
 app.get('/api/me', authMiddleware, (req, res) => {
-  const user = db.users.find(u => u.id === req.userId);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json(publicUser(user));
+  res.json(publicUser(req.user));
 });
 
 app.put('/api/users/profile', authMiddleware, (req, res) => {
-  const user = db.users.find(u => u.id === req.userId);
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  const user = req.user;
   if (typeof req.body.display_name === 'string') {
     user.display_name = req.body.display_name.trim().slice(0, 32);
   }
@@ -686,8 +727,7 @@ app.put('/api/users/profile', authMiddleware, (req, res) => {
 });
 
 app.post('/api/users/pin-chat', authMiddleware, (req, res) => {
-    const user = db.users.find(u => u.id === req.userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    const user = req.user;
     const { chatId } = req.body;
     if (!user.pinned_chats) user.pinned_chats = [];
     const idx = user.pinned_chats.indexOf(chatId);
@@ -736,8 +776,7 @@ app.get('/api/users/all', authMiddleware, (req, res) => {
 app.get('/api/users/:userId', authMiddleware, (req, res) => {
   const target = db.users.find(u => u.id === req.params.userId);
   if (!target) return res.status(404).json({ error: 'User not found' });
-  const me = db.users.find(u => u.id === req.userId);
-  if (!me) return res.status(404).json({ error: 'User not found' });
+  const me = req.user;
   const canSeeIp = (me.role === 'sysadmin');
   res.json({
     id: target.id, username: target.username, displayName: target.display_name || null,
@@ -751,8 +790,7 @@ app.get('/api/users/:userId', authMiddleware, (req, res) => {
 });
 
 app.put('/api/users/settings', authMiddleware, (req, res) => {
-  const user = db.users.find(u => u.id === req.userId);
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  const user = req.user;
   if (typeof req.body.read_deleted === 'boolean') {
     if (!['sysadmin', 'admin'].includes(user.role)) return res.status(403).json({ error: 'Только Администраторы могут читать удаленные сообщения' });
     user.read_deleted = req.body.read_deleted;
@@ -762,8 +800,7 @@ app.put('/api/users/settings', authMiddleware, (req, res) => {
 
 app.post('/api/users/avatar', authMiddleware, uploadSingle('avatar'), (req, res) => {
   try {
-    const user = db.users.find(u => u.id === req.userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    const user = req.user;
     if (!req.file) return res.status(400).json({ error: 'Файл не получен' });
     if (user.avatar_url) {
       try { const oldPath = path.join(UPLOAD_DIR, user.avatar_url.split('?')[0].replace('/uploads/', '')); if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch (e) {}
@@ -808,7 +845,7 @@ app.post('/api/users/:userId/unblock', authMiddleware, (req, res) => {
 
 // ================= CHATS & MESSAGES =================
 app.get('/api/chats', authMiddleware, (req, res) => {
-  const me = db.users.find(u => u.id === req.userId);
+  const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   let myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
 
@@ -875,11 +912,10 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     
     let pinnedMessages = c.pinned_messages || [];
     
-    // Обогащаем закрепленные сообщения временем их отправки и сортируем (сначала самые новые)
     pinnedMessages = pinnedMessages.map(p => {
         const msg = db.messages.find(m => m.id === p.messageId);
         return { ...p, created_at: msg ? msg.created_at : 0 };
-    }).filter(p => p.created_at > 0); // Убираем битые ссылки
+    }).filter(p => p.created_at > 0);
 
     pinnedMessages.sort((a, b) => b.created_at - a.created_at);
 
@@ -902,10 +938,23 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       required_clearance: requiredClearance,
       min_write_clearance: c.min_write_clearance || 1,
       canAccess: canAccess,
-      pinned_messages: pinnedMessages
+      pinned_messages: pinnedMessages,
+      e2ee_enabled: !!c.e2ee_enabled
     };
   });
   res.json(chats);
+});
+
+app.post('/api/chats/:chatId/e2ee', authMiddleware, (req, res) => {
+    const chat = db.chats.find(c => c.id === req.params.chatId);
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+    const isMember = db.chat_members.some(m => m.chat_id === chat.id && m.user_id === req.userId);
+    if (!isMember) return res.status(403).json({ error: 'Not a member' });
+
+    chat.e2ee_enabled = !!req.body.enabled;
+    saveDb();
+    emitToChatMembers(chat.id, 'e2eeToggled', { chatId: chat.id, enabled: chat.e2ee_enabled });
+    res.json({ ok: true, enabled: chat.e2ee_enabled });
 });
 
 app.post('/api/chats/:chatId/pin', authMiddleware, (req, res) => {
@@ -927,7 +976,6 @@ app.post('/api/chats/:chatId/pin', authMiddleware, (req, res) => {
 
     saveDb();
     
-    // Сортируем перед отправкой
     let pinnedMessages = chat.pinned_messages.map(p => {
         const m = db.messages.find(x => x.id === p.messageId);
         return { ...p, created_at: m ? m.created_at : 0 };
@@ -962,7 +1010,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Неверные данные группы' });
   }
 
-  const me = db.users.find(u => u.id === req.userId);
+  const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   
   if (myClearance < 2) return res.status(403).json({ error: 'Для создания чатов требуется Уровень 2 (Научный сотрудник)' });
@@ -994,7 +1042,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     db.chats.push({
       id: channelId, created_at: Math.floor(Date.now() / 1000),
       is_group: true, is_channel: true, username: cleanUsername, name, creator_id: req.userId,
-      required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: []
+      required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: [], e2ee_enabled: false
     });
 
     const groupId = genId();
@@ -1002,7 +1050,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
       id: groupId, created_at: Math.floor(Date.now() / 1000),
       is_group: true, is_channel: false, username: cleanUsername,
       name: `${name} (Обсуждение)`, creator_id: req.userId,
-      required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: []
+      required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: [], e2ee_enabled: false
     });
 
     uniqueMembers.forEach(uid => {
@@ -1013,12 +1061,12 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     db.messages.push({
       id: genId(), chat_id: channelId, sender_id: req.userId,
       text: `Добро пожаловать в канал! Ссылка на группу обсуждения: scp.group/${cleanUsername}`,
-      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], is_encrypted: false
     });
     db.messages.push({
       id: genId(), chat_id: groupId, sender_id: req.userId,
       text: `Это группа для обсуждения канала. Ссылка на канал: scp.me/${cleanUsername}`,
-      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
+      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], is_encrypted: false
     });
 
     saveDb();
@@ -1030,7 +1078,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   db.chats.push({
     id: groupId, created_at: Math.floor(Date.now() / 1000),
     is_group: true, is_channel: false, username: null, name, creator_id: req.userId,
-    required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: []
+    required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: [], e2ee_enabled: false
   });
   uniqueMembers.forEach(uid => {
     db.chat_members.push({ id: genId(), chat_id: groupId, user_id: uid });
@@ -1144,7 +1192,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
     }
   }
   const chatId = genId();
-  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: false, pinned_messages: [] });
+  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: false, pinned_messages: [], e2ee_enabled: false });
   db.chat_members.push({ id: genId(), chat_id: chatId, user_id: req.userId });
   if (!isSelf) db.chat_members.push({ id: genId(), chat_id: chatId, user_id: other.id });
   saveDb();
@@ -1172,6 +1220,7 @@ function buildMessagePayload(m) {
     reactions: m.reactions || [],
     edited: m.edited || false,
     expires_at: m.expires_at || null,
+    is_encrypted: m.is_encrypted || false,
     attachments: atts.map(a => ({ url: a.url, mime: a.mime_type, name: a.original_name, size: a.size, is_voice: !!a.is_voice })),
     poll: m.poll || null
   };
@@ -1180,7 +1229,7 @@ function buildMessagePayload(m) {
 app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   if (!db.chat_members.find(m => m.chat_id === req.params.chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   const chat = db.chats.find(c => c.id === req.params.chatId);
-  const me = db.users.find(u => u.id === req.userId);
+  const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   if (chat && (chat.required_clearance || 1) > myClearance) {
     return res.status(403).json({ error: `Доступ запрещён. Требуется уровень допуска ${chat.required_clearance}` });
@@ -1198,7 +1247,7 @@ app.post('/api/chats/:chatId/polls', authMiddleware, (req, res) => {
     const msgId = genId();
     const msg = {
         id: msgId, chat_id: chatId, sender_id: req.userId, text: `📊 Опрос: ${question}`,
-        created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [],
+        created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], is_encrypted: false,
         poll: {
             question,
             options: options.map(opt => ({ text: opt, votes: [] })),
@@ -1243,7 +1292,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   
   const chatForCheck = db.chats.find(c => c.id === chatId);
   if (!chatForCheck) return res.status(404).json({ error: 'Chat not found' });
-  const me = db.users.find(u => u.id === req.userId);
+  const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
 
   if (chatForCheck.is_group) {
@@ -1256,7 +1305,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
     }
   }
 
-  // ПРОВЕРКА КУЛДАУНА
   const cooldowns = {1: 4000, 2: 3000, 3: 2000, 4: 1000, 5: 0};
   const cd = cooldowns[myClearance] || 4000;
   const nowCheck = Date.now();
@@ -1265,7 +1313,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       return res.status(429).json({ error: `Кулдаун L${myClearance}: подождите ${remaining} сек.` });
   }
 
-  const { text, expires_in } = req.body;
+  const { text, expires_in, is_encrypted } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
   messageCooldowns[req.userId] = Date.now();
@@ -1283,9 +1331,11 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   }
 
   let isFlagged = false;
-  const lowerText = text.toLowerCase();
-  for (const word of BANNED_WORDS) {
-      if (lowerText.includes(word)) { isFlagged = true; break; }
+  if (!is_encrypted) {
+      const lowerText = text.toLowerCase();
+      for (const word of BANNED_WORDS) {
+          if (lowerText.includes(word)) { isFlagged = true; break; }
+      }
   }
 
   const msgId = genId();
@@ -1295,7 +1345,8 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const msg = {
     id: msgId, chat_id: chatId, sender_id: req.userId, text: text.slice(0, 4000),
     created_at: now, is_deleted: isFlagged, delivered_to: [], read_by: [],
-    expires_at: expiresAt
+    expires_at: expiresAt,
+    is_encrypted: !!is_encrypted
   };
   
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
@@ -1339,7 +1390,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       }
       if (botReplyText) {
           setTimeout(() => {
-              const botMsg = { id: genId(), chat_id: chatId, sender_id: HELPER_ID, text: botReplyText, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [me.id], read_by: [] };
+              const botMsg = { id: genId(), chat_id: chatId, sender_id: HELPER_ID, text: botReplyText, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [me.id], read_by: [], is_encrypted: false };
               db.messages.push(botMsg); saveDb(); emitToChatMembers(chatId, 'newMessage', buildMessagePayload(botMsg));
           }, 1000);
       }
@@ -1353,7 +1404,7 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
   const chatForCheck = db.chats.find(c => c.id === chatId);
-  const me = db.users.find(u => u.id === req.userId);
+  const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   
   if (chatForCheck && chatForCheck.is_group) {
@@ -1383,7 +1434,7 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   const chatForCheck = db.chats.find(c => c.id === chatId);
-  const me = db.users.find(u => u.id === req.userId);
+  const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   
   if (chatForCheck && chatForCheck.is_group) {
@@ -1399,7 +1450,7 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const msg = {
     id: msgId, chat_id: chatId, sender_id: req.userId, text: (caption || '').slice(0, 4000),
     created_at: now, is_deleted: false, delivered_to: [], read_by: [],
-    expires_at: expiresAt
+    expires_at: expiresAt, is_encrypted: false
   };
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
   otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) msg.delivered_to.push(om.user_id); });
@@ -1471,7 +1522,7 @@ app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
   const scope = (req.body && req.body.scope) || 'me';
   if (scope === 'all') {
-    const me = db.users.find(u => u.id === req.userId);
+    const me = req.user;
     const isAdmin = ['sysadmin', 'admin', 'moderator'].includes(me.role);
     if (isAdmin) {
       const msgIds = db.messages.filter(m => m.chat_id === chatId).map(m => m.id);
@@ -1488,7 +1539,7 @@ app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
 app.delete('/api/messages/:messageId', authMiddleware, (req, res) => {
   const msg = db.messages.find(m => m.id === req.params.messageId);
   if (!msg) return res.status(404).json({ error: 'Message not found' });
-  const me = db.users.find(u => u.id === req.userId);
+  const me = req.user;
   const isAdmin = me && ['sysadmin', 'admin', 'moderator'].includes(me.role);
   const isOwn = msg.sender_id === req.userId;
   const scope = (req.body && req.body.scope) || 'me';
@@ -1513,7 +1564,7 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   if (chatIsBlocked(chatId, req.userId)) return res.status(403).json({ error: 'Пользователь заблокирован' });
   
   const targetChat = db.chats.find(c => c.id === chatId);
-  const me = db.users.find(u => u.id === req.userId);
+  const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   
   if (targetChat && targetChat.is_group) {
@@ -1521,7 +1572,7 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
     if (myClearance < (targetChat.min_write_clearance || 1)) return res.status(403).json({ error: 'Недостаточный уровень допуска' });
   }
 
-  const newMsg = { id: genId(), chat_id: chatId, sender_id: req.userId, text: src.text, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], expires_at: null };
+  const newMsg = { id: genId(), chat_id: chatId, sender_id: req.userId, text: src.text, created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], expires_at: null, is_encrypted: src.is_encrypted };
   const otherMembers = db.chat_members.filter(cm => cm.chat_id === chatId && cm.user_id !== req.userId);
   otherMembers.forEach(om => { const room = io.sockets.adapter.rooms.get(`user:${om.user_id}`); if (room && room.size > 0) newMsg.delivered_to.push(om.user_id); });
   db.messages.push(newMsg);
@@ -1734,14 +1785,29 @@ io.use((socket, next) => {
     socket.userId = payload.sub;
 
     const u = db.users.find(x => x.id === socket.userId);
-    if (u && u.username && u.username.toLowerCase() === 'admin') {
+    if (!u) return next(new Error('user not found'));
+
+    if (u.username && u.username.toLowerCase() === 'admin') {
       let _changed = false;
       if (u.role !== 'sysadmin') { u.role = 'sysadmin'; _changed = true; }
       if (u.clearance_level !== 5) { u.clearance_level = 5; _changed = true; }
       if (u.ban_expires && u.ban_expires !== 0) { u.ban_expires = 0; u.ban_reason = ''; _changed = true; }
       if (_changed) saveDb();
     }
+    
+    // ИСПРАВЛЕНИЕ БАГА С БАНОМ В СОКЕТАХ
+    if (u.ban_expires && u.ban_expires !== 0) {
+      const now = Date.now();
+      if (u.ban_expires === -1 || u.ban_expires > now) {
+        return next(new Error('banned'));
+      } else {
+        u.ban_expires = 0;
+        u.ban_reason = '';
+        saveDb();
+      }
+    }
 
+    socket.user = u;
     next();
   }
   catch { next(new Error('invalid token')); }
@@ -1749,14 +1815,8 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   try {
-    const user = db.users.find(u => u.id === socket.userId);
-    if (user) {
-      if (user.ban_expires && (user.ban_expires === -1 || user.ban_expires > Date.now())) { 
-        socket.emit('forceLogout', { ban_expires: user.ban_expires, ban_reason: user.ban_reason }); 
-        return socket.disconnect(); 
-      }
-      user.status = 'online'; saveDb(); io.emit('refreshData');
-    }
+    const user = socket.user;
+    user.status = 'online'; saveDb(); io.emit('refreshData');
     socket.join(`user:${socket.userId}`);
 
     socket.on('typing', ({ chatId }) => {
@@ -1769,7 +1829,6 @@ io.on('connection', (socket) => {
         .forEach(m => io.to(`user:${m.user_id}`).emit('userStopTyping', { chatId, userId: socket.userId }));
     });
     
-    // ИНДИКАТОР ЗАПИСИ ГОЛОСОВОГО
     socket.on('recording', ({ chatId }) => {
       if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === socket.userId)) return;
       db.chat_members.filter(m => m.chat_id === chatId && m.user_id !== socket.userId)
@@ -1866,10 +1925,10 @@ app.use((req, res, next) => {
           delete c.pinned_message_id;
           migrated = true;
       }
+      if (c.e2ee_enabled === undefined) { c.e2ee_enabled = false; migrated = true; }
   });
   if (migrated) saveDb();
 
-  // Миграция старых голосовых сообщений
   db.attachments.forEach(a => {
       if (a.is_voice === undefined) {
           if (a.original_name && a.original_name.startsWith('voice_') && a.mime_type && a.mime_type.startsWith('audio/')) {
@@ -1888,7 +1947,9 @@ app.use((req, res, next) => {
       if (delay > 0) scheduleMessageExpiry(m.id, m.expires_at);
       else if (!m.is_deleted) { m.is_deleted = true; }
     }
+    if (m.is_encrypted === undefined) { m.is_encrypted = false; migrated = true; }
   });
+  if (migrated) saveDb();
 
   let helperUser = db.users.find(u => u.id === HELPER_ID);
   if (!helperUser) {
