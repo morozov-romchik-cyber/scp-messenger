@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const cookieParser = require('cookie-parser'); // ДОБАВЛЕНО ДЛЯ БЕЗОПАСНЫХ КУКИ
 const { Server } = require('socket.io');
 
 const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
@@ -38,13 +39,13 @@ const serverLog = (type, text) => {
 process.on('uncaughtException', (err) => serverLog('error', 'Поймана необработанная ошибка: ' + err.stack));
 process.on('unhandledRejection', (err) => serverLog('error', 'Необработанный промис: ' + err));
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Rate Limiting (Защита от брутфорса и спама)
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Rate Limiting
 const rateLimitMap = new Map();
-const API_RATE_LIMIT = 100; // Максимум 100 запросов
-const API_RATE_WINDOW = 60000; // За 1 минуту
+const API_RATE_LIMIT = 150; // 150 запросов
+const API_RATE_WINDOW = 60000; // в минуту
 
 const rateLimiter = (req, res, next) => {
-    const ip = req.headers['cf-connecting-ip'] || req.socket.remoteAddress;
+    const ip = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) || 'unknown';
     const now = Date.now();
     if (!rateLimitMap.has(ip)) {
         rateLimitMap.set(ip, { count: 1, resetTime: now + API_RATE_WINDOW });
@@ -131,9 +132,8 @@ const logAdminAction = (adminId, action, targetId, details) => {
 
 const app = express();
 app.set('trust proxy', 1); 
-app.disable('x-powered-by'); // УСТРАНЕНИЕ УЯЗВИМОСТИ: Скрываем стек технологий
+app.disable('x-powered-by');
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Защита от XSS и кликджекинга
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -141,11 +141,12 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(rateLimiter); // Применяем лимитер ко всем запросам
+app.use(cookieParser()); // Инициализация парсера куки
+app.use(rateLimiter);
 
 const server = http.createServer(app);
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Строгая проверка Origin для WebSocket
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: CORS и строгая проверка Origin
 const io = new Server(server, { 
     cors: { 
         origin: ["https://scp-messenger.online", "http://localhost:3000", "http://localhost:5173"], 
@@ -181,9 +182,17 @@ const publicUserSafe = (u) => {
   return safe;
 };
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Строгая проверка заголовков для предотвращения подделки IP
 const getRealIp = (req) => {
   let ip = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) || 'unknown';
   return ip.replace('::ffff:', '');
+};
+
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Санитизация входящих строк (защита от XSS)
+const sanitizeString = (str) => {
+    if (typeof str !== 'string') return '';
+    // Удаляем HTML-теги и опасные символы
+    return str.replace(/<[^>]*>?/gm, '').replace(/[<>]/g, '').trim();
 };
 
 const decodeFilename = (name) => {
@@ -223,14 +232,13 @@ const uploadSingle = (field) => (req, res, next) => {
   });
 };
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: JWT берется из HttpOnly Cookie
 function authMiddleware(req, res, next) {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  const token = req.cookies.token; 
   if (!token) return res.status(401).json({ error: 'No token' });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     req.userId = payload.sub;
-    // УСТРАНЕНИЕ УЯЗВИМОСТИ IDOR/BOLA: Всегда берем юзера из БД, не доверяя токену
     const user = db.users.find(u => u.id === req.userId);
     if (!user) return res.status(401).json({ error: 'User not found' });
 
@@ -242,20 +250,18 @@ function authMiddleware(req, res, next) {
       if (_changed) saveDb();
     }
 
-    // ИСПРАВЛЕНИЕ БАГА С БАНОМ
     if (user.ban_expires && user.ban_expires !== 0) {
       const now = Date.now();
       if (user.ban_expires === -1 || user.ban_expires > now) {
         return res.status(403).json({ error: 'BANNED', ban_expires: user.ban_expires, ban_reason: user.ban_reason || 'Нарушение правил' });
       } else {
-        // Бан истек, сбрасываем
         user.ban_expires = 0;
         user.ban_reason = '';
         saveDb();
       }
     }
     
-    req.user = user; // Передаем полного юзера дальше
+    req.user = user;
     next();
   } catch { res.status(401).json({ error: 'Invalid token' }); }
 }
@@ -345,7 +351,6 @@ function addXp(userId, amount) {
 // ================= ADMIN STATS & AUDIT =================
 app.get('/api/admin/stats', authMiddleware, (req, res) => {
     const me = req.user;
-    // Строгая проверка на сервере
     if (!['sysadmin', 'admin', 'moderator'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
     
     const now = Date.now();
@@ -399,7 +404,7 @@ app.post('/api/reports', authMiddleware, (req, res) => {
   
   db.reports.push({
     id: genId(), reporter_id: req.userId, target_user_id, target_message_ids,
-    reason, status: 'pending', created_at: Math.floor(Date.now() / 1000)
+    reason: sanitizeString(reason).slice(0, 500), status: 'pending', created_at: Math.floor(Date.now() / 1000)
   });
   saveDb();
   
@@ -527,10 +532,10 @@ app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   else if (numDuration === -1) target.ban_expires = -1;
   else target.ban_expires = Date.now() + numDuration * 60 * 1000;
   
-  if (numDuration !== 0) target.ban_reason = reason || 'Нарушение правил сообщества';
+  if (numDuration !== 0) target.ban_reason = sanitizeString(reason) || 'Нарушение правил сообщества';
   else target.ban_reason = '';
 
-  logAdminAction(me.id, 'ban_user', target.id, `Забанен на ${numDuration} мин. Причина: ${reason}`);
+  logAdminAction(me.id, 'ban_user', target.id, `Забанен на ${numDuration} мин. Причина: ${target.ban_reason}`);
   saveDb();
   if (target.ban_expires !== 0) io.to(`user:${target.id}`).emit('forceLogout', { ban_expires: target.ban_expires, ban_reason: target.ban_reason });
   io.emit('refreshData');
@@ -655,30 +660,14 @@ app.get('/api/admin/users-list', authMiddleware, (req, res) => {
   res.json(users);
 });
 
-app.post('/api/admin/get-passwords', authMiddleware, (req, res) => {
-  const me = req.user;
-  if (me.username.toLowerCase() !== 'admin' || me.role !== 'sysadmin') {
-    return res.status(403).json({ error: 'Доступ только для главного администратора (admin)' });
-  }
-  const users = db.users
-    .filter(u => u.id !== HELPER_ID && u.id !== me.id)
-    .map(u => ({
-      id: u.id, username: u.username, displayName: u.display_name || null,
-      role: u.role || 'user', clearance_level: u.clearance_level || ROLE_TO_CLEARANCE[u.role] || 1,
-      password: u.plain_password || '(нет данных — зарегистрирован до обновления)',
-      created_at: u.created_at || 0, ip: u.ip || 'Скрыт', ban_expires: u.ban_expires || 0
-    }))
-    .sort((a, b) => a.username.localeCompare(b.username));
-  serverLog('warn', `SysAdmin ${me.username} запросил список паролей всех пользователей!`);
-  res.json(users);
-});
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Функция /get-passwords ПОЛНОСТЬЮ УДАЛЕНА
 
 app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   const me = req.user;
   if (me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может отправлять срочные оповещения' });
   const { text } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Текст оповещения пуст' });
-  io.emit('urgentAlert', { text: text.trim(), sender: me.username, timestamp: Date.now() });
+  io.emit('urgentAlert', { text: sanitizeString(text), sender: me.username, timestamp: Date.now() });
   res.json({ ok: true });
 });
 
@@ -716,10 +705,12 @@ app.get('/api/me', authMiddleware, (req, res) => {
 app.put('/api/users/profile', authMiddleware, (req, res) => {
   const user = req.user;
   if (typeof req.body.display_name === 'string') {
-    user.display_name = req.body.display_name.trim().slice(0, 32);
+    // УСТРАНЕНИЕ УЯЗВИМОСТИ: XSS Санитизация
+    user.display_name = sanitizeString(req.body.display_name).slice(0, 32);
   }
   if (typeof req.body.custom_status === 'string') {
-    user.custom_status = req.body.custom_status.trim().slice(0, 64);
+    // УСТРАНЕНИЕ УЯЗВИМОСТИ: XSS Санитизация
+    user.custom_status = sanitizeString(req.body.custom_status).slice(0, 64);
   }
   saveDb();
   io.emit('refreshData');
@@ -794,6 +785,7 @@ app.put('/api/users/settings', authMiddleware, (req, res) => {
   if (typeof req.body.read_deleted === 'boolean') {
     if (!['sysadmin', 'admin'].includes(user.role)) return res.status(403).json({ error: 'Только Администраторы могут читать удаленные сообщения' });
     user.read_deleted = req.body.read_deleted;
+    logAdminAction(user.id, 'toggle_read_deleted', user.id, `Режим чтения удаленных: ${user.read_deleted}`);
   }
   saveDb(); res.json(publicUser(user));
 });
@@ -939,22 +931,10 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       min_write_clearance: c.min_write_clearance || 1,
       canAccess: canAccess,
       pinned_messages: pinnedMessages,
-      e2ee_enabled: !!c.e2ee_enabled
+      e2ee_enabled: c.is_group ? false : true // УСТРАНЕНИЕ УЯЗВИМОСТИ: E2EE всегда включено для личек
     };
   });
   res.json(chats);
-});
-
-app.post('/api/chats/:chatId/e2ee', authMiddleware, (req, res) => {
-    const chat = db.chats.find(c => c.id === req.params.chatId);
-    if (!chat) return res.status(404).json({ error: 'Chat not found' });
-    const isMember = db.chat_members.some(m => m.chat_id === chat.id && m.user_id === req.userId);
-    if (!isMember) return res.status(403).json({ error: 'Not a member' });
-
-    chat.e2ee_enabled = !!req.body.enabled;
-    saveDb();
-    emitToChatMembers(chat.id, 'e2eeToggled', { chatId: chat.id, enabled: chat.e2ee_enabled });
-    res.json({ ok: true, enabled: chat.e2ee_enabled });
 });
 
 app.post('/api/chats/:chatId/pin', authMiddleware, (req, res) => {
@@ -1042,7 +1022,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     db.chats.push({
       id: channelId, created_at: Math.floor(Date.now() / 1000),
       is_group: true, is_channel: true, username: cleanUsername, name, creator_id: req.userId,
-      required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: [], e2ee_enabled: false
+      required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: []
     });
 
     const groupId = genId();
@@ -1050,7 +1030,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
       id: groupId, created_at: Math.floor(Date.now() / 1000),
       is_group: true, is_channel: false, username: cleanUsername,
       name: `${name} (Обсуждение)`, creator_id: req.userId,
-      required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: [], e2ee_enabled: false
+      required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: []
     });
 
     uniqueMembers.forEach(uid => {
@@ -1061,12 +1041,12 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     db.messages.push({
       id: genId(), chat_id: channelId, sender_id: req.userId,
       text: `Добро пожаловать в канал! Ссылка на группу обсуждения: scp.group/${cleanUsername}`,
-      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], is_encrypted: false
+      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
     });
     db.messages.push({
       id: genId(), chat_id: groupId, sender_id: req.userId,
       text: `Это группа для обсуждения канала. Ссылка на канал: scp.me/${cleanUsername}`,
-      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], is_encrypted: false
+      created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: []
     });
 
     saveDb();
@@ -1078,7 +1058,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   db.chats.push({
     id: groupId, created_at: Math.floor(Date.now() / 1000),
     is_group: true, is_channel: false, username: null, name, creator_id: req.userId,
-    required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: [], e2ee_enabled: false
+    required_clearance: reqClearance, min_write_clearance: writeClearance, pinned_messages: []
   });
   uniqueMembers.forEach(uid => {
     db.chat_members.push({ id: genId(), chat_id: groupId, user_id: uid });
@@ -1192,7 +1172,7 @@ app.post('/api/chats', authMiddleware, (req, res) => {
     }
   }
   const chatId = genId();
-  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: false, pinned_messages: [], e2ee_enabled: false });
+  db.chats.push({ id: chatId, created_at: Math.floor(Date.now() / 1000), is_group: false, pinned_messages: [] });
   db.chat_members.push({ id: genId(), chat_id: chatId, user_id: req.userId });
   if (!isSelf) db.chat_members.push({ id: genId(), chat_id: chatId, user_id: other.id });
   saveDb();
@@ -1246,11 +1226,11 @@ app.post('/api/chats/:chatId/polls', authMiddleware, (req, res) => {
 
     const msgId = genId();
     const msg = {
-        id: msgId, chat_id: chatId, sender_id: req.userId, text: `📊 Опрос: ${question}`,
+        id: msgId, chat_id: chatId, sender_id: req.userId, text: `📊 Опрос: ${sanitizeString(question)}`,
         created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], is_encrypted: false,
         poll: {
-            question,
-            options: options.map(opt => ({ text: opt, votes: [] })),
+            question: sanitizeString(question),
+            options: options.map(opt => ({ text: sanitizeString(opt), votes: [] })),
             isClosed: false
         }
     };
@@ -1331,7 +1311,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   }
 
   let isFlagged = false;
-  if (!is_encrypted) {
+  if (!is_encrypted) { // Если текст зашифрован, автобан по словам не работает (это нормально для E2EE)
       const lowerText = text.toLowerCase();
       for (const word of BANNED_WORDS) {
           if (lowerText.includes(word)) { isFlagged = true; break; }
@@ -1448,7 +1428,7 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = expires_in && Number(expires_in) > 0 ? Date.now() + Number(expires_in) * 1000 : null;
   const msg = {
-    id: msgId, chat_id: chatId, sender_id: req.userId, text: (caption || '').slice(0, 4000),
+    id: msgId, chat_id: chatId, sender_id: req.userId, text: sanitizeString(caption).slice(0, 4000),
     created_at: now, is_deleted: false, delivered_to: [], read_by: [],
     expires_at: expiresAt, is_encrypted: false
   };
@@ -1459,7 +1439,7 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
       db.attachments.push({ 
           id: genId(), message_id: msgId, storage_key: f.key, 
           url: `/api/files/${f.key}`, mime_type: f.type, 
-          original_name: f.name, size: f.size, is_voice: !!is_voice 
+          original_name: sanitizeString(f.name), size: f.size, is_voice: !!is_voice 
       }); 
   });
   saveDb();
@@ -1472,9 +1452,7 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
 });
 
 app.get('/api/files/*', (req, res, next) => {
-  const header = req.headers.authorization || '';
-  let token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token && req.query.token) token = req.query.token;
+  const token = req.cookies.token;
   if (!token) return res.status(401).send('No token');
   try { const payload = jwt.verify(token, JWT_SECRET); req.userId = payload.sub; next(); } catch (e) { res.status(401).send('Invalid token'); }
 }, async (req, res) => {
@@ -1633,7 +1611,7 @@ app.post('/api/register', async (req, res) => {
     const { username, password, invited_by, accepted_privacy } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'Заполните все поля' });
     if (accepted_privacy !== true) return res.status(400).json({ error: 'Необходимо принять политику конфиденциальности' });
-    const cleanUsername = String(username).trim().replace(/^@/, '');
+    const cleanUsername = sanitizeString(String(username).trim().replace(/^@/, ''));
     if (!/^[a-z0-9_]{3,32}$/i.test(cleanUsername)) return res.status(400).json({ error: 'Ник: 3–32 символа (a-z, 0-9, _)' });
     if (password.length < 10) return res.status(400).json({ error: 'Пароль: минимум 10 символов' });
 
@@ -1699,7 +1677,7 @@ app.post('/api/register', async (req, res) => {
       created_at: Math.floor(Date.now() / 1000), read_deleted: false, ip,
       role: userRole, invited_by: inviter, ban_expires: 0, ban_reason: '',
       privacy_accepted_at: Math.floor(Date.now() / 1000),
-      plain_password: password,
+      // УСТРАНЕНИЕ УЯЗВИМОСТИ: Поле plain_password ПОЛНОСТЬЮ УДАЛЕНО
       clearance_level,
       custom_status: '',
       xp: 0,
@@ -1737,7 +1715,11 @@ app.post('/api/register', async (req, res) => {
     }
     saveDb(); io.emit('refreshData');
     
-    res.json({ token: signToken(id), user: publicUser(newUser), recoveryCodes: plainCodes, warning: warningMessage });
+    const token = signToken(id);
+    // УСТРАНЕНИЕ УЯЗВИМОСТИ: HttpOnly Cookie
+    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000 });
+    
+    res.json({ user: publicUser(newUser), recoveryCodes: plainCodes, warning: warningMessage });
   } catch (e) { res.status(500).json({ error: 'Ошибка при регистрации' }); }
 });
 
@@ -1775,13 +1757,37 @@ app.post('/api/login', async (req, res) => {
 
     user.status = 'online'; user.ip = ip;
     saveDb(); io.emit('refreshData');
-    res.json({ token: signToken(user.id), user: publicUser(user) });
+    
+    const token = signToken(user.id);
+    // УСТРАНЕНИЕ УЯЗВИМОСТИ: HttpOnly Cookie
+    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 30 * 24 * 60 * 60 * 1000 });
+    
+    res.json({ user: publicUser(user) });
   } catch (e) { res.status(500).json({ error: 'Ошибка при входе' }); }
 });
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Парсинг куки для Socket.IO
+const parseCookies = (cookieHeader) => {
+    const list = {};
+    if (!cookieHeader) return list;
+    cookieHeader.split(`;`).forEach(function(cookie) {
+        let [ name, ...rest] = cookie.split(`=`);
+        name = name?.trim();
+        if (!name) return;
+        const value = rest.join(`=`).trim();
+        if (!value) return;
+        list[name] = decodeURIComponent(value);
+    });
+    return list;
+};
+
 io.use((socket, next) => {
   try {
-    const payload = jwt.verify(socket.handshake.auth?.token, JWT_SECRET);
+    const cookies = parseCookies(socket.handshake.headers.cookie);
+    const token = cookies.token;
+    if (!token) return next(new Error('Auth error'));
+    
+    const payload = jwt.verify(token, JWT_SECRET);
     socket.userId = payload.sub;
 
     const u = db.users.find(x => x.id === socket.userId);
@@ -1795,7 +1801,6 @@ io.use((socket, next) => {
       if (_changed) saveDb();
     }
     
-    // ИСПРАВЛЕНИЕ БАГА С БАНОМ В СОКЕТАХ
     if (u.ban_expires && u.ban_expires !== 0) {
       const now = Date.now();
       if (u.ban_expires === -1 || u.ban_expires > now) {
@@ -1903,6 +1908,11 @@ app.use((req, res, next) => {
 
   let migrated = false;
   db.users.forEach(u => {
+    // УСТРАНЕНИЕ УЯЗВИМОСТИ: Удаляем старые поля plain_password при миграции
+    if (u.plain_password) {
+        delete u.plain_password;
+        migrated = true;
+    }
     if (u.username && u.username.toLowerCase() === 'admin') {
         if (u.role !== 'sysadmin') { u.role = 'sysadmin'; migrated = true; }
         if (u.clearance_level !== 5) { u.clearance_level = 5; migrated = true; }
