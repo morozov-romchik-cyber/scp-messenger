@@ -15,11 +15,27 @@
 
 <style>
   :root {
-    --bg: #0d1117; --panel: #161b22; --card: #1c2128; --border: #30363d;
-    --border-hover: #8b949e; --accent: #ffffff; --text: #e6edf3; --muted: #8b949e;
-    --hill-color: #2c333a; --tree-color: #465059; --ground-color: #5a6670;
-    --admin-bg: #110505; --admin-panel: #1a0a0a; --admin-border: #4a1515;
-    --admin-accent: #ff3333; --admin-text: #ffcccc; --admin-green: #00ff9d;
+    /* Обновленная, более темная цветовая палитра */
+    --bg: #050505; 
+    --panel: #0a0a0a; 
+    --card: #121212; 
+    --border: #1f1f1f;
+    --border-hover: #404040; 
+    --accent: #ffffff; 
+    --text: #e6edf3; 
+    --muted: #8b949e;
+    
+    /* Темный пейзаж */
+    --hill-color: #111111; 
+    --tree-color: #1c1c1c; 
+    --ground-color: #2a2a2a;
+    
+    --admin-bg: #080000; 
+    --admin-panel: #100000; 
+    --admin-border: #330505;
+    --admin-accent: #ff3333; 
+    --admin-text: #ffcccc; 
+    --admin-green: #00ff9d;
     --logo-filter: invert(1);
     --online-green: #00ff9d;
     --custom-blue: #00ccff;
@@ -44,15 +60,16 @@
     --link-blue: #0284c7;
   }
 
-  /* Анимация плавного переключения темы (2 секунды) */
+  /* Плавная анимация переключения темы (0.4 секунды) */
   html.theme-changing * {
-    transition: background-color 2s ease, color 2s ease, border-color 2s ease, fill 2s ease !important;
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, fill 0.4s ease !important;
   }
 
-  [data-theme="dark"][data-season="winter"] { --hill-color: #3b4252; --tree-color: #4c566a; --ground-color: #d8dee9; }
-  [data-theme="dark"][data-season="spring"] { --hill-color: #2e5c3a; --tree-color: #4a7c59; --ground-color: #6b8e23; }
-  [data-theme="dark"][data-season="summer"] { --hill-color: #1e3b26; --tree-color: #2e5c3a; --ground-color: #3b5c3c; }
-  [data-theme="dark"][data-season="autumn"] { --hill-color: #4a2e1b; --tree-color: #8a3b12; --ground-color: #5c4033; }
+  /* Обновленные цвета пейзажа для темной темы */
+  [data-theme="dark"][data-season="winter"] { --hill-color: #121212; --tree-color: #1e1e1e; --ground-color: #2e2e2e; }
+  [data-theme="dark"][data-season="spring"] { --hill-color: #0f1a12; --tree-color: #16241a; --ground-color: #203024; }
+  [data-theme="dark"][data-season="summer"] { --hill-color: #0a140e; --tree-color: #102016; --ground-color: #182a1e; }
+  [data-theme="dark"][data-season="autumn"] { --hill-color: #1a1008; --tree-color: #2e1406; --ground-color: #2e1e14; }
 
   [data-theme="light"][data-season="winter"] { --hill-color: #cbd5e1; --tree-color: #94a3b8; --ground-color: #f1f5f9; }
   [data-theme="light"][data-season="spring"] { --hill-color: #86efac; --tree-color: #4ade80; --ground-color: #bbf7d0; }
@@ -61,14 +78,14 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; height: 100dvh; overflow: hidden; -webkit-app-region: drag; } 
-  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; transition: background 0.3s, color 0.3s; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
   
   button, input, textarea, a, .chat-item, .msg-row, .modal, .admin-btn { -webkit-app-region: no-drag; }
 
   #fx-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
   #landscape { position: fixed; bottom: 0; left: 0; width: 100%; height: 250px; pointer-events: none; z-index: 0; opacity: 0.8; transition: opacity 0.5s; }
   #landscape.hidden { opacity: 0; }
-  #landscape path, #landscape polygon, #landscape circle { transition: fill 1.5s ease; }
+  #landscape path, #landscape polygon, #landscape circle { transition: fill 0.4s ease; }
 
   @keyframes rotateBadge { 0% { transform: perspective(200px) rotateY(0deg); } 100% { transform: perspective(200px) rotateY(360deg); } }
   .rotating-badge {
@@ -140,10 +157,10 @@
   #chat { display: none; height: 100%; height: 100dvh; width: 100vw; position: relative; z-index: 1; }
   #chat.visible { display: flex; }
 
-  aside { width: 300px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100%; z-index: 2; transition: background 0.3s; }
+  aside { width: 300px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100%; z-index: 2; }
   .brand { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
   .brand-left { display: flex; align-items: center; gap: 12px; }
-  .brand-logo { width: 40px; height: 40px; object-fit: contain; filter: var(--logo-filter); transition: filter 0.3s; }
+  .brand-logo { width: 40px; height: 40px; object-fit: contain; filter: var(--logo-filter); transition: filter 0.4s; }
   .brand-title { font-family: 'Fira Code', monospace; color: var(--accent); font-size: 14px; letter-spacing: 1px; }
   .brand small { color: var(--muted); font-size: 11px; }
 
@@ -177,10 +194,10 @@
   .fab-sub-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--card); border: 1px solid var(--border-hover); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: transform 0.2s, background 0.2s; }
   .fab-sub-btn:hover { transform: scale(1.1); background: var(--border); }
 
-  main { flex: 1; display: flex; flex-direction: column; background: rgba(13, 17, 23, 0.85); position: relative; height: 100%; z-index: 2; min-width: 0; transition: background 0.3s; }
+  main { flex: 1; display: flex; flex-direction: column; background: rgba(5, 5, 5, 0.85); position: relative; height: 100%; z-index: 2; min-width: 0; }
   [data-theme="light"] main { background: rgba(243, 244, 246, 0.85); }
   
-  .chat-header { min-height: 73px; flex-shrink: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); background: rgba(22, 27, 34, 0.9); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: space-between; width: 100%; transition: background 0.3s; }
+  .chat-header { min-height: 73px; flex-shrink: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); background: rgba(10, 10, 10, 0.9); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: space-between; width: 100%; }
   [data-theme="light"] .chat-header { background: rgba(255, 255, 255, 0.9); }
   
   .chat-header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
@@ -1117,7 +1134,7 @@
         </div>
       </div>
       <div id="my-role-badge" style="font-size: 12px; font-family: 'Fira Code'; margin-right: 15px; font-weight: bold; color: var(--muted);"></div>
-      <button class="header-btn" id="theme-toggle-btn" title="Сменить тему">🌓</button>
+      <!-- Кнопка темы удалена отсюда -->
       <button class="header-btn" id="chat-options-btn" style="display: none;" title="Опции">⋮</button>
       <button class="header-btn" id="admin-header-btn" style="display: none; color: #ff3333; font-size: 18px; position: relative;" title="Админ-панель">👑</button>
       <button class="header-btn" id="open-settings" title="Настройки">⚙️</button>
@@ -2163,7 +2180,7 @@ function applyTheme(theme, skipTransition = false) {
         document.documentElement.classList.add('theme-changing');
         setTimeout(() => {
             document.documentElement.classList.remove('theme-changing');
-        }, 2000);
+        }, 400); // 0.4 секунды
     }
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('scp_theme', theme);
@@ -2174,10 +2191,7 @@ function applyTheme(theme, skipTransition = false) {
     if (themeIcon) themeIcon.textContent = theme === 'light' ? '☀️' : '🌙';
 }
 
-document.getElementById('theme-toggle-btn').addEventListener('click', () => {
-    const current = document.documentElement.getAttribute('data-theme');
-    applyTheme(current === 'dark' ? 'light' : 'dark');
-});
+// Удален обработчик кнопки в хедере, так как кнопки больше нет
 
 const savedTheme = localStorage.getItem('scp_theme') || 'dark';
 applyTheme(savedTheme, true);
