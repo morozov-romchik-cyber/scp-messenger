@@ -15,19 +15,19 @@
 
 <style>
   :root {
-    /* Темная тема - делаем природу ярче */
-    --bg: #050505; 
-    --panel: #0a0a0a; 
-    --card: #121212; 
-    --border: #1f1f1f;
-    --border-hover: #404040; 
+    /* Сбалансированная темная тема (темно-серый, не черный) */
+    --bg: #121212; 
+    --panel: #1a1a1a; 
+    --card: #242424; 
+    --border: #333333;
+    --border-hover: #555555; 
     --accent: #ffffff; 
     --text: #e6edf3; 
     --muted: #8b949e;
     
-    --admin-bg: #080000; 
-    --admin-panel: #100000; 
-    --admin-border: #330505;
+    --admin-bg: #1a0a0a; 
+    --admin-panel: #2a1010; 
+    --admin-border: #4a1515;
     --admin-accent: #ff3333; 
     --admin-text: #ffcccc; 
     --admin-green: #00ff9d;
@@ -37,18 +37,18 @@
     --link-blue: #1d9bf0;
   }
 
-  /* СВЕТЛАЯ ТЕМА (Сделана еще чуть темнее) */
+  /* СВЕТЛАЯ ТЕМА (Сделана значительно темнее, чтобы не резать глаза) */
   [data-theme="light"] {
-    --bg: #d1d5db; 
-    --panel: #e5e7eb; 
-    --card: #9ca3af; 
-    --border: #6b7280;
-    --border-hover: #4b5563; 
-    --accent: #111827; 
-    --text: #1f2937; 
-    --muted: #4b5563;
-    --admin-bg: #fecdd3; --admin-panel: #fda4af; --admin-border: #f43f5e;
-    --admin-accent: #be123c; --admin-text: #881337; --admin-green: #15803d;
+    --bg: #a8b2c1;       /* Более темный серо-синий фон */
+    --panel: #b8c3d1;    /* Панели чуть светлее фона */
+    --card: #cbd5e1;     /* Карточки светлее панелей */
+    --border: #8190a5;
+    --border-hover: #5e6f85; 
+    --accent: #0f172a;   /* Темный акцент */
+    --text: #0f172a; 
+    --muted: #334155;
+    --admin-bg: #e2e8f0; --admin-panel: #cbd5e1; --admin-border: #f87171;
+    --admin-accent: #dc2626; --admin-text: #991b1b; --admin-green: #16a34a;
     --logo-filter: none;
     --online-green: #047857;
     --custom-blue: #0369a1;
@@ -60,11 +60,11 @@
     transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, fill 0.4s ease !important;
   }
 
-  /* Яркие цвета природы в темной теме */
-  [data-theme="dark"][data-season="winter"] { --hill-color: #3b4252; --tree-color: #4c566a; --ground-color: #d8dee9; }
-  [data-theme="dark"][data-season="spring"] { --hill-color: #2e5c3a; --tree-color: #4a7c59; --ground-color: #6b8e23; }
-  [data-theme="dark"][data-season="summer"] { --hill-color: #1e3b26; --tree-color: #2e5c3a; --ground-color: #3b5c3c; }
-  [data-theme="dark"][data-season="autumn"] { --hill-color: #4a2e1b; --tree-color: #8a3b12; --ground-color: #5c4033; }
+  /* Яркие цвета природы в темной теме (гармонируют с новым фоном) */
+  [data-theme="dark"][data-season="winter"] { --hill-color: #1e1e24; --tree-color: #2c2c35; --ground-color: #3a3a45; }
+  [data-theme="dark"][data-season="spring"] { --hill-color: #182a1c; --tree-color: #223c28; --ground-color: #2e4d34; }
+  [data-theme="dark"][data-season="summer"] { --hill-color: #142417; --tree-color: #1e3622; --ground-color: #28462d; }
+  [data-theme="dark"][data-season="autumn"] { --hill-color: #2a1a10; --tree-color: #3e2211; --ground-color: #4e2c16; }
 
   [data-theme="light"][data-season="winter"] { --hill-color: #cbd5e1; --tree-color: #94a3b8; --ground-color: #f1f5f9; }
   [data-theme="light"][data-season="spring"] { --hill-color: #86efac; --tree-color: #4ade80; --ground-color: #bbf7d0; }
@@ -93,7 +93,10 @@
   }
   .badge-sysadmin { background: #000000; color: #ffffff; border: 1px solid #ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
   [data-theme="light"] .badge-sysadmin { background: #111827; color: #ffffff; border: 1px solid #111827; }
-  .badge-admin { background: #ff3333; color: #fff; border: 1px solid #fff; }
+  
+  /* Измененный цвет текста в плашке АДМИН */
+  .badge-admin { background: #ff3333; color: #000000; border: 1px solid #000000; font-weight: 900; }
+  
   .badge-moderator { background: #ffcc00; color: #000; }
   .badge-helper { background: #00ccff; color: #000; }
 
@@ -189,11 +192,11 @@
   .fab-sub-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--card); border: 1px solid var(--border-hover); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: transform 0.2s, background 0.2s; }
   .fab-sub-btn:hover { transform: scale(1.1); background: var(--border); }
 
-  main { flex: 1; display: flex; flex-direction: column; background: rgba(5, 5, 5, 0.85); position: relative; height: 100%; z-index: 2; min-width: 0; }
-  [data-theme="light"] main { background: rgba(243, 244, 246, 0.85); }
+  main { flex: 1; display: flex; flex-direction: column; background: rgba(18, 18, 18, 0.85); position: relative; height: 100%; z-index: 2; min-width: 0; }
+  [data-theme="light"] main { background: rgba(168, 178, 193, 0.85); }
   
-  .chat-header { min-height: 73px; flex-shrink: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); background: rgba(10, 10, 10, 0.9); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: space-between; width: 100%; }
-  [data-theme="light"] .chat-header { background: rgba(255, 255, 255, 0.9); }
+  .chat-header { min-height: 73px; flex-shrink: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); background: rgba(26, 26, 26, 0.9); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: space-between; width: 100%; }
+  [data-theme="light"] .chat-header { background: rgba(184, 195, 209, 0.9); }
   
   .chat-header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
   .chat-header h2 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
