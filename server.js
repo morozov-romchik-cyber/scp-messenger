@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
-const cookieParser = require('cookie-parser'); // Парсер куки
+const cookieParser = require('cookie-parser');
 const { Server } = require('socket.io');
 
 const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
@@ -39,9 +39,9 @@ const serverLog = (type, text) => {
 process.on('uncaughtException', (err) => serverLog('error', 'Поймана необработанная ошибка: ' + err.stack));
 process.on('unhandledRejection', (err) => serverLog('error', 'Необработанный промис: ' + err));
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Rate Limiting
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Rate Limiting (Увеличен лимит, чтобы избежать 429)
 const rateLimitMap = new Map();
-const API_RATE_LIMIT = 150;
+const API_RATE_LIMIT = 500; 
 const API_RATE_WINDOW = 60000;
 
 const rateLimiter = (req, res, next) => {
@@ -64,22 +64,23 @@ const rateLimiter = (req, res, next) => {
     next();
 };
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Удалены опасные расширения (.js, .html, .svg и т.д.)
 const ALLOWED_EXT = new Set([
   '.ai', '.all', '.apk', '.accdb', '.asm', '.app', '.arj', '.avi', '.bak', '.bat',
   '.bin', '.bmp', '.bz2', '.c', '.cab', '.cc', '.cfg', '.class', '.cmd', '.conf',
   '.cpl', '.cpp', '.crt', '.cs', '.css', '.csv', '.dae', '.dat', '.db', '.dbf',
   '.dmp', '.doc', '.docx', '.dll', '.elf', '.et', '.etl', '.evtx', '.exe', '.flac',
   '.frm', '.fw', '.gif', '.glb', '.gltf', '.go', '.gz', '.h', '.heic', '.hex',
-  '.hpp', '.htm', '.html', '.ibd', '.ico', '.icns', '.img', '.ini', '.iso', '.java',
-  '.jpeg', '.jpg', '.js', '.json', '.jons', '.key', '.ldf', '.lnk', '.log', '.lua',
+  '.hpp', '.ibd', '.ico', '.icns', '.img', '.ini', '.iso', '.java',
+  '.jpeg', '.jpg', '.json', '.jons', '.key', '.ldf', '.lnk', '.log', '.lua',
   '.m4a', '.manifest', '.mb', '.md', '.mdb', '.mdf', '.mkv', '.mov', '.mp3', '.mp4',
   '.mpeg', '.mpg', '.msi', '.msp', '.mui', '.odt', '.ogg', '.old', '.ocx', '.ova',
   '.ovf', '.ovpn', '.pas', '.pcap', '.pcapng', '.pdb', '.pdf', '.pem', '.pf', '.php',
   '.p12', '.pfx', '.png', '.ppt', '.pptx', '.ps', '.py', '.pyc', '.qcow2', '.rar', '.raw', '.reg',
   '.res', '.resources', '.rom', '.rtf', '.rs', '.scr', '.s', '.7z', '.sh', '.sql',
-  '.sqlite', '.sqlite3', '.svg', '.sys', '.tar', '.tif', '.tiff', '.tmp', '.ts', '.txt',
+  '.sqlite', '.sqlite3', '.sys', '.tar', '.tif', '.tiff', '.tmp', '.ts', '.txt',
   '.url', '.var', '.vb', '.vdi', '.vhd', '.vhdx', '.vmdk', '.wav', '.webm', '.webp',
-  '.wma', '.wmv', '.xls', '.xlsx', '.xml', '.xpi', '.xz', '.yaml', '.yml', '.zip', '.zst', '.torrent', '.blend'
+  '.wma', '.wmv', '.xls', '.xlsx', '.xpi', '.xz', '.yaml', '.yml', '.zip', '.zst', '.torrent', '.blend'
 ]);
 
 const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
@@ -142,7 +143,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(cookieParser()); // Инициализация cookie-parser (ВАЖНО: до роутов)
+app.use(cookieParser());
 app.use(rateLimiter);
 
 const server = http.createServer(app);
@@ -189,10 +190,12 @@ const getRealIp = (req) => {
   return ip.replace('::ffff:', '');
 };
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Санитизация (XSS)
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Усиленная санитизация (XSS)
 const sanitizeString = (str) => {
     if (typeof str !== 'string') return '';
-    return str.replace(/<[^>]*>?/gm, '').replace(/[<>]/g, '').trim();
+    return str.replace(/<[^>]*>?/gm, '')
+              .replace(/[<>"'&]/g, '')
+              .trim();
 };
 
 const decodeFilename = (name) => {
@@ -232,7 +235,7 @@ const uploadSingle = (field) => (req, res, next) => {
   });
 };
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: JWT берется из HttpOnly Cookie
+// JWT берется из HttpOnly Cookie
 function authMiddleware(req, res, next) {
   const token = req.cookies.token; 
   if (!token) return res.status(401).json({ error: 'No token' });
@@ -299,11 +302,12 @@ function scheduleMessageExpiry(msgId, expiresAt) {
   const delay = expiresAt - Date.now();
   if (delay > 0) {
     setTimeout(() => {
-      const msg = db.messages.find(m => m.id === msgId);
-      if (msg && !msg.is_deleted) {
-        msg.is_deleted = true;
+      const msgIdx = db.messages.findIndex(m => m.id === msgId);
+      if (msgIdx !== -1 && !db.messages[msgIdx].is_deleted) {
+        db.messages.splice(msgIdx, 1); // Удаляем физически
+        db.attachments = db.attachments.filter(a => a.message_id !== msgId);
         saveDb();
-        emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all' });
+        emitToChatMembers(db.messages[msgIdx]?.chat_id || '', 'messageDeleted', { messageId: msgId, type: 'all' });
       }
     }, delay);
   }
@@ -659,8 +663,6 @@ app.get('/api/admin/users-list', authMiddleware, (req, res) => {
   });
   res.json(users);
 });
-
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Функция /get-passwords ПОЛНОСТЬЮ УДАЛЕНА
 
 app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   const me = req.user;
@@ -1512,22 +1514,29 @@ app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Полное физическое удаление (Hard Delete)
 app.delete('/api/messages/:messageId', authMiddleware, (req, res) => {
-  const msg = db.messages.find(m => m.id === req.params.messageId);
-  if (!msg) return res.status(404).json({ error: 'Message not found' });
+  const msgIdx = db.messages.findIndex(m => m.id === req.params.messageId);
+  if (msgIdx === -1) return res.status(404).json({ error: 'Message not found' });
+  const msg = db.messages[msgIdx];
   const me = req.user;
   const isAdmin = me && ['sysadmin', 'admin', 'moderator'].includes(me.role);
   const isOwn = msg.sender_id === req.userId;
   const scope = (req.body && req.body.scope) || 'me';
+  
   if (scope === 'all') {
     if (!isOwn && !isAdmin) return res.status(403).json({ error: 'Недостаточно прав' });
-    msg.is_deleted = true;
     
     if (!isOwn && isAdmin) {
         logAdminAction(me.id, 'delete_message', msg.sender_id, `Удалено сообщение ID: ${msg.id} в чате ${msg.chat_id}`);
     }
 
-    saveDb(); emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
+    // Физическое удаление сообщения и вложений
+    db.attachments = db.attachments.filter(a => a.message_id !== msg.id);
+    db.messages.splice(msgIdx, 1);
+    
+    saveDb(); 
+    emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
   }
   res.json({ ok: true });
 });
