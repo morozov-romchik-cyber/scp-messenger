@@ -207,7 +207,7 @@
       border-radius: 24px;
       margin-top: 6px;
       min-width: 180px;
-      max-width: 100%; /* Исправлено обрезание */
+      max-width: 100%; 
       box-sizing: border-box;
       user-select: none;
   }
@@ -515,7 +515,7 @@
         border-right: none; 
         border-bottom: 1px solid var(--admin-border); 
         flex-shrink: 0; 
-        padding-top: 65px; /* Увеличенный отступ, чтобы вкладки не перекрывались кнопкой */
+        padding-top: 65px; 
     }
     .admin-sidebar .admin-tab { 
         white-space: nowrap; 
@@ -533,16 +533,15 @@
     .admin-input-group input, .admin-input-group select { width: 100%; }
     #admin-dashboard-modal .admin-header h2 { font-size: 16px; }
     
-    /* Исправленная кнопка закрытия для мобильных */
     .mobile-admin-close {
         display: flex !important;
-        position: fixed; /* Фиксируем, чтобы всегда была на виду */
-        top: calc(15px + env(safe-area-inset-top, 0px)); /* Безопасный отступ сверху */
-        right: calc(15px + env(safe-area-inset-right, 0px)); /* Безопасный отступ справа */
+        position: fixed; 
+        top: calc(15px + env(safe-area-inset-top, 0px)); 
+        right: calc(15px + env(safe-area-inset-right, 0px)); 
         z-index: 1000000;
         background: var(--admin-accent);
         color: #fff;
-        width: 38px; /* Чуть больше размер */
+        width: 38px; 
         height: 38px;
         border-radius: 50%;
         align-items: center;
@@ -550,7 +549,7 @@
         font-weight: bold;
         font-size: 20px;
         cursor: pointer;
-        border: 2px solid #fff; /* Белая обводка для контраста */
+        border: 2px solid #fff; 
         box-shadow: 0 4px 12px rgba(0,0,0,0.8);
         padding: 0;
         line-height: 1;
@@ -1049,6 +1048,12 @@
       <input type="text" id="modal-set-username" placeholder="юзернейм" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:6px; font-family:inherit; margin-bottom:8px; outline:none;" />
       <button class="modal-btn" onclick="setChannelUsername()" style="margin-top:0; padding:8px;">Установить ссылку</button>
     </div>
+    
+    <div class="admin-toggle-row" style="margin-bottom: 15px; padding: 10px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);">
+        <span style="color: var(--accent); font-weight: bold;">🔒 Сквозное шифрование (E2EE)</span>
+        <input type="checkbox" id="e2ee-toggle" onchange="toggleE2EE(this.checked)">
+    </div>
+
     <button class="modal-btn" id="view-profile-btn" style="background: var(--accent); color: #000; margin-bottom: 10px;">👤 Профиль собеседника</button>
     <button class="modal-btn" id="group-members-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">👥 Участники</button>
     <button class="modal-btn" id="leave-group-btn" style="background: #ffaa00; color: #000; margin-bottom: 10px; display: none;">🚪 Выйти</button>
@@ -1218,6 +1223,7 @@
             <span id="chat-clearance-badge"></span>
             <svg id="verified-star" style="width: 18px; height: 18px; fill: #1d9bf0; display: none; vertical-align: middle; flex-shrink: 0; margin-left: 6px; cursor: pointer;" viewBox="0 0 24 24" onclick="openScpVerifyModal()"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
             <span id="header-chat-role-badge"></span>
+            <span id="e2ee-indicator" style="display: none; font-size: 12px; color: #00ff9d; margin-left: 6px;" title="Сквозное шифрование включено">🔒</span>
             <button class="clear-chat-btn" id="clear-chat-btn" title="Очистить" style="display: none;">🔥</button>
           </h2>
           <small id="chat-subtitle" style="color: var(--muted); font-size: 11px; font-family: 'Fira Code', monospace;"></small>
@@ -1345,6 +1351,10 @@ let analyser;
 let dataArray;
 let recStream;
 let currentExpiryTimeout;
+
+// E2EE Переменные
+let e2eeKey = null;
+let isE2EEEnabled = false;
 
 function clearanceBadge(level) {
   const lvl = level || 1;
@@ -1483,6 +1493,89 @@ function showNotification(sender, text, avatarUrl, chatId) {
     }, 5000);
 }
 
+// ================= E2EE ФУНКЦИИ =================
+async function getE2EEKey(chatId) {
+    if (e2eeKey) return e2eeKey;
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(chatId.padEnd(32, '0').slice(0, 32)),
+        { name: "PBKDF2" },
+        false,
+        ["deriveBits", "deriveKey"]
+    );
+    e2eeKey = await crypto.subtle.deriveKey(
+        {
+            name: "PBKDF2",
+            salt: enc.encode("SCP_FOUNDATION_SALT"),
+            iterations: 100000,
+            hash: "SHA-256"
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+    );
+    return e2eeKey;
+}
+
+async function encryptMessage(text, chatId) {
+    try {
+        const key = await getE2EEKey(chatId);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encoded = new TextEncoder().encode(text);
+        const ciphertext = await crypto.subtle.encrypt(
+            { name: "AES-GCM", iv: iv },
+            key,
+            encoded
+        );
+        const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+        combined.set(iv, 0);
+        combined.set(new Uint8Array(ciphertext), iv.length);
+        return btoa(String.fromCharCode(...combined));
+    } catch (e) {
+        console.error("Encryption failed", e);
+        return text; // fallback
+    }
+}
+
+async function decryptMessage(encryptedBase64, chatId) {
+    try {
+        const key = await getE2EEKey(chatId);
+        const combined = new Uint8Array(atob(encryptedBase64).split('').map(c => c.charCodeAt(0)));
+        const iv = combined.slice(0, 12);
+        const ciphertext = combined.slice(12);
+        const decrypted = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: iv },
+            key,
+            ciphertext
+        );
+        return new TextDecoder().decode(decrypted);
+    } catch (e) {
+        console.error("Decryption failed", e);
+        return "🔒 [Ошибка расшифровки]";
+    }
+}
+
+window.toggleE2EE = async function(enabled) {
+    if (!state.currentChat) return;
+    try {
+        await api(`/chats/${state.currentChat.id}/e2ee`, { method: 'POST', body: JSON.stringify({ enabled }) });
+        state.currentChat.e2ee_enabled = enabled;
+        if (enabled) {
+            await getE2EEKey(state.currentChat.id);
+            document.getElementById('e2ee-indicator').style.display = 'inline-block';
+            alert('🔒 Сквозное шифрование включено. Сообщения будут зашифрованы.');
+        } else {
+            document.getElementById('e2ee-indicator').style.display = 'none';
+            alert('🔓 Сквозное шифрование отключено.');
+        }
+    } catch (e) {
+        alert(e.message);
+        document.getElementById('e2ee-toggle').checked = !enabled;
+    }
+};
+
 // ================= ГОЛОСОВОЙ ПЛЕЕР =================
 function formatVoiceDuration(s) {
     if (!s || !isFinite(s) || s < 0) return '0:00';
@@ -1606,7 +1699,6 @@ document.getElementById('mic-btn').addEventListener('click', async () => {
             micBtn.classList.remove('recording');
             isRecording = false;
             
-            // ОТПРАВЛЯЕМ СОБЫТИЕ ОБ ОСТАНОВКЕ ЗАПИСИ
             if (state.socket && state.currentChat) state.socket.emit('stopRecording', { chatId: state.currentChat.id });
 
             if (isCancelled) { isCancelled = false; return; }
@@ -1623,7 +1715,6 @@ document.getElementById('mic-btn').addEventListener('click', async () => {
         isRecording = true;
         isCancelled = false;
 
-        // ОТПРАВЛЯЕМ СОБЫТИЕ О НАЧАЛЕ ЗАПИСИ
         if (state.socket && state.currentChat) state.socket.emit('recording', { chatId: state.currentChat.id });
 
         document.getElementById('recording-ui').style.display = 'flex';
@@ -1710,8 +1801,8 @@ window.votePoll = async function(msgId, optIdx) {
 // ================= ЗАКРЕПЛЕННЫЕ СООБЩЕНИЯ =================
 window.pinActiveMsg = function() {
     if (!state.activeMsg || !state.currentChat) return;
-    document.getElementById('msg-actions-modal').classList.remove('visible'); // Закрываем меню действий
-    document.getElementById('pin-choice-modal').classList.add('visible'); // Открываем меню закрепа
+    document.getElementById('msg-actions-modal').classList.remove('visible');
+    document.getElementById('pin-choice-modal').classList.add('visible');
 };
 
 window.pinSelectedMsg = async function(forAll) {
@@ -2150,7 +2241,17 @@ async function api(path, opts = {}) {
             throw new Error('Сессия истекла.');
         }
     }
-    if (res.status === 403 && data.error === 'BANNED') { showBanMessage(data.ban_expires, data.ban_reason); throw new Error('Banned'); }
+    if (res.status === 403 && data.error === 'BANNED') { 
+        // ИСПРАВЛЕНИЕ БАГА С БАНОМ: Показываем бан только если время не истекло
+        if (data.ban_expires === -1 || data.ban_expires > Date.now()) {
+            showBanMessage(data.ban_expires, data.ban_reason); 
+        } else {
+            // Если бан истек, просто просим перелогиниться
+            localStorage.removeItem('scp_token'); state.token = null;
+            window.location.reload();
+        }
+        throw new Error('Banned'); 
+    }
     if (!res.ok) throw new Error(data.error || `Ошибка ${res.status}`);
     return data;
   } catch (err) {
@@ -2465,11 +2566,21 @@ document.getElementById('avatar-input').addEventListener('change', (e) => {
 });
 
 // ================= ADMIN =================
-document.getElementById('admin-header-btn').addEventListener('click', () => {
-  document.getElementById('admin-dashboard-modal').classList.add('visible');
-  document.getElementById('read-deleted-toggle').checked = state.read_deleted;
-  updateReadDeletedStatusLabel(state.read_deleted);
-  populateInviteRoles();
+document.getElementById('admin-header-btn').addEventListener('click', async () => {
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Всегда проверяем роль на сервере перед открытием
+  try {
+    state.me = await api('/me');
+    if (!['sysadmin', 'admin', 'moderator', 'helper'].includes(state.me.role)) {
+        alert('У вас нет прав администратора.');
+        return;
+    }
+    document.getElementById('admin-dashboard-modal').classList.add('visible');
+    document.getElementById('read-deleted-toggle').checked = state.read_deleted;
+    updateReadDeletedStatusLabel(state.read_deleted);
+    populateInviteRoles();
+  } catch (e) {
+    alert('Ошибка проверки прав: ' + e.message);
+  }
 });
 document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -3187,10 +3298,23 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
     } else headerBadge.innerHTML = '';
   } else headerBadge.innerHTML = '';
   
+  const chatObj = state.chats.find(c => c.id === chatId);
+  const e2eeEnabled = chatObj ? chatObj.e2ee_enabled : false;
+  const e2eeIndicator = document.getElementById('e2ee-indicator');
+  const e2eeToggle = document.getElementById('e2ee-toggle');
+  
+  if (e2eeEnabled) {
+      e2eeIndicator.style.display = 'inline-block';
+      e2eeToggle.checked = true;
+      await getE2EEKey(chatId);
+  } else {
+      e2eeIndicator.style.display = 'none';
+      e2eeToggle.checked = false;
+  }
+
   const isCreator = !isGroup || (creatorId === state.me.id);
   let showComposer = !isBlocked && (!isChannel || isCreator);
   
-  const chatObj = state.chats.find(c => c.id === chatId);
   if (chatObj && chatObj.isGroup) {
      const minWrite = chatObj.min_write_clearance || 1;
      if (myClearance < minWrite && !isCreator) {
@@ -3256,13 +3380,23 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
     const msgs = await api('/chats/' + chatId + '/messages');
     msgsEl.innerHTML = '';
     if (!msgs.length) msgsEl.innerHTML = '<div class="empty">Сообщений пока не было</div>';
-    msgs.forEach(m => appendMessage(m, false));
+    
+    // Рендерим сообщения с расшифровкой, если E2EE включено
+    for (const m of msgs) {
+        let displayText = m.text;
+        if (m.is_encrypted && e2eeEnabled) {
+            displayText = await decryptMessage(m.text, chatId);
+        } else if (m.is_encrypted && !e2eeEnabled) {
+            displayText = "🔒 [Зашифровано. Включите E2EE для просмотра]";
+        }
+        appendMessage({ ...m, text: displayText }, false);
+    }
+    
     msgsEl.scrollTop = msgsEl.scrollHeight;
     api('/chats/' + chatId + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
 
-    const chat = state.chats.find(c => c.id === chatId);
-    if (chat && chat.pinned_messages && chat.pinned_messages.length > 0) {
-        state.visiblePinnedMessages = chat.pinned_messages;
+    if (chatObj && chatObj.pinned_messages && chatObj.pinned_messages.length > 0) {
+        state.visiblePinnedMessages = chatObj.pinned_messages;
         state.currentPinnedIndex = 0;
         updatePinBanner();
     } else {
@@ -3473,6 +3607,7 @@ function appendMessage(msg, scroll = true) {
   const expiryHtml = renderExpiryBadge(msg);
   const editedLabel = msg.edited ? ' <span class="msg-edited">(изменено)</span>' : '';
   const isExpiring = msg.expires_at && msg.expires_at > Date.now();
+  const e2eeLabel = msg.is_encrypted ? ' <span class="msg-edited" style="color:#00ff9d;" title="Сквозное шифрование">🔒</span>' : '';
   
   const timeStr = new Date(msg.createdAt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   let statusHtml = '';
@@ -3482,7 +3617,7 @@ function appendMessage(msg, scroll = true) {
     else statusHtml = `<span class="msg-status" data-state="sent"><span class="tick">✓</span></span>`;
   }
   
-  const footerHtml = `<div class="msg-footer"><span>${timeStr}${editedLabel}</span>${statusHtml}</div>`;
+  const footerHtml = `<div class="msg-footer"><span>${timeStr}${editedLabel}${e2eeLabel}</span>${statusHtml}</div>`;
   
   let whoHtml = '';
   if (!mine) {
@@ -3812,10 +3947,17 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   updateChatPreview(targetChatId);
   
   let body = text;
+  let isEncrypted = false;
+  
+  if (state.currentChat.e2ee_enabled) {
+      body = await encryptMessage(text, targetChatId);
+      isEncrypted = true;
+  }
+
   if (state.replyTo) {
     const rt = (state.replyTo.text || '(файл)').replace(/\n/g, ' ').slice(0, 80);
     const an = (state.replyTo.sender.displayName || state.replyTo.sender.username).replace(/\n/g, ' ');
-    body = `> ${an}#${state.replyTo.id}: ${rt}\n${text}`;
+    body = `> ${an}#${state.replyTo.id}: ${rt}\n${body}`;
   }
   state.replyTo = null;
   document.getElementById('reply-bar').classList.remove('visible');
@@ -3823,9 +3965,12 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   try {
     const msg = await api('/chats/' + targetChatId + '/messages', {
       method: 'POST',
-      body: JSON.stringify({ text: body, expires_in: currentExpiry })
+      body: JSON.stringify({ text: body, expires_in: currentExpiry, is_encrypted: isEncrypted })
     });
     if (state.currentChat && state.currentChat.id === targetChatId) {
+      // Локальное отображение расшифрованного текста
+      msg.text = text;
+      msg.is_encrypted = isEncrypted;
       appendMessage(msg);
     }
   } catch (e) { 
@@ -4056,16 +4201,28 @@ function connectSocket() {
   state.socket.on('newMessage', async (msg) => {
     if (String(msg.sender.id) === String(state.me.id)) return;
     if (!state.chats.some(c => c.id === msg.chatId)) await loadChats();
+    
+    // Расшифровка E2EE
+    let displayText = msg.text;
+    const chat = state.chats.find(c => c.id === msg.chatId);
+    if (msg.is_encrypted && chat && chat.e2ee_enabled) {
+        displayText = await decryptMessage(msg.text, msg.chatId);
+    } else if (msg.is_encrypted && (!chat || !chat.e2ee_enabled)) {
+        displayText = "🔒 [Зашифровано]";
+    }
+    
+    const finalMsg = { ...msg, text: displayText };
+
     if (state.currentChat && msg.chatId === state.currentChat.id) {
-      appendMessage(msg);
+      appendMessage(finalMsg);
       document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
       api('/chats/' + state.currentChat.id + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
-      if (document.hidden) showNotification(msg.sender.displayName || msg.sender.username, msg.text || '📎', msg.sender.avatarUrl, msg.chatId);
+      if (document.hidden) showNotification(msg.sender.displayName || msg.sender.username, finalMsg.text || '📎', msg.sender.avatarUrl, msg.chatId);
     } else {
       state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1;
       updateChatPreview(msg.chatId);
       updatePageTitle();
-      showNotification(msg.sender.displayName || msg.sender.username, msg.text || '📎', msg.sender.avatarUrl, msg.chatId);
+      showNotification(msg.sender.displayName || msg.sender.username, finalMsg.text || '📎', msg.sender.avatarUrl, msg.chatId);
     }
   });
   
@@ -4179,13 +4336,30 @@ function connectSocket() {
       }
   });
 
+  state.socket.on('e2eeToggled', ({ chatId, enabled }) => {
+      if (state.currentChat && state.currentChat.id === chatId) {
+          state.currentChat.e2ee_enabled = enabled;
+          document.getElementById('e2ee-toggle').checked = enabled;
+          document.getElementById('e2ee-indicator').style.display = enabled ? 'inline-block' : 'none';
+          if (enabled) getE2EEKey(chatId);
+      }
+      const c = state.chats.find(x => x.id === chatId);
+      if (c) c.e2ee_enabled = enabled;
+  });
+
   state.socket.on('messageEdited', ({ messageId }) => {
     if (!state.currentChat) return;
-    api('/chats/' + state.currentChat.id + '/messages').then(msgs => {
+    api('/chats/' + state.currentChat.id + '/messages').then(async msgs => {
       const box = document.getElementById('messages');
       if (!box) return;
       box.innerHTML = '';
-      msgs.forEach(m => appendMessage(m, false));
+      for (const m of msgs) {
+          let displayText = m.text;
+          if (m.is_encrypted && state.currentChat.e2ee_enabled) {
+              displayText = await decryptMessage(m.text, state.currentChat.id);
+          }
+          appendMessage({ ...m, text: displayText }, false);
+      }
       box.scrollTop = box.scrollHeight;
     }).catch(() => {});
   });
