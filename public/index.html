@@ -515,7 +515,7 @@
         border-right: none; 
         border-bottom: 1px solid var(--admin-border); 
         flex-shrink: 0; 
-        padding-top: 45px; /* Отступ для кнопки закрытия */
+        padding-top: 65px; /* Увеличенный отступ, чтобы вкладки не перекрывались кнопкой */
     }
     .admin-sidebar .admin-tab { 
         white-space: nowrap; 
@@ -533,23 +533,28 @@
     .admin-input-group input, .admin-input-group select { width: 100%; }
     #admin-dashboard-modal .admin-header h2 { font-size: 16px; }
     
+    /* Исправленная кнопка закрытия для мобильных */
     .mobile-admin-close {
         display: flex !important;
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 1000;
+        position: fixed; /* Фиксируем, чтобы всегда была на виду */
+        top: calc(15px + env(safe-area-inset-top, 0px)); /* Безопасный отступ сверху */
+        right: calc(15px + env(safe-area-inset-right, 0px)); /* Безопасный отступ справа */
+        z-index: 1000000;
         background: var(--admin-accent);
         color: #fff;
-        width: 32px;
-        height: 32px;
+        width: 38px; /* Чуть больше размер */
+        height: 38px;
         border-radius: 50%;
         align-items: center;
         justify-content: center;
         font-weight: bold;
+        font-size: 20px;
         cursor: pointer;
-        border: none;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        border: 2px solid #fff; /* Белая обводка для контраста */
+        box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+        padding: 0;
+        line-height: 1;
+        margin: 0;
     }
     .admin-tab-close-desktop { display: none !important; }
   }
