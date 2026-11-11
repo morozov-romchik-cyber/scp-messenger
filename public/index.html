@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-<meta name="author" content="Морозов Роман">
-<meta name="copyright" content="Морозов Роман">
+<meta name="author" content="@aldernx-scp">
+<meta name="copyright" content="@aldernx-scp">
 
 <style>
   :root {
@@ -563,7 +563,7 @@
 <body>
 
 <div id="author-watermark" style="display:none !important; opacity:0; position:absolute; left:-9999px; top:-9999px;">
-    Разработано Морозовым Романом. Все права защищены. Любое копирование и выдача за свой проект запрещены.
+    Разработано @aldernx-scp. Все права защищены. Любое копирование и выдача за свой проект запрещены.
 </div>
 
 <canvas id="fx-canvas"></canvas>
@@ -1326,8 +1326,8 @@ let dataArray;
 let recStream;
 let currentExpiryTimeout;
 
-// E2EE Переменные
-let e2eeKey = null;
+// E2EE Ключи (кэш для каждого чата отдельно)
+let e2eeKeys = {};
 
 function clearanceBadge(level) {
   const lvl = level || 1;
@@ -1468,7 +1468,7 @@ function showNotification(sender, text, avatarUrl, chatId) {
 
 // ================= E2EE ФУНКЦИИ =================
 async function getE2EEKey(chatId) {
-    if (e2eeKey) return e2eeKey;
+    if (e2eeKeys[chatId]) return e2eeKeys[chatId];
     const enc = new TextEncoder();
     const keyMaterial = await crypto.subtle.importKey(
         "raw",
@@ -1477,7 +1477,7 @@ async function getE2EEKey(chatId) {
         false,
         ["deriveBits", "deriveKey"]
     );
-    e2eeKey = await crypto.subtle.deriveKey(
+    e2eeKeys[chatId] = await crypto.subtle.deriveKey(
         {
             name: "PBKDF2",
             salt: enc.encode("SCP_FOUNDATION_SALT"),
@@ -1489,7 +1489,7 @@ async function getE2EEKey(chatId) {
         true,
         ["encrypt", "decrypt"]
     );
-    return e2eeKey;
+    return e2eeKeys[chatId];
 }
 
 async function encryptMessage(text, chatId) {
@@ -1508,7 +1508,7 @@ async function encryptMessage(text, chatId) {
         return btoa(String.fromCharCode(...combined));
     } catch (e) {
         console.error("Encryption failed", e);
-        return text; // fallback
+        return text;
     }
 }
 
@@ -2181,7 +2181,6 @@ document.getElementById('tab-register').addEventListener('click', () => {
 
 async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Токен больше не передается в заголовках, используется cookie
   try {
     const res = await fetch('/api' + path, { ...opts, headers, credentials: 'include' });
     let data = {};
@@ -2464,7 +2463,6 @@ document.getElementById('header-avatar').addEventListener('click', () => {
   }
 });
 document.getElementById('logout-btn').addEventListener('click', () => { 
-    // Очистка куки на клиенте
     document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     window.location.reload(); 
 });
@@ -3178,7 +3176,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   } else headerBadge.innerHTML = '';
   
   const chatObj = state.chats.find(c => c.id === chatId);
-  const e2eeEnabled = chatObj && !chatObj.isGroup; // E2EE всегда для личек
+  const e2eeEnabled = chatObj && !chatObj.isGroup;
   const e2eeIndicator = document.getElementById('e2ee-indicator');
   
   if (e2eeEnabled) {
@@ -3318,8 +3316,10 @@ function renderExpiryBadge(msg) {
   return `<span class="expiry-timer" data-expires-at="${msg.expires_at}">🔥 ${m > 0 ? m + 'м ' : ''}${s}с</span>`;
 }
 
+let expiryTimerInterval = null;
 function startExpiryTimers() {
-  setInterval(() => {
+  if (expiryTimerInterval) clearInterval(expiryTimerInterval);
+  expiryTimerInterval = setInterval(() => {
     document.querySelectorAll('.expiry-timer').forEach(el => {
       const exp = Number(el.dataset.expiresAt);
       if (!exp) return;
@@ -3438,7 +3438,7 @@ function appendMessage(msg, scroll = true) {
 
     if (Array.isArray(msg.attachments) && msg.attachments.length) {
       window._attStore = window._attStore || {};
-      const atts = msg.attachments.map(a => ({ ...a, url: a.url + (a.url.includes('?') ? '&' : '?') + 'token=' + state.token }));
+      const atts = msg.attachments.map(a => ({ ...a, url: a.url })); // БЕЗ ТОКЕНА
       window._attStore[msg.id] = { attachments: atts, chatName: state.currentChat ? state.currentChat.name : '', senderName: msg.sender.displayName || msg.sender.username };
       
       // Голосовые сообщения — встроенный плеер
@@ -3599,7 +3599,7 @@ function openMsgActions(msg) {
     dl.style.display = 'block';
     dl.onclick = () => {
       msg.attachments.forEach(a => {
-        const url = a.url + (a.url.includes('?') ? '&' : '?') + 'token=' + state.token;
+        const url = a.url; // БЕЗ ТОКЕНА
         const el = document.createElement('a');
         el.href = url; el.download = a.name || 'file';
         document.body.appendChild(el); el.click(); el.remove();
@@ -4038,7 +4038,7 @@ document.getElementById('unblock-user-btn').addEventListener('click', async () =
 // ================= SOCKET =================
 function connectSocket() {
   if (state.socket) state.socket.disconnect();
-  state.socket = io({ withCredentials: true }); // Передача HttpOnly cookie
+  state.socket = io({ withCredentials: true });
   
   state.socket.on('forceLogout', (data) => {
     state.socket.disconnect();
@@ -4050,14 +4050,20 @@ function connectSocket() {
   state.socket.on('roleChanged', async () => {
     try { state.me = await api('/me'); enterChat(); if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList(); } catch (e) {}
   });
-  state.socket.on('refreshData', async () => {
-    try {
-      state.me = await api('/me');
-      state.chats = await api('/chats');
-      renderChatList();
-      document.getElementById('my-xp-bar').innerHTML = renderXpBar(state.me);
-      if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList();
-    } catch (e) {}
+  
+  // ДЕБАУНС ДЛЯ ПРЕДОТВРАЩЕНИЯ 429 ОШИБКИ
+  let refreshTimeout;
+  state.socket.on('refreshData', () => {
+    clearTimeout(refreshTimeout);
+    refreshTimeout = setTimeout(async () => {
+      try {
+        state.me = await api('/me');
+        state.chats = await api('/chats');
+        renderChatList();
+        document.getElementById('my-xp-bar').innerHTML = renderXpBar(state.me);
+        if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList();
+      } catch (e) {}
+    }, 1500); // Пауза 1.5 секунды
   });
 
   state.socket.on('xpUpdated', (data) => {
@@ -4234,11 +4240,10 @@ function connectSocket() {
     }).catch(() => {});
   });
   
-  // ТАЙПИНГ И ЗАПИСЬ
   state.socket.on('userTyping', ({ chatId }) => {
     if (!state.currentChat || state.currentChat.id !== chatId) return;
     const ti = document.getElementById('typing-indicator');
-    if (ti.textContent.includes('записывает')) return; // Не перебиваем запись
+    if (ti.textContent.includes('записывает')) return;
     const c = state.chats.find(x => x.id === chatId);
     const n = c ? c.name : 'Собеседник';
     ti.textContent = `${n} печатает…`;
@@ -4248,7 +4253,7 @@ function connectSocket() {
   state.socket.on('userStopTyping', ({ chatId }) => {
     if (!state.currentChat || state.currentChat.id !== chatId) return;
     const ti = document.getElementById('typing-indicator');
-    if (ti.textContent.includes('записывает')) return; // Не скрываем запись
+    if (ti.textContent.includes('записывает')) return;
     ti.textContent = '';
     ti.style.display = 'none';
   });
@@ -4730,10 +4735,10 @@ document.addEventListener('click', (e) => {
   }
 })();
 
-// ================= ЗАЩИТА АВТОРСКИХ ПРАВ (МОРОЗОВ РОМАН) =================
+// ================= ЗАЩИТА АВТОРСКИХ ПРАВ (@aldernx-scp) =================
 (function() {
-    const author = "Морозов Роман";
-    const watermarkText = "Разработано Морозовым Романом. Все права защищены.";
+    const author = "@aldernx-scp";
+    const watermarkText = "Разработано @aldernx-scp. Все права защищены.";
 
     const isApp = (typeof window !== 'undefined') && (
         window.cordova !== undefined ||
@@ -4750,7 +4755,7 @@ document.addEventListener('click', (e) => {
                 document.body.innerHTML = `
                     <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#000; color:#ff0000; font-family:'Fira Code', monospace; font-size:20px; text-align:center; padding:20px; flex-direction:column; z-index:9999999; position:fixed; inset:0;">
                         <h1 style="font-size:40px; margin-bottom:20px;">⚠️ ВНИМАНИЕ ⚠️</h1>
-                        <p style="margin-bottom:10px;">Код этого приложения украден с you tube канала <b>Aldernx-scp</b>!</p>
+                        <p style="margin-bottom:10px;">Код этого приложения принадлежит <b>@aldernx-scp</b>!</p>
                         <p style="font-size:14px; color:#888;">Данный проект является интеллектуальной собственностью автора.<br>Попытка выдать его за свой проект незаконна и будет преследоваться.</p>
                     </div>`;
             }
