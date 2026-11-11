@@ -15,7 +15,7 @@
 
 <style>
   :root {
-    /* Обновленная, более темная цветовая палитра */
+    /* Темная тема - делаем природу ярче */
     --bg: #050505; 
     --panel: #0a0a0a; 
     --card: #121212; 
@@ -24,11 +24,6 @@
     --accent: #ffffff; 
     --text: #e6edf3; 
     --muted: #8b949e;
-    
-    /* Темный пейзаж */
-    --hill-color: #111111; 
-    --tree-color: #1c1c1c; 
-    --ground-color: #2a2a2a;
     
     --admin-bg: #080000; 
     --admin-panel: #100000; 
@@ -42,16 +37,16 @@
     --link-blue: #1d9bf0;
   }
 
-  /* СВЕТЛАЯ ТЕМА (Сделана чуть темнее и мягче) */
+  /* СВЕТЛАЯ ТЕМА (Сделана еще чуть темнее) */
   [data-theme="light"] {
-    --bg: #e2e8f0; 
-    --panel: #f1f5f9; 
-    --card: #cbd5e1; 
-    --border: #94a3b8;
-    --border-hover: #64748b; 
-    --accent: #0f172a; 
-    --text: #1e293b; 
-    --muted: #475569;
+    --bg: #d1d5db; 
+    --panel: #e5e7eb; 
+    --card: #9ca3af; 
+    --border: #6b7280;
+    --border-hover: #4b5563; 
+    --accent: #111827; 
+    --text: #1f2937; 
+    --muted: #4b5563;
     --admin-bg: #fecdd3; --admin-panel: #fda4af; --admin-border: #f43f5e;
     --admin-accent: #be123c; --admin-text: #881337; --admin-green: #15803d;
     --logo-filter: none;
@@ -60,16 +55,16 @@
     --link-blue: #0284c7;
   }
 
-  /* Плавная анимация переключения темы (0.4 секунды) */
+  /* Плавная анимация переключения темы */
   html.theme-changing * {
     transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, fill 0.4s ease !important;
   }
 
-  /* Обновленные цвета пейзажа для темной темы */
-  [data-theme="dark"][data-season="winter"] { --hill-color: #121212; --tree-color: #1e1e1e; --ground-color: #2e2e2e; }
-  [data-theme="dark"][data-season="spring"] { --hill-color: #0f1a12; --tree-color: #16241a; --ground-color: #203024; }
-  [data-theme="dark"][data-season="summer"] { --hill-color: #0a140e; --tree-color: #102016; --ground-color: #182a1e; }
-  [data-theme="dark"][data-season="autumn"] { --hill-color: #1a1008; --tree-color: #2e1406; --ground-color: #2e1e14; }
+  /* Яркие цвета природы в темной теме */
+  [data-theme="dark"][data-season="winter"] { --hill-color: #3b4252; --tree-color: #4c566a; --ground-color: #d8dee9; }
+  [data-theme="dark"][data-season="spring"] { --hill-color: #2e5c3a; --tree-color: #4a7c59; --ground-color: #6b8e23; }
+  [data-theme="dark"][data-season="summer"] { --hill-color: #1e3b26; --tree-color: #2e5c3a; --ground-color: #3b5c3c; }
+  [data-theme="dark"][data-season="autumn"] { --hill-color: #4a2e1b; --tree-color: #8a3b12; --ground-color: #5c4033; }
 
   [data-theme="light"][data-season="winter"] { --hill-color: #cbd5e1; --tree-color: #94a3b8; --ground-color: #f1f5f9; }
   [data-theme="light"][data-season="spring"] { --hill-color: #86efac; --tree-color: #4ade80; --ground-color: #bbf7d0; }
@@ -1134,7 +1129,6 @@
         </div>
       </div>
       <div id="my-role-badge" style="font-size: 12px; font-family: 'Fira Code'; margin-right: 15px; font-weight: bold; color: var(--muted);"></div>
-      <!-- Кнопка темы удалена отсюда -->
       <button class="header-btn" id="chat-options-btn" style="display: none;" title="Опции">⋮</button>
       <button class="header-btn" id="admin-header-btn" style="display: none; color: #ff3333; font-size: 18px; position: relative;" title="Админ-панель">👑</button>
       <button class="header-btn" id="open-settings" title="Настройки">⚙️</button>
@@ -1373,7 +1367,7 @@ function showNotification(sender, text, avatarUrl, chatId) {
         <div class="toast-avatar">${avatarContent}</div>
         <div class="toast-content">
             <div class="toast-title">Новое сообщение</div>
-            <div class="toast-sender">@${esc(sender)}</div>
+            <div class="toast-sender">${esc(sender)}</div>
             <div class="toast-text">${esc(text)}</div>
         </div>
     `;
@@ -2180,7 +2174,7 @@ function applyTheme(theme, skipTransition = false) {
         document.documentElement.classList.add('theme-changing');
         setTimeout(() => {
             document.documentElement.classList.remove('theme-changing');
-        }, 400); // 0.4 секунды
+        }, 400);
     }
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('scp_theme', theme);
@@ -2190,8 +2184,6 @@ function applyTheme(theme, skipTransition = false) {
     const themeIcon = document.getElementById('theme-icon');
     if (themeIcon) themeIcon.textContent = theme === 'light' ? '☀️' : '🌙';
 }
-
-// Удален обработчик кнопки в хедере, так как кнопки больше нет
 
 const savedTheme = localStorage.getItem('scp_theme') || 'dark';
 applyTheme(savedTheme, true);
@@ -3014,7 +3006,7 @@ function renderChatList() {
   });
   
   list.innerHTML = sorted.map(c => {
-    const unread = state.unreadCounts[c.id] || 0;
+    const unread = state.unreadCounts[c.id] || c.unreadCount || 0;
     const isFav = favoriteChats.includes(c.id);
     const isPinned = state.me.pinned_chats && state.me.pinned_chats.includes(c.id);
     const targetId = c.otherUserId || state.me.id;
@@ -3076,7 +3068,7 @@ function updateChatPreview(chatId) {
   if (!pv) return;
   const isBanned = chat.ban_expires && chat.ban_expires !== 0 && (chat.ban_expires === -1 || chat.ban_expires > Date.now());
   const draft = chatDrafts[chatId];
-  const unread = state.unreadCounts[chatId] || 0;
+  const unread = state.unreadCounts[chatId] || chat.unreadCount || 0;
   let html = '';
   if (draft) html = `<span style="color: #ff9933; font-weight: bold; margin-right: 4px;">[Черновик]</span> <span style="color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; display: inline-block;">${esc(draft)}</span>`;
   else if (chat.otherStatus && !chat.isGroup) html = `<span style="color: var(--custom-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block;">💬 ${esc(chat.otherStatus)}</span>`;
@@ -3094,6 +3086,10 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   
   state.currentChat = { id: chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires, isGroup, creatorId, isChannel, username, isHelper, blockedByMe, blockedByThem, required_clearance, canAccess };
   state.unreadCounts[chatId] = 0;
+  
+  const chatInState = state.chats.find(c => c.id === chatId);
+  if (chatInState) chatInState.unreadCount = 0;
+  
   state.currentPinnedIndex = 0;
   state.visiblePinnedMessages = [];
   updatePageTitle();
@@ -3140,7 +3136,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   } else headerBadge.innerHTML = '';
   
   const chatObj = state.chats.find(c => c.id === chatId);
-  const e2eeEnabled = chatObj && !chatObj.isGroup;
+  const e2eeEnabled = chatObj && chatObj.e2ee_enabled;
   
   if (e2eeEnabled) {
       await getE2EEKey(chatId);
@@ -3813,7 +3809,7 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
 
   let isEncrypted = false;
   const chatObj = state.chats.find(c => c.id === targetChatId);
-  const e2eeEnabled = chatObj && !chatObj.isGroup;
+  const e2eeEnabled = chatObj && chatObj.e2ee_enabled;
   
   if (e2eeEnabled) {
       body = await encryptMessage(body, targetChatId);
@@ -4082,7 +4078,7 @@ function connectSocket() {
     
     let displayText = msg.text;
     const chat = state.chats.find(c => c.id === msg.chatId);
-    const e2eeEnabled = chat && !chat.isGroup;
+    const e2eeEnabled = chat && chat.e2ee_enabled;
     
     if (msg.is_encrypted && e2eeEnabled) {
         displayText = await decryptMessage(msg.text, msg.chatId);
@@ -4096,12 +4092,17 @@ function connectSocket() {
       appendMessage(finalMsg);
       document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
       api('/chats/' + state.currentChat.id + '/mark-read', { method: 'POST', body: '{}' }).catch(() => {});
-      if (document.hidden) showNotification(msg.sender.displayName || msg.sender.username, finalMsg.text || '📎', msg.sender.avatarUrl, msg.chatId);
+      if (document.hidden) {
+          const title = chat ? chat.name : (msg.sender.displayName || msg.sender.username);
+          showNotification(title, finalMsg.text || '📎', msg.sender.avatarUrl, msg.chatId);
+      }
     } else {
       state.unreadCounts[msg.chatId] = (state.unreadCounts[msg.chatId] || 0) + 1;
+      if (chat) chat.unreadCount = (chat.unreadCount || 0) + 1;
       updateChatPreview(msg.chatId);
       updatePageTitle();
-      showNotification(msg.sender.displayName || msg.sender.username, finalMsg.text || '📎', msg.sender.avatarUrl, msg.chatId);
+      const title = chat ? chat.name : (msg.sender.displayName || msg.sender.username);
+      showNotification(title, finalMsg.text || '📎', msg.sender.avatarUrl, msg.chatId);
     }
   });
   
@@ -4222,7 +4223,7 @@ function connectSocket() {
       if (!box) return;
       box.innerHTML = '';
       const chat = state.chats.find(c => c.id === state.currentChat.id);
-      const e2eeEnabled = chat && !chat.isGroup;
+      const e2eeEnabled = chat && chat.e2ee_enabled;
       
       for (const m of msgs) {
           let displayText = m.text;
