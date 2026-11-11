@@ -16,7 +16,6 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ 1: Убраны хардкод-ключи. Только из .env
 const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://firsts3.ru').trim();
 const S3_BUCKET = (process.env.S3_BUCKET || 'scp-messenger').trim();
 const S3_REGION = (process.env.S3_REGION || 'default').trim();
@@ -65,7 +64,7 @@ const rateLimiter = (req, res, next) => {
     next();
 };
 
-// Белый список безопасных расширений (без .js, .html, .svg)
+// Белый список безопасных расширений
 const ALLOWED_EXT = new Set([
   '.ai', '.all', '.apk', '.accdb', '.asm', '.app', '.arj', '.avi', '.bak', '.bat',
   '.bin', '.bmp', '.bz2', '.c', '.cab', '.cc', '.cfg', '.class', '.cmd', '.conf',
@@ -84,7 +83,6 @@ const ALLOWED_EXT = new Set([
   '.wma', '.wmv', '.xls', '.xlsx', '.xpi', '.xz', '.yaml', '.yml', '.zip', '.zst', '.torrent', '.blend'
 ]);
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ: Race Condition для инвайтов
 const processingInvites = new Set();
 
 const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
@@ -104,6 +102,7 @@ const FILE_SIZE_LIMITS = {
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
 const HELPER_ID = 'system_scp_helper_id';
 const BANNED_WORDS = ['побег', 'нарушение условий содержания', 'свобода', 'сбежать'];
+const MAX_EXPIRY_SECONDS = 604800; // 7 дней (УСТРАНЕНИЕ УЯЗВИМОСТИ 4: DoS через таймеры)
 
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -139,7 +138,6 @@ const app = express();
 app.set('trust proxy', 1); 
 app.disable('x-powered-by');
 
-// Защитные заголовки
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -167,7 +165,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.use('/uploads', express.static(UPLOAD_DIR));
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ 4: Увеличение энтропии ID до 128 бит
 const genId = () => crypto.randomBytes(16).toString('hex');
 const signToken = (userId) => jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: '30d' });
 
@@ -188,9 +185,13 @@ const publicUserSafe = (u) => {
   return safe;
 };
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ 5: Защита от подмены X-Forwarded-For
 const getRealIp = (req) => {
-  let ip = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) || 'unknown';
-  return ip.replace('::ffff:', '');
+  if (process.env.TRUST_PROXY === 'true') {
+    let ip = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) || 'unknown';
+    return ip.replace('::ffff:', '');
+  }
+  return (req.socket.remoteAddress || 'unknown').replace('::ffff:', '');
 };
 
 const sanitizeString = (str) => {
@@ -516,7 +517,6 @@ app.get('/api/admin/chats/:chatId/members', authMiddleware, (req, res) => {
   res.json(members);
 });
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ 5: Принудительный дисконнект сокета при бане
 app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   const me = req.user;
   if (!['sysadmin', 'admin'].includes(me.role)) return res.status(403).json({ error: 'Доступ запрещён' });
@@ -544,7 +544,6 @@ app.post('/api/admin/ban-user', authMiddleware, (req, res) => {
   
   if (target.ban_expires !== 0) {
       io.to(`user:${target.id}`).emit('forceLogout', { ban_expires: target.ban_expires, ban_reason: target.ban_reason });
-      // Физический разрыв соединения
       const userSockets = [...io.sockets.sockets.values()].filter(s => s.userId === target.id);
       userSockets.forEach(s => s.disconnect(true));
   }
@@ -1226,7 +1225,6 @@ app.get('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
     return res.status(403).json({ error: `Доступ запрещён. Требуется уровень допуска ${chat.required_clearance}` });
   }
   
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ 3: Скрываем сообщения, удаленные "для меня"
   const messages = db.messages.filter(m => 
       m.chat_id === req.params.chatId && 
       (!m.deleted_for || !m.deleted_for.includes(req.userId))
@@ -1260,6 +1258,7 @@ app.post('/api/chats/:chatId/polls', authMiddleware, (req, res) => {
     res.json(payload);
 });
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ 3: Защита от накрутки голосов (дубликатов)
 app.post('/api/messages/:messageId/vote', authMiddleware, (req, res) => {
     const msg = db.messages.find(m => m.id === req.params.messageId);
     if (!msg || !msg.poll) return res.status(404).json({ error: 'Опрос не найден' });
@@ -1269,11 +1268,15 @@ app.post('/api/messages/:messageId/vote', authMiddleware, (req, res) => {
     const { optionIndex } = req.body;
     if (optionIndex === undefined || !msg.poll.options[optionIndex]) return res.status(400).json({ error: 'Неверный вариант' });
     
+    // Сначала удаляем голос пользователя из всех вариантов
     msg.poll.options.forEach(opt => {
         opt.votes = opt.votes.filter(uid => uid !== req.userId);
     });
     
-    msg.poll.options[optionIndex].votes.push(req.userId);
+    // Добавляем голос только если его там еще нет
+    if (!msg.poll.options[optionIndex].votes.includes(req.userId)) {
+        msg.poll.options[optionIndex].votes.push(req.userId);
+    }
     saveDb();
     
     emitToChatMembers(msg.chat_id, 'pollUpdated', { messageId: msg.id, poll: msg.poll });
@@ -1317,6 +1320,11 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const { text, expires_in, is_encrypted } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ 1: Принудительное E2EE для личных сообщений
+  if (!chatForCheck.is_group && !is_encrypted) {
+      return res.status(400).json({ error: 'Для личных сообщений требуется сквозное шифрование (E2EE).' });
+  }
+
   messageCooldowns[req.userId] = Date.now();
 
   if (me.role === 'user') {
@@ -1341,7 +1349,13 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
 
   const msgId = genId();
   const now = Math.floor(Date.now() / 1000);
-  const expiresAt = expires_in && Number(expires_in) > 0 ? Date.now() + Number(expires_in) * 1000 : null;
+  
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ 4: Ограничение максимального времени исчезновения
+  let expiresAt = null;
+  if (expires_in && Number(expires_in) > 0) {
+      const seconds = Math.min(Number(expires_in), MAX_EXPIRY_SECONDS);
+      expiresAt = Date.now() + seconds * 1000;
+  }
 
   const msg = {
     id: msgId, chat_id: chatId, sender_id: req.userId, text: text.slice(0, 4000),
@@ -1465,7 +1479,13 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   if (!files || !files.length) return res.status(400).json({ error: 'Нет файлов' });
   const msgId = genId();
   const now = Math.floor(Date.now() / 1000);
-  const expiresAt = expires_in && Number(expires_in) > 0 ? Date.now() + Number(expires_in) * 1000 : null;
+  
+  let expiresAt = null;
+  if (expires_in && Number(expires_in) > 0) {
+      const seconds = Math.min(Number(expires_in), MAX_EXPIRY_SECONDS);
+      expiresAt = Date.now() + seconds * 1000;
+  }
+
   const msg = {
     id: msgId, chat_id: chatId, sender_id: req.userId, text: sanitizeString(caption).slice(0, 4000),
     created_at: now, is_deleted: false, delivered_to: [], read_by: [],
@@ -1502,7 +1522,6 @@ app.get('/api/files/*', (req, res, next) => {
     const msg = db.messages.find(m => m.id === att.message_id);
     if (!msg) return res.status(404).send('Сообщение не найдено');
     
-    // УСТРАНЕНИЕ УЯЗВИМОСТИ 2: Строгая проверка на членство в чате
     const isMember = db.chat_members.some(cm => cm.chat_id === msg.chat_id && cm.user_id === req.userId);
     if (!isMember) return res.status(403).send('Доступ запрещен');
     
@@ -1537,13 +1556,24 @@ app.post('/api/chats/:chatId/mark-read', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ 2: IDOR при очистке чата
 app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
+  
   const scope = (req.body && req.body.scope) || 'me';
+  const me = req.user;
+  
   if (scope === 'all') {
-    const me = req.user;
+    const chat = db.chats.find(c => c.id === chatId);
+    const isCreator = chat && chat.creator_id === req.userId;
     const isAdmin = ['sysadmin', 'admin', 'moderator'].includes(me.role);
+    
+    // Только админ или создатель могут очистить чат для всех
+    if (!isAdmin && !isCreator) {
+        return res.status(403).json({ error: 'Только создатель или администратор может очистить чат у всех' });
+    }
+    
     if (isAdmin) {
       const msgIds = db.messages.filter(m => m.chat_id === chatId).map(m => m.id);
       db.attachments = db.attachments.filter(a => !msgIds.includes(a.message_id));
@@ -1556,7 +1586,6 @@ app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ 3: Правильная логика "Удалить у себя" и "Удалить у всех"
 app.delete('/api/messages/:messageId', authMiddleware, (req, res) => {
   const msgIdx = db.messages.findIndex(m => m.id === req.params.messageId);
   if (msgIdx === -1) return res.status(404).json({ error: 'Message not found' });
@@ -1579,13 +1608,11 @@ app.delete('/api/messages/:messageId', authMiddleware, (req, res) => {
     saveDb(); 
     emitToChatMembers(msg.chat_id, 'messageDeleted', { messageId: msg.id, type: 'all', userId: req.userId });
   } else if (scope === 'me') {
-    // Скрываем сообщение только для текущего пользователя
     if (!msg.deleted_for) msg.deleted_for = [];
     if (!msg.deleted_for.includes(req.userId)) {
         msg.deleted_for.push(req.userId);
         saveDb();
     }
-    // Отправляем событие только текущему пользователю (чтобы клиент убрал его из UI, если не убрал сам)
     io.to(`user:${req.userId}`).emit('messageDeleted', { messageId: msg.id, type: 'me', userId: req.userId });
   }
   res.json({ ok: true });
@@ -2009,7 +2036,6 @@ app.use((req, res, next) => {
   });
   if (migrated) saveDb();
 
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ 6: Очистка просроченных исчезающих сообщений при старте
   const now = Date.now();
   let cleanedCount = 0;
   db.messages = db.messages.filter(m => {
