@@ -44,8 +44,18 @@ const rateLimitMap = new Map();
 const API_RATE_LIMIT = 500; 
 const API_RATE_WINDOW = 60000;
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ 5: Очистка памяти от старых IP (защита от переполнения)
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, data] of rateLimitMap.entries()) {
+        if (now > data.resetTime) {
+            rateLimitMap.delete(ip);
+        }
+    }
+}, 60000);
+
 const rateLimiter = (req, res, next) => {
-    const ip = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) || 'unknown';
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
     if (!rateLimitMap.has(ip)) {
         rateLimitMap.set(ip, { count: 1, resetTime: now + API_RATE_WINDOW });
@@ -102,7 +112,7 @@ const FILE_SIZE_LIMITS = {
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
 const HELPER_ID = 'system_scp_helper_id';
 const BANNED_WORDS = ['побег', 'нарушение условий содержания', 'свобода', 'сбежать'];
-const MAX_EXPIRY_SECONDS = 604800; // 7 дней (УСТРАНЕНИЕ УЯЗВИМОСТИ 4: DoS через таймеры)
+const MAX_EXPIRY_SECONDS = 604800; // 7 дней
 
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -185,13 +195,9 @@ const publicUserSafe = (u) => {
   return safe;
 };
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ 5: Защита от подмены X-Forwarded-For
+// УСТРАНЕНИЕ УЯЗВИМОСТИ 2: Использование безопасного req.ip от Express
 const getRealIp = (req) => {
-  if (process.env.TRUST_PROXY === 'true') {
-    let ip = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) || 'unknown';
-    return ip.replace('::ffff:', '');
-  }
-  return (req.socket.remoteAddress || 'unknown').replace('::ffff:', '');
+  return (req.ip || req.socket.remoteAddress || 'unknown').replace('::ffff:', '');
 };
 
 const sanitizeString = (str) => {
@@ -683,29 +689,38 @@ app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/admin/wipe-messages-and-files', authMiddleware, async (req, res) => {
+// УСТРАНЕНИЕ УЯЗВИМОСТИ 4: Фоновая очистка S3 без блокировки сервера
+app.post('/api/admin/wipe-messages-and-files', authMiddleware, (req, res) => {
   const me = req.user;
   if (me.role !== 'sysadmin') return res.status(403).json({ error: 'Только SysAdmin может выполнить эту операцию' });
-  try {
-    logAdminAction(me.id, 'wipe_messages', 'all', 'Глобальная очистка сообщений и файлов');
-    db.messages = []; db.attachments = [];
-    let isTruncated = true; let continuationToken = undefined; let deletedCount = 0;
-    if (S3_ENABLED) {
-      while (isTruncated) {
-        const listCommand = new ListObjectsV2Command({ Bucket: S3_BUCKET, Prefix: 'uploads/', ContinuationToken: continuationToken });
-        const listResponse = await s3.send(listCommand);
-        if (listResponse.Contents && listResponse.Contents.length > 0) {
-          const objectsToDelete = listResponse.Contents.map(item => ({ Key: item.Key }));
-          await s3.send(new DeleteObjectsCommand({ Bucket: S3_BUCKET, Delete: { Objects: objectsToDelete } }));
-          deletedCount += objectsToDelete.length;
-        }
-        isTruncated = listResponse.IsTruncated; continuationToken = listResponse.NextContinuationToken;
-      }
-    }
-    saveDb(); io.emit('allMessagesWiped');
-    res.json({ ok: true, deletedFiles: deletedCount });
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка сервера при очистке: ' + err.message });
+  
+  logAdminAction(me.id, 'wipe_messages', 'all', 'Глобальная очистка сообщений и файлов');
+  db.messages = []; db.attachments = [];
+  saveDb(); 
+  io.emit('allMessagesWiped');
+  
+  res.json({ ok: true, message: 'База очищена. Удаление файлов из S3 запущено в фоне.' });
+
+  // Асинхронная очистка S3
+  if (S3_ENABLED) {
+      (async () => {
+          try {
+              let isTruncated = true; let continuationToken = undefined; let deletedCount = 0;
+              while (isTruncated) {
+                  const listCommand = new ListObjectsV2Command({ Bucket: S3_BUCKET, Prefix: 'uploads/', ContinuationToken: continuationToken });
+                  const listResponse = await s3.send(listCommand);
+                  if (listResponse.Contents && listResponse.Contents.length > 0) {
+                      const objectsToDelete = listResponse.Contents.map(item => ({ Key: item.Key }));
+                      await s3.send(new DeleteObjectsCommand({ Bucket: S3_BUCKET, Delete: { Objects: objectsToDelete } }));
+                      deletedCount += objectsToDelete.length;
+                  }
+                  isTruncated = listResponse.IsTruncated; continuationToken = listResponse.NextContinuationToken;
+              }
+              serverLog('info', `Фоновая очистка S3 завершена. Удалено ${deletedCount} файлов.`);
+          } catch (err) {
+              serverLog('error', 'Ошибка фоновой очистки S3: ' + err.message);
+          }
+      })();
   }
 });
 
@@ -1258,7 +1273,6 @@ app.post('/api/chats/:chatId/polls', authMiddleware, (req, res) => {
     res.json(payload);
 });
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ 3: Защита от накрутки голосов (дубликатов)
 app.post('/api/messages/:messageId/vote', authMiddleware, (req, res) => {
     const msg = db.messages.find(m => m.id === req.params.messageId);
     if (!msg || !msg.poll) return res.status(404).json({ error: 'Опрос не найден' });
@@ -1268,12 +1282,10 @@ app.post('/api/messages/:messageId/vote', authMiddleware, (req, res) => {
     const { optionIndex } = req.body;
     if (optionIndex === undefined || !msg.poll.options[optionIndex]) return res.status(400).json({ error: 'Неверный вариант' });
     
-    // Сначала удаляем голос пользователя из всех вариантов
     msg.poll.options.forEach(opt => {
         opt.votes = opt.votes.filter(uid => uid !== req.userId);
     });
     
-    // Добавляем голос только если его там еще нет
     if (!msg.poll.options[optionIndex].votes.includes(req.userId)) {
         msg.poll.options[optionIndex].votes.push(req.userId);
     }
@@ -1320,7 +1332,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const { text, expires_in, is_encrypted } = req.body;
   if (!text || typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Empty message' });
 
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ 1: Принудительное E2EE для личных сообщений
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ 1: E2EE обязательно для личных сообщений
   if (!chatForCheck.is_group && !is_encrypted) {
       return res.status(400).json({ error: 'Для личных сообщений требуется сквозное шифрование (E2EE).' });
   }
@@ -1340,6 +1352,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   }
 
   let isFlagged = false;
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ 1: Не проверяем шифрованный текст на стоп-слова
   if (!is_encrypted) { 
       const lowerText = text.toLowerCase();
       for (const word of BANNED_WORDS) {
@@ -1350,15 +1363,17 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   const msgId = genId();
   const now = Math.floor(Date.now() / 1000);
   
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ 4: Ограничение максимального времени исчезновения
   let expiresAt = null;
   if (expires_in && Number(expires_in) > 0) {
       const seconds = Math.min(Number(expires_in), MAX_EXPIRY_SECONDS);
       expiresAt = Date.now() + seconds * 1000;
   }
 
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ 1: Увеличен лимит для Base64 и отключена санитизация для E2EE
+  const finalText = is_encrypted ? text.slice(0, 8000) : sanitizeString(text).slice(0, 4000);
+
   const msg = {
-    id: msgId, chat_id: chatId, sender_id: req.userId, text: text.slice(0, 4000),
+    id: msgId, chat_id: chatId, sender_id: req.userId, text: finalText,
     created_at: now, is_deleted: isFlagged, delivered_to: [], read_by: [],
     expires_at: expiresAt, deleted_for: [],
     is_encrypted: !!is_encrypted
@@ -1556,7 +1571,6 @@ app.post('/api/chats/:chatId/mark-read', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
-// УСТРАНЕНИЕ УЯЗВИМОСТИ 2: IDOR при очистке чата
 app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) return res.status(403).json({ error: 'Not a member' });
@@ -1569,7 +1583,6 @@ app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
     const isCreator = chat && chat.creator_id === req.userId;
     const isAdmin = ['sysadmin', 'admin', 'moderator'].includes(me.role);
     
-    // Только админ или создатель могут очистить чат для всех
     if (!isAdmin && !isCreator) {
         return res.status(403).json({ error: 'Только создатель или администратор может очистить чат у всех' });
     }
