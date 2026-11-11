@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" translate="no" data-theme="dark">
+<html lang="ru" translate="no" data-theme="dark" data-season="winter">
 <head>
 <meta charset="UTF-8" />
 <meta name="google" content="notranslate">
@@ -21,17 +21,34 @@
     --admin-bg: #110505; --admin-panel: #1a0a0a; --admin-border: #4a1515;
     --admin-accent: #ff3333; --admin-text: #ffcccc; --admin-green: #00ff9d;
     --logo-filter: invert(1);
+    --online-green: #00ff9d;
+    --custom-blue: #00ccff;
+    --link-blue: #1d9bf0;
   }
 
   /* СВЕТЛАЯ ТЕМА */
   [data-theme="light"] {
     --bg: #f3f4f6; --panel: #ffffff; --card: #e5e7eb; --border: #d1d5db;
-    --border-hover: #9ca3af; --accent: #000000; --text: #111827; --muted: #6b7280;
-    --hill-color: #d1d5db; --tree-color: #9ca3af; --ground-color: #e5e7eb;
+    --border-hover: #9ca3af; --accent: #000000; --text: #111827; --muted: #4b5563;
     --admin-bg: #fff0f0; --admin-panel: #ffe4e6; --admin-border: #fca5a5;
     --admin-accent: #dc2626; --admin-text: #991b1b; --admin-green: #16a34a;
     --logo-filter: none;
+    --online-green: #047857;
+    --custom-blue: #0369a1;
+    --link-blue: #0369a1;
   }
+
+  /* ВРЕМЕНА ГОДА (ТЕМНАЯ ТЕМА) */
+  [data-theme="dark"][data-season="winter"] { --hill-color: #3b4252; --tree-color: #4c566a; --ground-color: #d8dee9; }
+  [data-theme="dark"][data-season="spring"] { --hill-color: #2e5c3a; --tree-color: #4a7c59; --ground-color: #6b8e23; }
+  [data-theme="dark"][data-season="summer"] { --hill-color: #1e3b26; --tree-color: #2e5c3a; --ground-color: #3b5c3c; }
+  [data-theme="dark"][data-season="autumn"] { --hill-color: #4a2e1b; --tree-color: #8a3b12; --ground-color: #5c4033; }
+
+  /* ВРЕМЕНА ГОДА (СВЕТЛАЯ ТЕМА) */
+  [data-theme="light"][data-season="winter"] { --hill-color: #cbd5e1; --tree-color: #94a3b8; --ground-color: #f1f5f9; }
+  [data-theme="light"][data-season="spring"] { --hill-color: #86efac; --tree-color: #4ade80; --ground-color: #bbf7d0; }
+  [data-theme="light"][data-season="summer"] { --hill-color: #4ade80; --tree-color: #22c55e; --ground-color: #86efac; }
+  [data-theme="light"][data-season="autumn"] { --hill-color: #fdba74; --tree-color: #ea580c; --ground-color: #fed7aa; }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; height: 100dvh; overflow: hidden; -webkit-app-region: drag; } 
@@ -54,7 +71,8 @@
     vertical-align: middle; margin-left: 4px; will-change: transform;
   }
   .badge-sysadmin { background: #000000; color: #ffffff; border: 1px solid #ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
-  .badge-admin { background: #ff3333; color: #000; border: 1px solid #fff; }
+  [data-theme="light"] .badge-sysadmin { background: #111827; color: #ffffff; border: 1px solid #111827; }
+  .badge-admin { background: #ff3333; color: #fff; border: 1px solid #fff; }
   .badge-moderator { background: #ffcc00; color: #000; }
   .badge-helper { background: #00ccff; color: #000; }
 
@@ -69,6 +87,12 @@
   .clearance-3 { background: #3a3000; color: #ffcc00; border: 1px solid #ffcc00; }
   .clearance-4 { background: #3a1a00; color: #ff9933; border: 1px solid #ff9933; }
   .clearance-5 { background: #000; color: #fff; border: 1px solid #fff; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
+  
+  [data-theme="light"] .clearance-1 { background: #e5e7eb; color: #374151; border: 1px solid #9ca3af; }
+  [data-theme="light"] .clearance-2 { background: #e0f2fe; color: #0284c7; border: 1px solid #0284c7; }
+  [data-theme="light"] .clearance-3 { background: #fef3c7; color: #b45309; border: 1px solid #b45309; }
+  [data-theme="light"] .clearance-4 { background: #ffedd5; color: #c2410c; border: 1px solid #c2410c; }
+  [data-theme="light"] .clearance-5 { background: #111827; color: #fff; border: 1px solid #111827; }
 
   .msg-expiring { border-color: #ff3333 !important; box-shadow: 0 0 10px rgba(255, 51, 51, 0.2) !important; }
   .expiry-timer { font-size: 10px; color: #ff3333; font-family: 'Fira Code', monospace; font-weight: 700; margin-left: 6px; animation: pulseRed 1.5s infinite; }
@@ -80,8 +104,8 @@
   .expiry-btn.active { background: #ff3333; color: #fff; border-color: #ff3333; }
 
   .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
-  .status-dot.online { background: #00ff9d; box-shadow: 0 0 5px #00ff9d; }
-  .status-dot.offline { background: #8b949e; }
+  .status-dot.online { background: var(--online-green); box-shadow: 0 0 5px var(--online-green); }
+  .status-dot.offline { background: var(--muted); }
 
   .chat-item.locked { opacity: 0.5; cursor: not-allowed; }
 
@@ -97,11 +121,12 @@
   .btn { width: 100%; background: var(--accent); color: var(--bg); border: none; padding: 14px; border-radius: 6px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; font-size: 13px; cursor: pointer; margin-top: 8px; transition: opacity 0.2s; }
   .btn:hover { opacity: 0.8; }
   .error { color: #ff7b72; font-size: 13px; margin: 4px 0 12px; min-height: 16px; font-weight: 500; text-align: center; line-height: 1.3; }
+  [data-theme="light"] .error { color: #dc2626; }
 
   .privacy-row { display: none; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 12px; text-align: left; line-height: 1.4; }
   .privacy-row.visible { display: flex; }
   .privacy-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; margin-top: 2px; }
-  .privacy-row a { color: #1d9bf0; text-decoration: underline; cursor: pointer; }
+  .privacy-row a { color: var(--link-blue); text-decoration: underline; cursor: pointer; }
 
   #chat { display: none; height: 100%; height: 100dvh; width: 100vw; position: relative; z-index: 1; }
   #chat.visible { display: flex; }
@@ -123,9 +148,9 @@
   .chat-item:hover { background: var(--card); }
   .chat-item.active { background: var(--card); border-left: 3px solid var(--accent); }
   
-  .chat-item.pinned { background: rgba(0, 255, 157, 0.04); border-left: 3px solid #00ff9d; }
-  .chat-item.pinned.active { background: var(--card); border-left: 3px solid #00ff9d; }
-  .chat-item.pinned .name { color: #00ff9d; }
+  .chat-item.pinned { background: rgba(0, 255, 157, 0.04); border-left: 3px solid var(--online-green); }
+  .chat-item.pinned.active { background: var(--card); border-left: 3px solid var(--online-green); }
+  .chat-item.pinned .name { color: var(--online-green); }
 
   .chat-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; font-family: 'Fira Code'; color: var(--text); font-size: 16px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
   .chat-info { flex: 1; min-width: 0; }
@@ -158,7 +183,7 @@
 
   #pinned-banner { display: none; background: var(--card); border-bottom: 1px solid var(--border); padding: 8px 16px; cursor: pointer; align-items: center; gap: 10px; font-size: 13px; z-index: 2; }
   #pinned-banner:hover { background: var(--border); }
-  #pinned-banner .pin-icon { color: #00ff9d; font-size: 16px; }
+  #pinned-banner .pin-icon { color: var(--online-green); font-size: 16px; }
   #pinned-banner .pin-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; color: var(--muted); }
   #pinned-banner .unpin-btn { background: transparent; border: none; color: #ff4d4d; cursor: pointer; font-size: 16px; }
 
@@ -175,24 +200,24 @@
   .msg-row.mine .msg { background: var(--border); border-color: var(--border-hover); border-bottom-right-radius: 2px; }
   .msg-row:not(.mine) .msg { border-bottom-left-radius: 2px; }
 
-  .msg-row.selected .msg { border: 2px solid #1d9bf0 !important; background: rgba(29, 155, 240, 0.1) !important; box-shadow: 0 0 10px rgba(29, 155, 240, 0.3) !important; }
+  .msg-row.selected .msg { border: 2px solid var(--link-blue) !important; background: rgba(29, 155, 240, 0.1) !important; box-shadow: 0 0 10px rgba(29, 155, 240, 0.3) !important; }
 
   .msg.deleted-msg { background: rgba(30, 30, 30, 0.5) !important; border-color: #444 !important; color: #884444; font-style: italic; }
   .msg .deleted-label { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #ff4d4d; margin-top: 6px; font-weight: bold; }
   .msg .who { font-size: 11px; color: var(--muted); font-weight: 600; margin-bottom: 4px; font-family: 'Fira Code', monospace; display: flex; align-items: center; gap: 6px; }
   .msg-row.mine .who { display: none; }
 
-  .msg .reply-quote { background: rgba(255, 255, 255, 0.04); border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 0 6px 6px 0; margin-bottom: 8px; font-size: 12px; cursor: pointer; transition: background 0.2s; }
-  .msg .reply-quote:hover { background: rgba(255, 255, 255, 0.08); }
+  .msg .reply-quote { background: rgba(0, 0, 0, 0.1); border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 0 6px 6px 0; margin-bottom: 8px; font-size: 12px; cursor: pointer; transition: background 0.2s; }
+  .msg .reply-quote:hover { background: rgba(0, 0, 0, 0.2); }
   .msg .reply-quote .rq-name { color: var(--accent); font-weight: 600; margin-bottom: 2px; font-family: 'Fira Code', monospace; }
   .msg .reply-quote .rq-text { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* СТИЛИ ОПРОСОВ */
-  .poll-container { margin-top: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 10px; width: 280px; }
+  .poll-container { margin-top: 8px; background: rgba(0,0,0,0.1); border: 1px solid var(--border); border-radius: 8px; padding: 10px; width: 280px; }
   .poll-question { font-weight: bold; margin-bottom: 10px; font-size: 14px; }
   .poll-option { position: relative; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; cursor: pointer; overflow: hidden; transition: border-color 0.2s; }
   .poll-option:hover { border-color: var(--border-hover); }
-  .poll-option.voted { border-color: #1d9bf0; }
+  .poll-option.voted { border-color: var(--link-blue); }
   .poll-option-bar { position: absolute; top: 0; left: 0; height: 100%; background: rgba(29, 155, 240, 0.2); z-index: 0; transition: width 0.3s; }
   .poll-option-text { position: relative; z-index: 1; display: flex; justify-content: space-between; font-size: 13px; }
   .poll-option-pct { font-weight: bold; font-family: 'Fira Code'; color: var(--muted); }
@@ -206,14 +231,14 @@
   [data-theme="light"] .voice-progress-wrapper { background: rgba(0, 0, 0, 0.15); }
   .voice-progress-bar { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.1s linear; }
   .voice-time { font-size: 11px; color: var(--muted); font-family: 'Fira Code', monospace; min-width: 36px; text-align: right; flex-shrink: 0; }
-  .voice-player.playing .voice-progress-bar { background: #00ff9d; }
-  .voice-player.playing .voice-play-btn { background: #00ff9d; color: #000; }
+  .voice-player.playing .voice-progress-bar { background: var(--online-green); }
+  .voice-player.playing .voice-play-btn { background: var(--online-green); color: #000; }
 
   .msg-footer { font-size: 11px; margin-top: 4px; text-align: right; font-family: 'Fira Code', monospace; color: var(--muted); display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
   .msg-status .tick { display: inline-block; font-weight: bold; }
   .msg-status .tick + .tick { margin-left: -5px; position: relative; left: -3px; }
   .msg-status.delivered { color: var(--text); }
-  .msg-status.read { color: #00ff9d; }
+  .msg-status.read { color: var(--online-green); }
 
   .msg img { max-width: 100%; max-height: 220px; object-fit: cover; border-radius: 6px; margin-top: 8px; display: block; border: 1px solid var(--border); cursor: zoom-in; }
   .msg video { max-width: 100%; max-height: 300px; border-radius: 6px; margin-top: 8px; display: block; border: 1px solid var(--border); }
@@ -324,21 +349,21 @@
   .profile-info-box { background: var(--bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 12px; }
 
   .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1000000; pointer-events: none; }
-  .toast-msg { background: var(--panel); backdrop-filter: blur(12px); border: 1px solid var(--border); border-left: 4px solid #1d9bf0; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 12px; width: 340px; padding: 14px; pointer-events: auto; animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; transition: all 0.2s ease; position: relative; color: var(--text); }
+  .toast-msg { background: var(--panel); backdrop-filter: blur(12px); border: 1px solid var(--border); border-left: 4px solid var(--link-blue); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 12px; width: 340px; padding: 14px; pointer-events: auto; animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; transition: all 0.2s ease; position: relative; color: var(--text); }
   .toast-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; border: 2px solid rgba(255,255,255,0.1); }
   .toast-content { flex: 1; min-width: 0; }
-  .toast-title { font-weight: 600; font-size: 13px; color: #1d9bf0; margin-bottom: 2px; }
+  .toast-title { font-weight: 600; font-size: 13px; color: var(--link-blue); margin-bottom: 2px; }
   .toast-sender { font-size: 14px; font-weight: bold; color: var(--accent); margin-bottom: 2px; }
   .toast-text { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .msg-reactions { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
   .msg-reaction { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; font-size: 12px; cursor: pointer; transition: all 0.15s; user-select: none; }
   .msg-reaction:hover { border-color: var(--border-hover); }
-  .msg-reaction.mine { background: rgba(29, 155, 240, 0.2); border-color: #1d9bf0; color: var(--text); }
+  .msg-reaction.mine { background: rgba(29, 155, 240, 0.2); border-color: var(--link-blue); color: var(--text); }
   .msg-edited { font-size: 10px; color: var(--muted); margin-left: 4px; font-style: italic; }
   .reaction-picker-row { display: flex; justify-content: center; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
   .reaction-picker-row button { background: var(--card); border: 1px solid var(--border); border-radius: 8px; font-size: 20px; cursor: pointer; padding: 4px 8px; transition: transform 0.1s, border-color 0.1s; }
-  #typing-indicator { display: none; font-size: 11px; color: #00ff9d; font-family: 'Fira Code', monospace; font-weight: 600; padding-left: 2px; margin-top: 2px; animation: typingPulse 1.4s ease-in-out infinite; }
+  #typing-indicator { display: none; font-size: 11px; color: var(--online-green); font-family: 'Fira Code', monospace; font-weight: 600; padding-left: 2px; margin-top: 2px; animation: typingPulse 1.4s ease-in-out infinite; }
 
   #multi-select-bar { display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 20px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.8); gap: 15px; align-items: center; pointer-events: auto; }
 
@@ -373,7 +398,7 @@
   .wb-group-title { font-size: 10px; color: #888; text-align: center; margin-top: 4px; text-transform: uppercase; font-family: 'Fira Code'; }
   .wb-btn { background: #3d3d3d; border: 1px solid #555; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px; transition: background 0.2s; }
   .wb-btn:hover { background: #4d4d4d; }
-  .wb-btn.active { background: #1d9bf0; border-color: #1d9bf0; }
+  .wb-btn.active { background: var(--link-blue); border-color: var(--link-blue); }
   .wb-btn svg { width: 14px; height: 14px; fill: currentColor; }
   .wb-colors { display: flex; gap: 4px; }
   .wb-color { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.1s; }
@@ -385,8 +410,8 @@
   #wb-canvas-container { position: relative; width: 4000px; height: 4000px; }
   #wb-canvas { display: block; width: 100%; height: 100%; background: #000; touch-action: none; }
   
-  .wb-text-input-overlay { position: absolute; background: transparent; border: 1px dashed #00ff9d; color: #fff; font-family: 'Inter', sans-serif; outline: none; resize: none; overflow: hidden; padding: 0; margin: 0; line-height: 1.2; z-index: 10; min-width: 10px; min-height: 1.2em; white-space: pre; transform-origin: top left; }
-  .wb-send-btn { background: #00ff9d; color: #000; border: none; font-weight: bold; margin-left: auto; }
+  .wb-text-input-overlay { position: absolute; background: transparent; border: 1px dashed var(--online-green); color: #fff; font-family: 'Inter', sans-serif; outline: none; resize: none; overflow: hidden; padding: 0; margin: 0; line-height: 1.2; z-index: 10; min-width: 10px; min-height: 1.2em; white-space: pre; transform-origin: top left; }
+  .wb-send-btn { background: var(--online-green); color: #000; border: none; font-weight: bold; margin-left: auto; }
   .wb-close-btn { background: #ff4d4d; border: none; }
   #wb-coords-panel { position: absolute; bottom: 15px; right: 20px; font-family: 'Fira Code'; font-size: 11px; color: rgba(255,255,255,0.5); background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; pointer-events: none; z-index: 10; }
 
@@ -545,19 +570,19 @@
 </div>
 
 <div class="modal" id="scp-verify-modal" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 100000;">
-  <div class="modal-content" style="border: 1px solid #1d9bf0; box-shadow: 0 0 40px rgba(29,155,240,0.4), inset 0 0 20px rgba(29,155,240,0.1); text-align: center; max-width: 420px; padding: 35px 25px; border-radius: 12px; background: linear-gradient(180deg, var(--panel) 0%, var(--bg) 100%);">
-    <svg style="width: 64px; height: 64px; fill: #1d9bf0; margin: 0 auto 15px auto; filter: drop-shadow(0 0 10px rgba(29,155,240,0.5));" viewBox="0 0 24 24">
+  <div class="modal-content" style="border: 1px solid var(--link-blue); box-shadow: 0 0 40px rgba(29,155,240,0.4), inset 0 0 20px rgba(29,155,240,0.1); text-align: center; max-width: 420px; padding: 35px 25px; border-radius: 12px; background: linear-gradient(180deg, var(--panel) 0%, var(--bg) 100%);">
+    <svg style="width: 64px; height: 64px; fill: var(--link-blue); margin: 0 auto 15px auto; filter: drop-shadow(0 0 10px rgba(29,155,240,0.5));" viewBox="0 0 24 24">
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
     </svg>
-    <div style="font-family: 'Fira Code', monospace; font-size: 10px; color: #8b949e; letter-spacing: 2px; margin-bottom: 8px;">TRUST & SAFETY DIRECTORATE</div>
-    <h3 style="color: #1d9bf0; font-family: 'Fira Code', monospace; font-size: 18px; letter-spacing: 1px; margin-bottom: 12px; text-transform: uppercase; border: none; padding: 0; cursor: default;">Официальный субъект SCP</h3>
-    <div style="width: 50px; height: 2px; background: #1d9bf0; margin: 0 auto 20px auto; box-shadow: 0 0 8px #1d9bf0;"></div>
+    <div style="font-family: 'Fira Code', monospace; font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 8px;">TRUST & SAFETY DIRECTORATE</div>
+    <h3 style="color: var(--link-blue); font-family: 'Fira Code', monospace; font-size: 18px; letter-spacing: 1px; margin-bottom: 12px; text-transform: uppercase; border: none; padding: 0; cursor: default;">Официальный субъект SCP</h3>
+    <div style="width: 50px; height: 2px; background: var(--link-blue); margin: 0 auto 20px auto; box-shadow: 0 0 8px var(--link-blue);"></div>
     <p style="font-size: 14px; color: var(--text); margin-bottom: 20px; line-height: 1.6;">Данный аккаунт является официальным представителем Фонда SCP и прошел процедуру верификации.</p>
     <div style="background: rgba(29,155,240,0.08); border: 1px solid rgba(29,155,240,0.3); border-radius: 8px; padding: 15px; margin-bottom: 25px; text-align: left;">
-      <div style="font-size: 11px; color: #1d9bf0; font-family: 'Fira Code', monospace; font-weight: bold; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;"><span style="font-size: 14px;">🛡️</span> IDENTITY CONFIRMED</div>
-      <div style="font-size: 12px; color: #8b949e; line-height: 1.5;">Владелец аккаунта имеет право на использование символики Фонда и предоставление официальной информации.</div>
+      <div style="font-size: 11px; color: var(--link-blue); font-family: 'Fira Code', monospace; font-weight: bold; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;"><span style="font-size: 14px;">🛡️</span> IDENTITY CONFIRMED</div>
+      <div style="font-size: 12px; color: var(--muted); line-height: 1.5;">Владелец аккаунта имеет право на использование символики Фонда и предоставление официальной информации.</div>
     </div>
-    <button class="modal-btn" onclick="document.getElementById('scp-verify-modal').classList.remove('visible')" style="background: #1d9bf0; color: #fff; font-weight: bold; border-radius: 8px; padding: 12px; font-family: 'Fira Code', monospace; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(29,155,240,0.3);">ПОНЯТНО</button>
+    <button class="modal-btn" onclick="document.getElementById('scp-verify-modal').classList.remove('visible')" style="background: var(--link-blue); color: #fff; font-weight: bold; border-radius: 8px; padding: 12px; font-family: 'Fira Code', monospace; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(29,155,240,0.3);">ПОНЯТНО</button>
   </div>
 </div>
 
@@ -569,14 +594,14 @@
       <div id="profile-display-name" style="font-size: 18px; font-weight: 600; margin-bottom: 2px;">-</div>
       <div id="profile-username" class="profile-username">@-</div>
       <div id="profile-online" class="profile-online">⚪ Не в сети</div>
-      <div id="profile-custom-status" style="font-size: 12px; color: #00ccff; margin-top: 6px; font-family: 'Fira Code', monospace; display: none;"></div>
+      <div id="profile-custom-status" style="font-size: 12px; color: var(--custom-blue); margin-top: 6px; font-family: 'Fira Code', monospace; display: none;"></div>
       <div id="profile-clearance" style="margin-top: 6px;"></div>
       <div id="profile-xp-bar" style="width: 100%;"></div>
     </div>
     <div class="profile-info-box">
       <div class="profile-info-row"><span>Роль:</span><span id="profile-role" style="font-weight: 600;">-</span></div>
       <div class="profile-info-row"><span>ID:</span><span id="profile-id" style="color: #ffd700;">-</span></div>
-      <div class="profile-info-row" id="profile-ip-row" style="display: none; margin-bottom: 0;"><span>IP:</span><span id="profile-ip" style="color: #00ff9d;">-</span></div>
+      <div class="profile-info-row" id="profile-ip-row" style="display: none; margin-bottom: 0;"><span>IP:</span><span id="profile-ip" style="color: var(--online-green);">-</span></div>
     </div>
     <div id="profile-ban" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; border-radius: 6px; text-align: center; font-size: 12px; margin-bottom: 12px;"></div>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('profile-modal').classList.remove('visible')">Закрыть</button>
@@ -624,7 +649,7 @@
 <div class="modal" id="pin-choice-modal">
   <div class="modal-content">
     <h3>📌 ЗАКРЕПИТЬ СООБЩЕНИЕ</h3>
-    <button class="modal-btn" onclick="pinSelectedMsg(true)" style="background: #00ff9d; color: #000; margin-bottom: 10px;">Закрепить у всех</button>
+    <button class="modal-btn" onclick="pinSelectedMsg(true)" style="background: var(--online-green); color: #000; margin-bottom: 10px;">Закрепить у всех</button>
     <button class="modal-btn" onclick="pinSelectedMsg(false)" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Закрепить только у меня</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('pin-choice-modal').classList.remove('visible')">Отмена</button>
   </div>
@@ -884,7 +909,7 @@
     
     <div class="admin-toggle-row" style="margin-bottom: 15px; padding: 10px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); cursor: not-allowed; opacity: 0.8;">
         <span style="color: var(--accent); font-weight: bold;">🔒 Сквозное шифрование (E2EE)</span>
-        <span style="color: #00ff9d; font-size: 12px; font-weight: bold;">ВСЕГДА ВКЛ</span>
+        <span style="color: var(--online-green); font-size: 12px; font-weight: bold;">ВСЕГДА ВКЛ</span>
     </div>
 
     <button class="modal-btn" id="view-profile-btn" style="background: var(--accent); color: var(--bg); margin-bottom: 10px;">👤 Профиль собеседника</button>
@@ -907,7 +932,7 @@
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Логин:</span><span id="set-my-username" style="font-weight:bold;">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Роль:</span><span id="set-my-role" style="font-weight:bold;">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Уровень допуска:</span><span id="set-my-clearance">...</span></div>
-        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Статус:</span><span id="set-my-status" style="color: #00ccff;">...</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Статус:</span><span id="set-my-status" style="color: var(--custom-blue);">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">ID:</span><span id="set-my-id" style="color: #ffd700;">...</span></div>
       </div>
       <div id="my-xp-bar" style="width: 100%;"></div>
@@ -916,11 +941,11 @@
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px; font-weight: bold; color: var(--accent);">🎫 Ваш инвайт-код:</span>
       <div style="display: flex; gap: 10px; width: 100%;">
-        <input type="text" id="settings-invite-code" readonly value="..." style="flex: 1; background: var(--bg); border: 1px solid var(--border); color: #00ff9d; padding: 10px; border-radius: 6px; font-family: 'Fira Code'; font-weight: bold; outline: none; cursor: pointer; user-select: all;" onclick="this.select()" title="Нажмите, чтобы выделить">
+        <input type="text" id="settings-invite-code" readonly value="..." style="flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--online-green); padding: 10px; border-radius: 6px; font-family: 'Fira Code'; font-weight: bold; outline: none; cursor: pointer; user-select: all;" onclick="this.select()" title="Нажмите, чтобы выделить">
         <button class="modal-btn" id="copy-invite-code-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;">📋 Копировать</button>
       </div>
       <div style="font-size: 11px; color: var(--muted); margin-top: 6px; font-family: 'Fira Code'; line-height: 1.4;">
-        Поделитесь этим кодом с друзьями. При регистрации они вводят его в поле «Код приглашения», а вы получаете <b style="color: #00ff9d;">+200 XP</b> за каждого (до 2-х в день).
+        Поделитесь этим кодом с друзьями. При регистрации они вводят его в поле «Код приглашения», а вы получаете <b style="color: var(--online-green);">+200 XP</b> за каждого (до 2-х в день).
       </div>
     </div>
 
@@ -1057,7 +1082,7 @@
           <h2>
             <span id="chat-title">Выберите чат</span>
             <span id="chat-clearance-badge"></span>
-            <svg id="verified-star" style="width: 18px; height: 18px; fill: #1d9bf0; display: none; vertical-align: middle; flex-shrink: 0; margin-left: 6px; cursor: pointer;" viewBox="0 0 24 24" onclick="openScpVerifyModal()"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            <svg id="verified-star" style="width: 18px; height: 18px; fill: var(--link-blue); display: none; vertical-align: middle; flex-shrink: 0; margin-left: 6px; cursor: pointer;" viewBox="0 0 24 24" onclick="openScpVerifyModal()"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
             <span id="header-chat-role-badge"></span>
             <button class="clear-chat-btn" id="clear-chat-btn" title="Очистить" style="display: none;">🔥</button>
           </h2>
@@ -1093,8 +1118,8 @@
     <div id="recording-ui" style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid #ff4d4d; border-radius: 20px; padding: 10px 20px; align-items: center; gap: 15px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
       <div style="width: 10px; height: 10px; background: #ff4d4d; border-radius: 50%; animation: pulseRed 1s infinite;"></div>
       <span id="rec-timer" style="font-family: 'Fira Code'; font-weight: bold; color: var(--text);">0:00</span>
-      <div style="width: 100px; height: 6px; background: #333; border-radius: 3px; overflow: hidden;">
-          <div id="rec-volume-bar" style="height: 100%; width: 0%; background: #00ff9d; transition: width 0.1s;"></div>
+      <div style="width: 100px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;">
+          <div id="rec-volume-bar" style="height: 100%; width: 0%; background: var(--online-green); transition: width 0.1s;"></div>
       </div>
       <button id="rec-cancel-btn" style="background: transparent; border: none; color: #ff4d4d; font-weight: bold; cursor: pointer;">✖</button>
     </div>
@@ -1216,7 +1241,7 @@ function renderXpBar(user) {
           <span style="color: var(--muted);">осталось ${remaining}</span>
       </div>
       <div style="height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;">
-          <div style="height: 100%; background: #00ff9d; width: ${progress}%; transition: width 0.3s;"></div>
+          <div style="height: 100%; background: var(--online-green); width: ${progress}%; transition: width 0.3s;"></div>
       </div>
   </div>`;
 }
@@ -2104,7 +2129,7 @@ function updateReadDeletedStatusLabel(isChecked) {
   const label = document.getElementById('read-deleted-status-label');
   if (!label) return;
   label.textContent = isChecked ? 'Функция ВКЛЮЧЕНА (Действия логируются)' : 'Функция ВЫКЛЮЧЕНА';
-  label.style.color = isChecked ? '#00ff9d' : '#ff4d4d';
+  label.style.color = isChecked ? 'var(--online-green)' : '#ff4d4d';
 }
 
 // ================= THEME =================
@@ -2124,7 +2149,6 @@ document.getElementById('theme-toggle-btn').addEventListener('click', () => {
     applyTheme(current === 'dark' ? 'light' : 'dark');
 });
 
-// Init Theme
 const savedTheme = localStorage.getItem('scp_theme') || 'dark';
 applyTheme(savedTheme);
 
@@ -2179,20 +2203,29 @@ const visualSettings = {
   ghosts: localStorage.getItem('scp_ghosts') === 'true',
   favorites: localStorage.getItem('scp_favorites') === 'true'
 };
+
 function applyVisualSettings() {
   const root = document.documentElement;
-  if (visualSettings.season === 'winter') { root.style.setProperty('--hill-color', '#3b4252'); root.style.setProperty('--tree-color', '#4c566a'); root.style.setProperty('--ground-color', '#d8dee9'); }
-  else if (visualSettings.season === 'spring') { root.style.setProperty('--hill-color', '#2e5c3a'); root.style.setProperty('--tree-color', '#4a7c59'); root.style.setProperty('--ground-color', '#6b8e23'); }
-  else if (visualSettings.season === 'summer') { root.style.setProperty('--hill-color', '#1e3b26'); root.style.setProperty('--tree-color', '#2e5c3a'); root.style.setProperty('--ground-color', '#3b5c3c'); }
-  else if (visualSettings.season === 'autumn') { root.style.setProperty('--hill-color', '#4a2e1b'); root.style.setProperty('--tree-color', '#8a3b12'); root.style.setProperty('--ground-color', '#5c4033'); }
+  root.setAttribute('data-season', visualSettings.season);
+  // Цвета теперь берутся из CSS в зависимости от темы и времени года
 }
+
 document.getElementById('season-select').value = visualSettings.season;
 document.getElementById('weather-select').value = visualSettings.weather;
 document.getElementById('ghosts-toggle').checked = visualSettings.ghosts;
 document.getElementById('favorites-toggle').checked = visualSettings.favorites;
 applyVisualSettings();
-document.getElementById('season-select').addEventListener('change', (e) => { visualSettings.season = e.target.value; localStorage.setItem('scp_season', visualSettings.season); applyVisualSettings(); });
-document.getElementById('weather-select').addEventListener('change', (e) => { visualSettings.weather = e.target.value; localStorage.setItem('scp_weather', visualSettings.weather); FXEngine.initParticles(); });
+
+document.getElementById('season-select').addEventListener('change', (e) => { 
+    visualSettings.season = e.target.value; 
+    localStorage.setItem('scp_season', visualSettings.season); 
+    applyVisualSettings(); 
+});
+document.getElementById('weather-select').addEventListener('change', (e) => { 
+    visualSettings.weather = e.target.value; 
+    localStorage.setItem('scp_weather', visualSettings.weather); 
+    FXEngine.initParticles(); 
+});
 document.getElementById('ghosts-toggle').addEventListener('change', (e) => { visualSettings.ghosts = e.target.checked; localStorage.setItem('scp_ghosts', visualSettings.ghosts); });
 document.getElementById('favorites-toggle').addEventListener('change', (e) => { visualSettings.favorites = e.target.checked; localStorage.setItem('scp_favorites', visualSettings.favorites); renderChatList(); });
 
@@ -2254,7 +2287,7 @@ if (copyBtn) {
       const origBg = copyBtn.style.background;
       const origColor = copyBtn.style.color;
       copyBtn.textContent = '✓ Скопировано';
-      copyBtn.style.background = '#00ff9d';
+      copyBtn.style.background = 'var(--online-green)';
       copyBtn.style.color = '#000';
       setTimeout(() => {
         copyBtn.textContent = orig;
@@ -2329,7 +2362,7 @@ window.openProfile = async function(userId) {
     } else { ipRow.style.display = 'none'; }
     
     const onlineEl = document.getElementById('profile-online');
-    if (u.status === 'online') { onlineEl.textContent = '🟢 В сети'; onlineEl.style.color = '#00ff9d'; }
+    if (u.status === 'online') { onlineEl.textContent = '🟢 В сети'; onlineEl.style.color = 'var(--online-green)'; }
     else { onlineEl.textContent = '⚪ Не в сети'; onlineEl.style.color = 'var(--muted)'; }
     const banEl = document.getElementById('profile-ban');
     if (u.ban_expires && u.ban_expires !== 0) { banEl.style.display = 'block'; banEl.textContent = `⛔ Заблокирован`; }
@@ -2949,7 +2982,7 @@ function renderChatList() {
     
     let roleBadgeHtml = '';
     let checkmarkHtml = '';
-    if (c.isHelper) checkmarkHtml = `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: #1d9bf0; display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+    if (c.isHelper) checkmarkHtml = `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: var(--link-blue); display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
     if (c.role && c.role !== 'user' && !c.isGroup) roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 4px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
     
     const isBanned = c.ban_expires && c.ban_expires !== 0 && (c.ban_expires === -1 || c.ban_expires > Date.now());
@@ -2958,7 +2991,7 @@ function renderChatList() {
     if (draftText) {
       previewHtml = `<span style="color: #ff9933; font-weight: bold; margin-right: 4px;">[Черновик]</span> <span style="color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; display: inline-block; vertical-align: bottom;">${esc(draftText)}</span>`;
     } else if (c.otherStatus && !c.isGroup) {
-      previewHtml = `<span style="color: #00ccff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block;">💬 ${esc(c.otherStatus)}</span>`;
+      previewHtml = `<span style="color: var(--custom-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block;">💬 ${esc(c.otherStatus)}</span>`;
     } else if (!c.canAccess) {
       previewHtml = `<span style="color: #ff4d4d;">Требуется Level ${c.required_clearance}</span>`;
     } else {
@@ -2996,7 +3029,7 @@ function updateChatPreview(chatId) {
   const unread = state.unreadCounts[chatId] || 0;
   let html = '';
   if (draft) html = `<span style="color: #ff9933; font-weight: bold; margin-right: 4px;">[Черновик]</span> <span style="color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; display: inline-block;">${esc(draft)}</span>`;
-  else if (chat.otherStatus && !chat.isGroup) html = `<span style="color: #00ccff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block;">💬 ${esc(chat.otherStatus)}</span>`;
+  else if (chat.otherStatus && !chat.isGroup) html = `<span style="color: var(--custom-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block;">💬 ${esc(chat.otherStatus)}</span>`;
   else if (!chat.canAccess) html = `<span style="color: #ff4d4d;">Требуется Level ${chat.required_clearance}</span>`;
   else html = isBanned ? '⛔ Заблокирован' : (chat.isBlocked ? '🚫 Заблокирован' : (chat.isSelf ? 'Личные заметки' : (chat.isChannel ? 'Канал' : (chat.isGroup ? 'Группа' : 'Открыть чат'))));
   pv.innerHTML = `${html} ${unread ? ` <span class="badge" style="margin-left: auto;">${unread}</span>` : ''}`;
@@ -3031,7 +3064,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
       const isOnline = chat.status === 'online';
       const statusText = chat.otherStatus ? ` • 💬 ${esc(chat.otherStatus)}` : '';
       statusLine.innerHTML = `<span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>${isOnline ? 'в сети' : 'не в сети'}${statusText}`;
-      statusLine.style.color = isOnline ? '#00ff9d' : 'var(--muted)';
+      statusLine.style.color = isOnline ? 'var(--online-green)' : 'var(--muted)';
     }
   } else {
     statusLine.innerHTML = '';
@@ -3166,7 +3199,7 @@ window.openChat = openChat;
 function formatMessageText(rawText) {
   let text = esc(rawText);
   
-  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation();">$1</a>');
+  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" style="color: var(--link-blue); text-decoration: underline;" onclick="event.stopPropagation();">$1</a>');
   text = text.replace(/(^|\n)\s*-\s+(.+)/g, '$1• $2');
   text = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   text = text.replace(/\*(.*?)\*/g, '<i>$1</i>');
@@ -3174,9 +3207,9 @@ function formatMessageText(rawText) {
   const linkRegex = /(?<!href=")((?:https?:\/\/|scp\.me\/|scp\.group\/)[^\s<"]+)/g;
   text = text.replace(linkRegex, function(url) {
     if (url.startsWith('scp.')) {
-        return `<a href="#" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation(); openLinkChat('${url}')">${url}</a>`;
+        return `<a href="#" style="color: var(--link-blue); text-decoration: underline;" onclick="event.stopPropagation(); openLinkChat('${url}')">${url}</a>`;
     } else {
-        return `<a href="${url}" target="_blank" style="color: #1d9bf0; text-decoration: underline;" onclick="event.stopPropagation();">${url}</a>`;
+        return `<a href="${url}" target="_blank" style="color: var(--link-blue); text-decoration: underline;" onclick="event.stopPropagation();">${url}</a>`;
     }
   });
   
@@ -3372,7 +3405,7 @@ function appendMessage(msg, scroll = true) {
   if (!mine) {
     let roleBadge = ''; const r = msg.sender.role;
     if (r && r !== 'user') roleBadge = `<span class="rotating-badge badge-${r}">${(ROLE_LABEL[r] || r).toUpperCase()}</span>`;
-    let check = isHelper ? `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: #1d9bf0; display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>` : '';
+    let check = isHelper ? `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: var(--link-blue); display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>` : '';
     whoHtml = `<div class="who">@${esc(msg.sender.displayName || msg.sender.username)}${check} ${roleBadge}</div>`;
   }
   const isDeletedClass = msg.is_deleted ? 'deleted-msg' : '';
@@ -4151,7 +4184,7 @@ function connectSocket() {
     const n = c ? c.name : 'Собеседник';
     ti.textContent = `${n} печатает…`;
     ti.style.display = 'block';
-    ti.style.color = '#00ff9d';
+    ti.style.color = 'var(--online-green)';
   });
   state.socket.on('userStopTyping', ({ chatId }) => {
     if (!state.currentChat || state.currentChat.id !== chatId) return;
@@ -4313,9 +4346,10 @@ const FXEngine = {
     start() {
         const tick = () => {
             this.ctx.clearRect(0, 0, this.w, this.h);
+            const isLight = document.documentElement.getAttribute('data-theme') === 'light';
             
             if (visualSettings.weather === 'rain') {
-                this.ctx.strokeStyle = 'rgba(150, 200, 255, 0.4)';
+                this.ctx.strokeStyle = isLight ? 'rgba(50, 100, 150, 0.6)' : 'rgba(150, 200, 255, 0.4)';
                 this.ctx.lineWidth = 1;
                 this.particles.forEach(p => {
                     this.ctx.beginPath();
@@ -4326,7 +4360,7 @@ const FXEngine = {
                     if (p.y > this.h) { p.y = -10; p.x = Math.random() * this.w; }
                 });
             } else if (visualSettings.weather === 'snow') {
-                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                this.ctx.fillStyle = isLight ? 'rgba(100, 100, 100, 0.5)' : 'rgba(255, 255, 255, 0.8)';
                 this.particles.forEach(p => {
                     this.ctx.beginPath();
                     this.ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
@@ -4343,8 +4377,8 @@ const FXEngine = {
                     const py = this.h / 2 + Math.cos(time * 0.8 + i * 3) * (this.h / 2);
                     const radius = 80 + Math.sin(time * 2 + i) * 30;
                     const gradient = this.ctx.createRadialGradient(px, py, 0, px, py, radius);
-                    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)'); 
-                    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    gradient.addColorStop(0, isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.08)'); 
+                    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
                     this.ctx.fillStyle = gradient;
                     this.ctx.beginPath();
                     this.ctx.arc(px, py, radius, 0, Math.PI * 2);
