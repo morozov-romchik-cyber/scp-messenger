@@ -26,25 +26,34 @@
     --link-blue: #1d9bf0;
   }
 
-  /* СВЕТЛАЯ ТЕМА */
+  /* СВЕТЛАЯ ТЕМА (Сделана чуть темнее и мягче) */
   [data-theme="light"] {
-    --bg: #f3f4f6; --panel: #ffffff; --card: #e5e7eb; --border: #d1d5db;
-    --border-hover: #9ca3af; --accent: #000000; --text: #111827; --muted: #4b5563;
-    --admin-bg: #fff0f0; --admin-panel: #ffe4e6; --admin-border: #fca5a5;
-    --admin-accent: #dc2626; --admin-text: #991b1b; --admin-green: #16a34a;
+    --bg: #e2e8f0; 
+    --panel: #f1f5f9; 
+    --card: #cbd5e1; 
+    --border: #94a3b8;
+    --border-hover: #64748b; 
+    --accent: #0f172a; 
+    --text: #1e293b; 
+    --muted: #475569;
+    --admin-bg: #fecdd3; --admin-panel: #fda4af; --admin-border: #f43f5e;
+    --admin-accent: #be123c; --admin-text: #881337; --admin-green: #15803d;
     --logo-filter: none;
     --online-green: #047857;
     --custom-blue: #0369a1;
-    --link-blue: #0369a1;
+    --link-blue: #0284c7;
   }
 
-  /* ВРЕМЕНА ГОДА (ТЕМНАЯ ТЕМА) */
+  /* Анимация плавного переключения темы (2 секунды) */
+  html.theme-changing * {
+    transition: background-color 2s ease, color 2s ease, border-color 2s ease, fill 2s ease !important;
+  }
+
   [data-theme="dark"][data-season="winter"] { --hill-color: #3b4252; --tree-color: #4c566a; --ground-color: #d8dee9; }
   [data-theme="dark"][data-season="spring"] { --hill-color: #2e5c3a; --tree-color: #4a7c59; --ground-color: #6b8e23; }
   [data-theme="dark"][data-season="summer"] { --hill-color: #1e3b26; --tree-color: #2e5c3a; --ground-color: #3b5c3c; }
   [data-theme="dark"][data-season="autumn"] { --hill-color: #4a2e1b; --tree-color: #8a3b12; --ground-color: #5c4033; }
 
-  /* ВРЕМЕНА ГОДА (СВЕТЛАЯ ТЕМА) */
   [data-theme="light"][data-season="winter"] { --hill-color: #cbd5e1; --tree-color: #94a3b8; --ground-color: #f1f5f9; }
   [data-theme="light"][data-season="spring"] { --hill-color: #86efac; --tree-color: #4ade80; --ground-color: #bbf7d0; }
   [data-theme="light"][data-season="summer"] { --hill-color: #4ade80; --tree-color: #22c55e; --ground-color: #86efac; }
@@ -367,6 +376,14 @@
 
   #multi-select-bar { display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 20px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.8); gap: 15px; align-items: center; pointer-events: auto; }
 
+  /* Стили для переключателя темы */
+  .theme-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+  .theme-switch input { opacity: 0; width: 0; height: 0; }
+  .theme-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 34px; }
+  .theme-icon { position: absolute; height: 22px; width: 22px; left: 2px; bottom: 2px; background-color: var(--panel); transition: transform 0.4s ease, background-color 0.4s; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; z-index: 1; }
+  input:checked + .theme-slider { background-color: var(--link-blue); }
+  input:checked + .theme-slider .theme-icon { transform: translateX(24px); background-color: #fff; }
+
   @media (max-width: 720px) {
     aside { display: none; width: 100%; position: absolute; inset: 0; z-index: 20; }
     aside.mobile-open { display: flex; }
@@ -610,7 +627,7 @@
 
 <div class="modal" id="report-modal">
   <div class="modal-content" style="border-color: #ff9933; width: 440px;">
-    <h3 style="color: #ff9933;">🚩 ЖАЛОБА</h3>
+    <h3 style="color: #ff9933;">🚨 ЖАЛОБА</h3>
     <p style="font-size: 12px; color: var(--muted); margin-bottom: 10px; text-align: center;">Выберите сообщения:</p>
     <div id="report-msgs-container" style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px; background: var(--bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border);"></div>
     <select id="report-reason" onchange="toggleCustomReason(this.value)" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; outline: none;">
@@ -880,7 +897,7 @@
     <button class="modal-btn" id="msg-download-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px; display: none;">📥 Скачать вложения</button>
     <button class="modal-btn" id="msg-reply-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Ответить</button>
     <button class="modal-btn" id="msg-forward-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">Переслать</button>
-    <button class="modal-btn" id="msg-report-btn" style="background: transparent; color: #ff9933; border: 1px solid #ff9933; margin-bottom: 10px;">🚩 Пожаловаться</button>
+    <button class="modal-btn" id="msg-report-btn" style="background: transparent; color: #ff9933; border: 1px solid #ff9933; margin-bottom: 10px;">🚨 Пожаловаться</button>
     <button class="modal-btn" id="msg-del-me-btn" style="background: transparent; color: #ff4d4d; border: 1px solid #ff4d4d; margin-bottom: 10px;">Удалить у себя</button>
     <button class="modal-btn" id="msg-del-all-btn" style="background: #ff4d4d; color: #fff; margin-bottom: 10px; display: none;">Удалить у всех</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted);" onclick="document.getElementById('msg-actions-modal').classList.remove('visible')">Отмена</button>
@@ -939,7 +956,7 @@
     </div>
 
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
-      <span style="margin-bottom: 10px; font-weight: bold; color: var(--accent);">🎫 Ваш инвайт-код:</span>
+      <span style="margin-bottom: 10px; font-weight: bold; color: var(--accent);">🎁 Ваш инвайт-код:</span>
       <div style="display: flex; gap: 10px; width: 100%;">
         <input type="text" id="settings-invite-code" readonly value="..." style="flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--online-green); padding: 10px; border-radius: 6px; font-family: 'Fira Code'; font-weight: bold; outline: none; cursor: pointer; user-select: all;" onclick="this.select()" title="Нажмите, чтобы выделить">
         <button class="modal-btn" id="copy-invite-code-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;">📋 Копировать</button>
@@ -972,7 +989,15 @@
       </div>
     </div>
     <div style="border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
-      <div class="setting-row"><span>Тема оформления:</span><select id="theme-select"><option value="dark">Темная 🌙</option><option value="light">Светлая ☀️</option></select></div>
+      <div class="setting-row">
+          <span>Тема оформления:</span>
+          <label class="theme-switch">
+              <input type="checkbox" id="theme-checkbox" onchange="applyTheme(this.checked ? 'light' : 'dark')">
+              <span class="theme-slider">
+                  <span class="theme-icon" id="theme-icon">🌙</span>
+              </span>
+          </label>
+      </div>
       <div class="setting-row"><span>Время года:</span><select id="season-select"><option value="winter">Зима ❄️</option><option value="spring">Весна 🌱</option><option value="summer">Лето ☀️</option><option value="autumn">Осень 🍂</option></select></div>
       <div class="setting-row"><span>Погода:</span><select id="weather-select"><option value="none">Ясно</option><option value="rain">Дождь 🌧️</option><option value="snow">Снег 🌨️</option></select></div>
       <div class="setting-row" style="justify-content: space-between;">
@@ -1002,7 +1027,7 @@
 
 <div class="modal" id="paste-file-modal">
   <div class="modal-content" style="max-width: 400px; text-align: center;">
-    <h3>📊 ОТПРАВКА ФАЙЛА</h3>
+    <h3>📤 ОТПРАВКА ФАЙЛА</h3>
     <div id="paste-file-target" style="font-size: 12px; color: var(--muted); font-family: 'Fira Code'; margin-bottom: 12px;"></div>
     <div id="paste-file-preview-container" style="margin: 15px 0; max-height: 200px; overflow: hidden; display: flex; justify-content: center;">
       <img id="paste-file-img-preview" src="" alt="Превью" style="max-width: 100%; max-height: 180px; border-radius: 6px; display: none; object-fit: contain;" />
@@ -1053,7 +1078,7 @@
       <div class="chat-avatar" style="background: var(--accent); color: var(--bg); font-size: 16px;">⭐</div>
       <div class="chat-info"><div class="name">Избранное</div><div class="preview">Сохраненные заметки</div></div>
     </div>
-    <div class="search"><input id="user-search" placeholder="🔍 Поиск чатов, каналов..." /></div>
+    <div class="search"><input id="user-search" placeholder="🔍 Поиск чатов, каналов, людей..." /></div>
     <div id="chat-list"></div>
     
     <div class="sidebar-bottom">
@@ -1108,7 +1133,7 @@
     <div id="user-banned-banner">⛔ Пользователь заблокирован</div>
     <div id="blocked-banner" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; z-index: 10;">Пользователь заблокирован вами</div>
 
-    <div id="messages"><div class="empty">⚠ КАНАЛ НЕ ВЫБРАН</div></div>
+    <div id="messages"><div class="empty">⚡ КАНАЛ НЕ ВЫБРАН</div></div>
     
     <div class="file-progress" id="file-progress">
       <span id="file-progress-text">⏳ Загрузка... 0%</span>
@@ -1137,7 +1162,7 @@
         <span id="selection-count" style="color: var(--text); font-family: 'Fira Code'; font-size: 14px; min-width: 80px;">0 выбрано</span>
         <button onclick="forwardSelectedMessages()" class="admin-btn" style="background: var(--card); color: var(--text); border-color: var(--border); margin: 0; padding: 6px 12px;">➡️ Переслать</button>
         <button onclick="deleteSelectedMessages()" class="admin-btn" style="background: #ff4d4d; color: #fff; border: none; margin: 0; padding: 6px 12px;">🗑️ Удалить</button>
-        <button onclick="reportSelectedMessages()" class="admin-btn" style="background: #ff9933; color: #000; border: none; margin: 0; padding: 6px 12px;">🚩 Пожаловаться</button>
+        <button onclick="reportSelectedMessages()" class="admin-btn" style="background: #ff9933; color: #000; border: none; margin: 0; padding: 6px 12px;">🚨 Пожаловаться</button>
     </div>
 
     <div class="composer-more-menu" id="composer-more-menu">
@@ -1162,7 +1187,7 @@
       <textarea id="msg-input" placeholder="Введите сообщение..." rows="1"></textarea>
       <button type="button" id="composer-more-btn" title="Дополнительно" style="font-size: 20px; padding-bottom: 4px;">⋮</button>
       <button type="button" id="mic-btn" title="Голосовое сообщение">🎤</button>
-      <button type="submit" id="send-btn" title="Send">▶</button>
+      <button type="submit" id="send-btn" title="Send">►</button>
     </form>
     <input type="file" id="file-input" hidden multiple />
   </main>
@@ -1191,7 +1216,7 @@ let currentExpiry = 0;
 
 const ROLE_RANK = { user: 1, helper: 2, moderator: 3, admin: 4, sysadmin: 5 };
 const ROLE_LABEL = { user: 'Пользователь', helper: 'Хелпер', moderator: 'Модератор', admin: 'Админ', sysadmin: 'SysAdmin' };
-const ROLE_ICON = { user: '👤', helper: '🤝', moderator: '🛡️', admin: '🔰', sysadmin: '👑' };
+const ROLE_ICON = { user: '👤', helper: '🤝', moderator: '🛡️', admin: '🔐', sysadmin: '👑' };
 const ROLE_COLOR = { user: 'var(--muted)', helper: '#00ccff', moderator: '#ffcc00', admin: '#ff9933', sysadmin: 'var(--accent)' };
 
 const CLEARANCE_LABEL = { 1: 'L1 — Класс-D', 2: 'L2 — Научный сотрудник', 3: 'L3 — Старший исследователь', 4: 'L4 — Руководитель Зоны', 5: 'L5 — Совет О5' };
@@ -1263,7 +1288,7 @@ window.setExpiry = function(seconds) {
   document.getElementById('composer-more-menu').classList.remove('visible');
 };
 
-const EMOJIS = "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 🤡 💩 👻 💀 ☠️ 👽 👾 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😾 😿 👋 🤚 🖐️ ✋ 🖖 👌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🦷 🦴 👀 👁️ 👅 👄 💋 🩸 👶 👧 🧒 🧑 👱 👨 🧔 👩 🧓 👴 👵 👮 🕵️ 💂 👷 🤴 👸 👳 👲 🧕 🤵 👰 🤰 🤱 👼 🎅 🤶 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧟 🧞 💆 💇 🚶 🧍 🧎 🏃 🕺 💃 🕴️ 👯 🧘 ❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 💌 👥 👤 🗣️ 👣 🐵 🐒 🦍 🦧 🐶 🐕 🦮 🐩 🐺 🦊 🦝 🐱 🐈 🦁 🐯 🐅 🐆 🐴 🐎 🦄 🦓 🦌 🐮 🐂 🐃 🐄 🐷 🐖 🐗 🐽 🐏 🐑 🐐 🐪 🦙 🦒 🐘 🦏 🦛 🐭 🐁 🐀 🐹 🐰 🐇 🐿️ 🦔 🦇 🐻 🐨 🐼 🦥 🦦 🦨 🦘 🦡 🦅 🦆 🦢 🦉 🦩 🦚 🦜 🐸 🐊 🐢 🦎 🐍 🐲 🐉 🦕 🦖 🐳 🐋 🐬 🐟 🐠 🐡 🦈 🐙 🐚 🦀 🦞 🦐 🦑 🦋 🐌 🐛 🐜 🐝 🐞 🦗 🕷️ 🕸️ 🦂 🦟 🦠 💐 🌸 💮 🌹 🥀 🌺 🌻 🌼 🌷 🌱 🌲 🌳 🌴 🌵 🌾 🌿 ☘️ 🍀 🍁 🍂 🍃 🍄 🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥬 🥒 🌶️ 🧄 🥕 🌽 🥔 🍠 🥐 🥯 🍞 🥖 🥨 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🥪 🌮 🌯 🥙 🧆 🥘 🍲 🥣 🥗 🍿 🧂 🥫 🍱 🍘 🍙 🍚 🍛 🍜 🍝 🍢 🍣 🍤 🍥 🥮 🍡 🥟 🥠 🥡 🦪 🍦 🍧 🍨 🍩 🍪 🎂 🍰 🧁 🥧 🍫 🍬 🍭 🍮 🍯 🍼 🥛 ☕ 🍵 🍶 🍾 🍷 🍸 🍹 🍺 🍻 🥂 🥃 🥤 🧊 🥢 🍽️ 🍴 🥄 🔪 🌍 🌎 🌏 🌐 🗺️ 🗾 🧭 🏔️ ⛰️ 🌋 🗻 🏕️ 🏖️ 🏜️ 🏝️ 🏞️ 🏟️ 🏛️ 🏗️ 🧱 🏘️ 🏚️ 🏠 🏡 🏢 🏣 🏤 🏥 🏦 🏨 🏪 🏫 🏬 🏭 🏯 🏰 💒 🗼 🗽 ⛪ 🕌 🛕 🕍 ⛩️ 🕋 ⛲ ⛺ 🌁 🌃 🏙️ 🌅 🌄 🌆 🌇 🌉 🎠 🎡 🎢 🚂 🚃 🚄 🚅 🚆 🚇 🚈 🚉 🚊 🚝 🚞 🚋 🚌 🚍 🚎 🚐 🚑 🚒 🚓 🚔 🚕 🚖 🚗 🚘 🚙 🚚 🚛 🚜 🏎️ 🏍️ 🛵 🦽 🦼 🚲 🛴 🛹 🚏 🛣️ 🛤️ 🛢️ ⛽ 🚨 🚥 🚦 🛑 🚧 ⚓ ⛵ 🛶 🚤 🛳️ ⛴️ 🚢 ✈️ 🛩️ 🛫 🛬 💺 🚁 🚟 🚠 🚡 🚀 🛸 🛰️ 🛎️ 🧳 ⌛ ⏳ ⌚ ⏰ ⏱️ ⏲️ 🕰️ 🌙 🌡️ ☀️ 🌟 ⭐️ 🌌 ☁️ ⛅ ⛈️ 🌤️ 🌥️ 🌦️ 🌧️ 🌨️ 🌩️ 🌪️ 🌫️ 🌬️ 🌀 🌈 ☂️ ☔ ⚡ ❄️ ☃️ ⛄ ☄️ 🔥 💧 🌊 🎃 🎄 🎆 🎇 🧨 ✨ 🎈 🎉 🎊 🎋 🎍 🎎 🎏 🎐 🎑 🧧 🎀 🎁 🎗️ 🎟️ 🎫 🎖️ 🏆 🏅 🥇 🥈 🥉 ⚽ ⚾ 🥎 🏀 🏐 🏈 🏉 🎾 🥏 🎳 🏏 🏑 🏒 🥍 🏓 🏸 🥊 🥋 🥅 ⛳ ⛸️ 🎣 🤿 🎽 🎿 🛷 🥌 🎯 🔮 🎮 🕹️ 🎰 🎲 🧩 🧸 ♟️ 🎨 🧵 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🎻 🎭 📱 📲 💻 ⌨️ 🖥️ 🖨️ 🖱️ 🖲️ 🗜️ 💽 💾 💿 📀 📼 📷 📸 📹 🎥 📽️ 🎞️ 📞 ☎️ 📟 📠 📺 📻 🎙️ 🎚️ 🎛️ 🧭 🏮 💡 🔦 🧯 💸 💵 💴 💶 💷 💰 💳 💎 ⚖️ 🧰 🔧 🔨 ⚒️ 🛠️ ⛏️ 🔩 ⚙️ ⛓️ 🧲 🔫 💣 🔪 🗡️ ⚔️ 🛡️ 🚬 ⚰️ ⚱️ 🏺 📿 🧿 💈 🧪 🧫 🧬 🔭 🔬 🕳️ 💊 💉 🩸 🩹 🩺 🌡️ 🏷️ 🔖 🚽 🚿 🛁 🧼 🧻 🧴 🧺 🧹 🧽 🔑 🗝️ 🛋️ 🛌 🖼️ 🛍️ 🛒 📩 📨 📧 💌 📥 📤 📦 📯 📮 📭 📬 📫 📜 📄 📑 📊 📈 📉 🗒️ 🗓️ 📆 📅 🗑️ 📇 🗃️ 🗄️ 📋 📁 📂 🗂️ 🗞️ 📰 📓 📔 📒 📕 📗 📘 📙 📚 📖 🔗 📎 🖇️ 📐 📏 📌 📍 ✂️ 🖊️ 🖋️ ✒️ 📝 ✏️ 🔍 🔎 🔏 🔐 🔒 🔓 💘 ❤️ 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉️ ☸️ ✡️ 🔯 🕎 ☯️ ☦️ 🛐 ⛎ ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓ 🆔 ⚛️ 🉑 ☢️ ☣️ 📴 📳 ✴️ 🆚 💮 🅰️ 🆎 🆑 🅾️ 🆘 ❌ ⭕ 🛑 ⛔ 📛 🚫 💢 ♨️ 🚷 🚯 🚳 🚱 🚭 🚸 ⚠️ 🔱 ⚜️ 🔰 ♻️ ✅ 🈯 🛄 🛅 🛃 🛂 🚾 🅿️ ♿ 🏧 🚼 🚻 🚹 🚺 🚮 🎦 📶 ℹ️ 🔤 🔡 🔠 🆖 🆗 🆙 🆒 🆕 🆓 0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟 🔢 ▶️ ⏸️ ⏯️ ⏹️ ⏺️ ⏏️ ⏭️ ⏮️ ⏩ ⏪ ⏫ ⏬ ◀️ 🔼 🔽 ➡️ ⬅️ ⬆️ ⬇️ ↗️ ↘️ ↙️ ↖️ ↕️ ↔️ ↪️ ↩️ ⤴️ ⤵️ 🔀 🔁 🔂 🔄 🔃 🎵 🎶 ➕ ➖ ➗ ✖️ ♾️ 💲 💱 ™️ ©️ ®️ 〰️ ➰ ➿ 🔚 🔙 🔛 🔝 🔜 ☑️ 🔘 ⚪ ⚫ 🔴 🔵 🟣 🟢 🟡 🟤 🔺 🔻 🔸 🔹 🔶 🔷 🔳 🔲 ▪️ ▫️ ◾ ◽ ◼️ ◻️ 🟪 🟫 🟥 🟦 🟧 🟨 🟩 🏁 🚩 🎌 🏴 🏳️ 🏳️‍🌈 🏴‍☠️ 🇷🇺 🇧🇾 🇰🇿 🇺🇦 🇺🇿 🇦🇲 🇦🇿 🇰🇬 🇹🇯 🇹🇲 🇲🇩 🇪🇺 🇺🇸 🇬🇧 🇨🇳 🇯🇵 🇩🇪 🇫🇷 🇮🇹 🇪🇸 🇰🇷 🇨🇦 🇦🇺 🇧🇷 🇮🇳 🇪🇬 🇹🇷 🇸🇦 🇦🇪".split(' ');
+const EMOJIS = "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 🤡 💩 👻 💀 ☠️ 👽 👾 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾 👋 🤚 🖐 ✋ 🖖 👌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🦷 🦴 👀 👁 👅 👄 💋 🩸".split(' ');
 
 function initEmojiPicker() {
   const picker = document.getElementById('emoji-picker');
@@ -1446,7 +1471,7 @@ window.toggleVoicePlayer = function(btn) {
         });
 
         audio.addEventListener('ended', () => {
-            btn.textContent = '▶';
+            btn.textContent = '►';
             player._bar.style.width = '0%';
             player._time.textContent = formatVoiceDuration(audio.duration);
             player.classList.remove('playing');
@@ -1477,7 +1502,7 @@ window.toggleVoicePlayer = function(btn) {
         if (p !== player && p._audio) {
             p._audio.pause();
             p._audio.currentTime = 0;
-            p.querySelector('.voice-play-btn').textContent = '▶';
+            p.querySelector('.voice-play-btn').textContent = '►';
             p.classList.remove('playing');
             if (p._bar) p._bar.style.width = '0%';
         }
@@ -1489,7 +1514,7 @@ window.toggleVoicePlayer = function(btn) {
         player.classList.add('playing');
     } else {
         audio.pause();
-        btn.textContent = '▶';
+        btn.textContent = '►';
         player.classList.remove('playing');
     }
 };
@@ -1797,7 +1822,7 @@ window.ctxDeleteChat = function() {
             api('/chats/' + chatId, { method: 'DELETE' }).then(() => {
                 if (state.currentChat && state.currentChat.id === chatId) {
                     state.currentChat = null;
-                    document.getElementById('messages').innerHTML = '<div class="empty">⚠ ВЫБЕРИТЕ ЧАТ</div>';
+                    document.getElementById('messages').innerHTML = '<div class="empty">⚡ ВЫБЕРИТЕ ЧАТ</div>';
                     document.getElementById('chat-title').textContent = 'Выберите чат';
                     document.getElementById('composer').style.display = 'none';
                     document.getElementById('chat-options-btn').style.display = 'none';
@@ -2133,16 +2158,21 @@ function updateReadDeletedStatusLabel(isChecked) {
 }
 
 // ================= THEME =================
-function applyTheme(theme) {
+function applyTheme(theme, skipTransition = false) {
+    if (!skipTransition) {
+        document.documentElement.classList.add('theme-changing');
+        setTimeout(() => {
+            document.documentElement.classList.remove('theme-changing');
+        }, 2000);
+    }
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('scp_theme', theme);
-    const themeSelect = document.getElementById('theme-select');
-    if (themeSelect) themeSelect.value = theme;
+    
+    const themeCheckbox = document.getElementById('theme-checkbox');
+    if (themeCheckbox) themeCheckbox.checked = theme === 'light';
+    const themeIcon = document.getElementById('theme-icon');
+    if (themeIcon) themeIcon.textContent = theme === 'light' ? '☀️' : '🌙';
 }
-
-document.getElementById('theme-select').addEventListener('change', (e) => {
-    applyTheme(e.target.value);
-});
 
 document.getElementById('theme-toggle-btn').addEventListener('click', () => {
     const current = document.documentElement.getAttribute('data-theme');
@@ -2150,7 +2180,7 @@ document.getElementById('theme-toggle-btn').addEventListener('click', () => {
 });
 
 const savedTheme = localStorage.getItem('scp_theme') || 'dark';
-applyTheme(savedTheme);
+applyTheme(savedTheme, true);
 
 function enterChat() {
   authScreen.style.display = 'none'; chatScreen.classList.add('visible');
@@ -2207,7 +2237,6 @@ const visualSettings = {
 function applyVisualSettings() {
   const root = document.documentElement;
   root.setAttribute('data-season', visualSettings.season);
-  // Цвета теперь берутся из CSS в зависимости от темы и времени года
 }
 
 document.getElementById('season-select').value = visualSettings.season;
@@ -2252,7 +2281,11 @@ document.getElementById('open-settings').addEventListener('click', () => {
   if (input) input.value = state.me.invite_code || ('REF-' + (state.me.username || '').toUpperCase());
   
   document.getElementById('my-xp-bar').innerHTML = renderXpBar(state.me);
-  document.getElementById('theme-select').value = document.documentElement.getAttribute('data-theme');
+  
+  // Sync theme checkbox
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  document.getElementById('theme-checkbox').checked = isLight;
+  document.getElementById('theme-icon').textContent = isLight ? '☀️' : '🌙';
   
   document.getElementById('settings-modal').classList.add('visible');
 });
@@ -2286,7 +2319,7 @@ if (copyBtn) {
       const orig = copyBtn.textContent;
       const origBg = copyBtn.style.background;
       const origColor = copyBtn.style.color;
-      copyBtn.textContent = '✓ Скопировано';
+      copyBtn.textContent = '✅ Скопировано';
       copyBtn.style.background = 'var(--online-green)';
       copyBtn.style.color = '#000';
       setTimeout(() => {
@@ -2624,7 +2657,7 @@ window.loadReports = async function() {
           <div style="display: flex; gap: 10px;">
             ${r.targetUser ? `<button class="admin-btn admin-btn-danger" style="flex: 1; padding: 8px; font-size: 12px;" onclick="banFromReport('${r.targetUser.id}', '${r.id}', '${escAttr(r.reason)}')">🚫 Забанить</button>` : ''}
             ${r.targetMessages && r.targetMessages.length > 0 ? `<button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px;" onclick="deleteSelectedFromReport('${r.id}')">🗑️ Удалить</button>` : ''}
-            <button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px;" onclick="resolveReport('${r.id}', 'ignored')">❌ Отклонить</button>
+            <button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px;" onclick="resolveReport('${r.id}', 'ignored')">✖ Отклонить</button>
           </div>
         </div>
       `;
@@ -2672,7 +2705,10 @@ window.loadAllChats = async function() {
       <div style="background: var(--admin-panel); border: 1px solid var(--admin-border); border-radius: 6px; padding: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
-                <div style="font-weight: bold; color: var(--text);">${esc(c.name)} ${c.isChannel ? '📢' : '👥'}</div>
+                <div style="font-weight: bold; color: var(--text);">
+                    ${esc(c.name)} ${c.isChannel ? '📢' : '👥'}
+                    ${c.username ? `<span style="color: var(--admin-accent); font-size: 12px; font-family: 'Fira Code'; font-weight: normal; margin-left: 6px;">@${esc(c.username)}</span>` : ''}
+                </div>
                 <div style="font-size: 11px; color: var(--admin-text); font-family: 'Fira Code'; margin-top: 4px;">Создатель: @${esc(c.creatorName || 'Unknown')} • Участников: ${c.memberCount} • Вход: L${c.required_clearance} • Писать: L${c.min_write_clearance || 1}</div>
             </div>
             <button class="admin-btn" onclick="openAdminMembers('${c.id}')" style="padding: 6px 12px; font-size: 12px;">👥 Участники</button>
@@ -3356,7 +3392,7 @@ function appendMessage(msg, scroll = true) {
           const idx = msg.attachments.indexOf(v);
           const fullUrl = atts[idx].url;
           content += `<div class="voice-player" data-src="${escAttr(fullUrl)}">
-              <button class="voice-play-btn" onclick="event.stopPropagation(); toggleVoicePlayer(this)">▶</button>
+              <button class="voice-play-btn" onclick="event.stopPropagation(); toggleVoicePlayer(this)">►</button>
               <div class="voice-progress-wrapper" onclick="event.stopPropagation(); seekVoicePlayer(this, event)">
                   <div class="voice-progress-bar"></div>
               </div>
@@ -3389,7 +3425,7 @@ function appendMessage(msg, scroll = true) {
   const expiryHtml = renderExpiryBadge(msg);
   const editedLabel = msg.edited ? ' <span class="msg-edited">(изменено)</span>' : '';
   const isExpiring = msg.expires_at && msg.expires_at > Date.now();
-  const e2eeLabel = ''; // Убрали замочек E2EE
+  const e2eeLabel = '';
   
   const timeStr = new Date(msg.createdAt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   let statusHtml = '';
@@ -3637,7 +3673,7 @@ async function uploadFilesWithProgress(files, caption = '', isVoice = false) {
             
             let timeStr = '';
             if (elapsed > 0 && e.loaded > 0) {
-                const speed = e.loaded / elapsed; // байт/сек
+                const speed = e.loaded / elapsed;
                 const remainingBytes = e.total - e.loaded;
                 const remainingSecs = Math.round(remainingBytes / speed);
                 
@@ -3750,23 +3786,25 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   updateChatPreview(targetChatId);
   
   let body = text;
-  let isEncrypted = false;
+  let plaintextForUI = text;
   
-  const chatObj = state.chats.find(c => c.id === targetChatId);
-  const e2eeEnabled = chatObj && !chatObj.isGroup;
-  
-  if (e2eeEnabled) {
-      body = await encryptMessage(text, targetChatId);
-      isEncrypted = true;
-  }
-
   if (state.replyTo) {
     const rt = (state.replyTo.text || '(файл)').replace(/\n/g, ' ').slice(0, 80);
     const an = (state.replyTo.sender.displayName || state.replyTo.sender.username).replace(/\n/g, ' ');
     body = `> ${an}#${state.replyTo.id}: ${rt}\n${body}`;
+    plaintextForUI = body;
   }
   state.replyTo = null;
   document.getElementById('reply-bar').classList.remove('visible');
+
+  let isEncrypted = false;
+  const chatObj = state.chats.find(c => c.id === targetChatId);
+  const e2eeEnabled = chatObj && !chatObj.isGroup;
+  
+  if (e2eeEnabled) {
+      body = await encryptMessage(body, targetChatId);
+      isEncrypted = true;
+  }
 
   try {
     const msg = await api('/chats/' + targetChatId + '/messages', {
@@ -3774,7 +3812,7 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
       body: JSON.stringify({ text: body, expires_in: currentExpiry, is_encrypted: isEncrypted })
     });
     if (state.currentChat && state.currentChat.id === targetChatId) {
-      msg.text = text;
+      msg.text = plaintextForUI;
       msg.is_encrypted = isEncrypted;
       appendMessage(msg);
     }
@@ -3833,7 +3871,14 @@ document.getElementById('file-input').addEventListener('change', () => {
   uploadFilesWithProgress(fs, cap);
 });
 
-document.getElementById('clear-chat-btn').addEventListener('click', () => { if (state.currentChat) document.getElementById('clear-modal').classList.add('visible'); });
+document.getElementById('clear-chat-btn').addEventListener('click', () => {
+    if (!state.currentChat) return;
+    const isCreator = !state.currentChat.isGroup || (state.currentChat.creatorId === state.me.id);
+    const isAdmin = ['sysadmin', 'admin'].includes(state.me.role);
+    const canClearAll = isCreator || isAdmin;
+    document.getElementById('clear-all-btn').style.display = canClearAll ? 'block' : 'none';
+    document.getElementById('clear-modal').classList.add('visible');
+});
 document.getElementById('clear-me-btn').addEventListener('click', () => { if (state.currentChat) { document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕНО</div>'; document.getElementById('clear-modal').classList.remove('visible'); } });
 document.getElementById('clear-all-btn').addEventListener('click', async () => {
   if (!state.currentChat || !confirm('Очистить у всех?')) return;
@@ -3888,7 +3933,7 @@ document.getElementById('leave-group-btn').addEventListener('click', async () =>
     await api('/chats/' + state.currentChat.id + '/leave', { method: 'POST' });
     document.getElementById('chat-settings-modal').classList.remove('visible');
     state.currentChat = null;
-    document.getElementById('messages').innerHTML = '<div class="empty">⚠ ВЫБЕРИТЕ ЧАТ</div>';
+    document.getElementById('messages').innerHTML = '<div class="empty">⚡ ВЫБЕРИТЕ ЧАТ</div>';
     document.getElementById('chat-title').textContent = 'Выберите чат';
     document.getElementById('composer').style.display = 'none';
     document.getElementById('chat-options-btn').style.display = 'none';
@@ -3905,7 +3950,7 @@ document.getElementById('delete-group-btn').addEventListener('click', async () =
   try {
     await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
     state.currentChat = null;
-    document.getElementById('messages').innerHTML = '<div class="empty">⚠ ВЫБЕРИТЕ ЧАТ</div>';
+    document.getElementById('messages').innerHTML = '<div class="empty">⚡ ВЫБЕРИТЕ ЧАТ</div>';
     document.getElementById('chat-title').textContent = 'Выберите чат';
     document.getElementById('composer').style.display = 'none';
     document.getElementById('chat-settings-modal').classList.remove('visible');
@@ -3923,7 +3968,7 @@ document.getElementById('delete-chat-btn').addEventListener('click', async () =>
   try {
     await api('/chats/' + state.currentChat.id, { method: 'DELETE' });
     state.currentChat = null;
-    document.getElementById('messages').innerHTML = '<div class="empty">⚠ ВЫБЕРИТЕ ЧАТ</div>';
+    document.getElementById('messages').innerHTML = '<div class="empty">⚡ ВЫБЕРИТЕ ЧАТ</div>';
     document.getElementById('chat-title').textContent = 'Выберите чат';
     document.getElementById('chat-subtitle').textContent = '';
     document.getElementById('chat-status-line').textContent = '';
@@ -4224,16 +4269,21 @@ document.getElementById('user-search').addEventListener('input', (e) => {
       const res = await api('/users/search?q=' + encodeURIComponent(q));
       const list = document.getElementById('chat-list');
       let html = '';
+      
       if (res.chats && res.chats.length) {
+        html += `<div style="font-size: 11px; color: var(--muted); padding: 10px 16px 5px; font-family: 'Fira Code';">ГРУППЫ И КАНАЛЫ</div>`;
         html += res.chats.map(c => `
-          <div class="chat-item" onclick="const chat = state.chats.find(x => x.id === '${c.id}'); if(chat) openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem, chat.required_clearance, chat.canAccess); else alert('Чат не в списке');">
-            <div class="chat-avatar" style="background:var(--border);">${c.isChannel ? '📢' : '👥'}</div>
-            <div class="chat-info"><div class="name">${esc(c.name)}</div><div class="preview">${c.username ? (c.isChannel ? 'scp.me/' : 'scp.group/') + c.username : 'Чат'}</div></div>
+          <div class="chat-item" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0}, ${c.isGroup ? 'true' : 'false'}, '${escAttr(c.creatorId || '')}', ${c.isChannel ? 'true' : 'false'}, '${escAttr(c.username || '')}', ${c.isHelper ? 'true' : 'false'}, ${c.blockedByMe ? 'true' : 'false'}, ${c.blockedByThem ? 'true' : 'false'}, ${c.required_clearance || 1}, ${c.canAccess !== false ? 'true' : 'false'})">
+            <div class="chat-avatar" style="background:var(--border); font-size: 18px;">${c.isChannel ? '📢' : '👥'}</div>
+            <div class="chat-info"><div class="name">${esc(c.name)}</div><div class="preview">${c.username ? (c.isChannel ? 'scp.me/' : 'scp.group/') + c.username : 'Публичный чат'}</div></div>
           </div>`).join('');
       }
+      
       if (res.users && res.users.length) {
+        html += `<div style="font-size: 11px; color: var(--muted); padding: 10px 16px 5px; font-family: 'Fira Code';">ПОЛЬЗОВАТЕЛИ</div>`;
         html += res.users.map(u => `<div class="chat-item" onclick="startChat('${escAttr(u.id)}')"><div class="chat-avatar">${esc((u.displayName || u.username || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(u.displayName || u.username)}</div><div class="preview">@${esc(u.username)} • ${u.status === 'online' ? '🟢' : '⚪'}</div></div></div>`).join('');
       }
+      
       if (!html) html = '<div class="empty">Ничего не найдено</div>';
       list.innerHTML = html;
     } catch (err) { console.error(err); }
