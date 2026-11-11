@@ -665,9 +665,19 @@
   <div class="modal-content">
     <h3>📊 СОЗДАТЬ ОПРОС</h3>
     <input type="text" id="poll-question" placeholder="Вопрос" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; margin-bottom: 10px; outline: none;">
+    
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <input type="checkbox" id="poll-is-quiz" onchange="toggleQuizMode()" style="accent-color: var(--accent); width: 18px; height: 18px; cursor: pointer;">
+        <label for="poll-is-quiz" style="font-size: 14px; cursor: pointer; user-select: none;">Режим викторины (один правильный ответ)</label>
+    </div>
+    <div id="poll-correct-answer-container" style="display:none; margin-bottom:10px;">
+        <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">Правильный ответ:</label>
+        <select id="poll-correct-answer-select" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; outline: none;"></select>
+    </div>
+
     <div id="poll-options-container" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
-      <input type="text" class="poll-opt-input" placeholder="Вариант 1" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; outline: none;">
-      <input type="text" class="poll-opt-input" placeholder="Вариант 2" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; outline: none;">
+      <input type="text" class="poll-opt-input" placeholder="Вариант 1" oninput="updatePollCorrectOptions()" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; outline: none;">
+      <input type="text" class="poll-opt-input" placeholder="Вариант 2" oninput="updatePollCorrectOptions()" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; outline: none;">
     </div>
     <button class="modal-btn" onclick="addPollOption()" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">+ Добавить вариант</button>
     <button class="modal-btn" onclick="createPoll()" style="background: var(--accent); color: var(--bg); margin-bottom: 8px;">Создать</button>
@@ -1367,7 +1377,7 @@ function showNotification(sender, text, avatarUrl, chatId) {
         <div class="toast-avatar">${avatarContent}</div>
         <div class="toast-content">
             <div class="toast-title">Новое сообщение</div>
-            <div class="toast-sender">${esc(sender)}</div>
+            <div class="toast-sender">@${esc(sender)}</div>
             <div class="toast-text">${esc(text)}</div>
         </div>
     `;
@@ -1631,14 +1641,31 @@ document.getElementById('rec-cancel-btn').addEventListener('click', () => {
 // ================= ОПРОСЫ =================
 window.openPollModal = function() {
     document.getElementById('poll-question').value = '';
+    document.getElementById('poll-is-quiz').checked = false;
+    document.getElementById('poll-correct-answer-container').style.display = 'none';
     const container = document.getElementById('poll-options-container');
     container.innerHTML = `
-        <input type="text" class="poll-opt-input" placeholder="Вариант 1" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; outline: none;">
-        <input type="text" class="poll-opt-input" placeholder="Вариант 2" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; outline: none;">
+        <input type="text" class="poll-opt-input" placeholder="Вариант 1" oninput="updatePollCorrectOptions()" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; outline: none;">
+        <input type="text" class="poll-opt-input" placeholder="Вариант 2" oninput="updatePollCorrectOptions()" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; outline: none;">
     `;
+    updatePollCorrectOptions();
     document.getElementById('poll-modal').classList.add('visible');
     document.getElementById('composer-more-menu').classList.remove('visible');
 };
+
+window.toggleQuizMode = function() {
+    const isQuiz = document.getElementById('poll-is-quiz').checked;
+    document.getElementById('poll-correct-answer-container').style.display = isQuiz ? 'block' : 'none';
+    updatePollCorrectOptions();
+};
+
+function updatePollCorrectOptions() {
+    const inputs = Array.from(document.querySelectorAll('.poll-opt-input'));
+    const select = document.getElementById('poll-correct-answer-select');
+    const currentVal = select.value;
+    select.innerHTML = inputs.map((inp, i) => `<option value="${i}">${inp.value || 'Вариант ' + (i+1)}</option>`).join('');
+    if (currentVal && inputs[currentVal]) select.value = currentVal;
+}
 
 window.addPollOption = function() {
     const container = document.getElementById('poll-options-container');
@@ -1647,22 +1674,29 @@ window.addPollOption = function() {
     input.type = 'text';
     input.className = 'poll-opt-input';
     input.placeholder = `Вариант ${count + 1}`;
+    input.setAttribute('oninput', 'updatePollCorrectOptions()');
     input.style = "background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; outline: none;";
     container.appendChild(input);
+    updatePollCorrectOptions();
 };
 
 window.createPoll = async function() {
     const question = document.getElementById('poll-question').value.trim();
     const inputs = Array.from(document.querySelectorAll('.poll-opt-input')).map(i => i.value.trim()).filter(Boolean);
+    const isQuiz = document.getElementById('poll-is-quiz').checked;
+    const correctOptionIndex = isQuiz ? Number(document.getElementById('poll-correct-answer-select').value) : null;
     
     if (!question) return alert('Введите вопрос');
     if (inputs.length < 2) return alert('Нужно минимум 2 варианта');
+    if (isQuiz && (correctOptionIndex === null || isNaN(correctOptionIndex) || !inputs[correctOptionIndex])) {
+        return alert('Выберите правильный ответ');
+    }
     if (!state.currentChat) return alert('Чат не выбран');
 
     try {
         const msg = await api(`/chats/${state.currentChat.id}/polls`, {
             method: 'POST',
-            body: JSON.stringify({ question, options: inputs })
+            body: JSON.stringify({ question, options: inputs, is_quiz: isQuiz, correct_option_index: correctOptionIndex })
         });
         document.getElementById('poll-modal').classList.remove('visible');
         if (state.currentChat && state.currentChat.id === msg.chatId) appendMessage(msg);
@@ -3329,6 +3363,47 @@ document.getElementById('msg-edit-btn').addEventListener('click', () => {
 });
 
 // ================= APPEND MESSAGE =================
+function renderPollHtml(msgId, poll, isSelfChat, meId) {
+    let totalVotes = 0;
+    poll.options.forEach(o => totalVotes += o.votes.length);
+    
+    const isQuiz = poll.isQuiz;
+    const correctIdx = poll.correctOptionIndex;
+    const userVotedIndex = poll.options.findIndex(o => o.votes.includes(meId));
+    const hasVoted = userVotedIndex !== -1;
+    
+    let optsHtml = poll.options.map((o, idx) => {
+        const pct = totalVotes === 0 ? 0 : Math.round((o.votes.length / totalVotes) * 100);
+        const voted = o.votes.includes(meId);
+        
+        let extraStyle = '';
+        let extraHtml = '';
+        
+        if (isQuiz && hasVoted) {
+            if (correctIdx !== null && correctIdx !== undefined && idx === correctIdx) {
+                extraStyle = 'border-color: var(--online-green); background: rgba(0, 255, 157, 0.1);';
+                extraHtml = ' <span style="color: var(--online-green); font-weight: bold; margin-left: 5px;">✓</span>';
+            } else if (idx === userVotedIndex && userVotedIndex !== correctIdx) {
+                extraStyle = 'border-color: #ff4d4d; background: rgba(255, 77, 77, 0.1);';
+                extraHtml = ' <span style="color: #ff4d4d; font-weight: bold; margin-left: 5px;">✗</span>';
+            }
+        }
+
+        const clickHandler = (!isQuiz || !hasVoted) ? `onclick="event.stopPropagation(); votePoll('${msgId}', ${idx})"` : '';
+
+        return `<div class="poll-option ${voted ? 'voted' : ''}" style="${extraStyle}" ${clickHandler}>
+            <div class="poll-option-bar" style="width: ${pct}%;"></div>
+            <div class="poll-option-text"><span>${esc(o.text)}</span> <span class="poll-option-pct">${pct}%${extraHtml}</span></div>
+        </div>`;
+    }).join('');
+
+    return `<div class="poll-container" onclick="event.stopPropagation();">
+        <div class="poll-question">${esc(poll.question)} ${isQuiz ? '📝' : '📊'}</div>
+        ${optsHtml}
+        <div class="poll-footer">Всего голосов: ${totalVotes} ${isQuiz && !hasVoted ? '<br><span style="color: var(--muted); font-size: 10px;">Ответьте, чтобы увидеть правильный вариант</span>' : ''}</div>
+    </div>`;
+}
+
 function appendMessage(msg, scroll = true) {
   const msgsEl = document.getElementById('messages');
   if (document.getElementById('msg-' + msg.id)) return;
@@ -3373,23 +3448,7 @@ function appendMessage(msg, scroll = true) {
     }
     
     if (msg.poll) {
-        let totalVotes = 0;
-        msg.poll.options.forEach(o => totalVotes += o.votes.length);
-        
-        let optsHtml = msg.poll.options.map((o, idx) => {
-            const pct = totalVotes === 0 ? 0 : Math.round((o.votes.length / totalVotes) * 100);
-            const voted = o.votes.includes(state.me.id);
-            return `<div class="poll-option ${voted ? 'voted' : ''}" onclick="event.stopPropagation(); votePoll('${msg.id}', ${idx})">
-                <div class="poll-option-bar" style="width: ${pct}%;"></div>
-                <div class="poll-option-text"><span>${esc(o.text)}</span> <span class="poll-option-pct">${pct}%</span></div>
-            </div>`;
-        }).join('');
-
-        content += `<div class="poll-container" onclick="event.stopPropagation();">
-            <div class="poll-question">${esc(msg.poll.question)}</div>
-            ${optsHtml}
-            <div class="poll-footer">Всего голосов: ${totalVotes}</div>
-        </div>`;
+        content += renderPollHtml(msg.id, msg.poll, msg.isSelfChat, state.me.id);
     }
 
     if (Array.isArray(msg.attachments) && msg.attachments.length) {
@@ -4181,25 +4240,9 @@ function connectSocket() {
     const el = document.getElementById('msg-' + messageId);
     if (!el) return;
     const pollContainer = el.querySelector('.poll-container');
-    if (!pollContainer) return;
-    
-    let totalVotes = 0;
-    poll.options.forEach(o => totalVotes += o.votes.length);
-    
-    let optsHtml = poll.options.map((o, idx) => {
-        const pct = totalVotes === 0 ? 0 : Math.round((o.votes.length / totalVotes) * 100);
-        const voted = o.votes.includes(state.me.id);
-        return `<div class="poll-option ${voted ? 'voted' : ''}" onclick="event.stopPropagation(); votePoll('${messageId}', ${idx})">
-            <div class="poll-option-bar" style="width: ${pct}%;"></div>
-            <div class="poll-option-text"><span>${esc(o.text)}</span> <span class="poll-option-pct">${pct}%</span></div>
-        </div>`;
-    }).join('');
-
-    pollContainer.innerHTML = `
-        <div class="poll-question">${esc(poll.question)}</div>
-        ${optsHtml}
-        <div class="poll-footer">Всего голосов: ${totalVotes}</div>
-    `;
+    if (pollContainer) {
+        pollContainer.outerHTML = renderPollHtml(messageId, poll, false, state.me.id);
+    }
   });
   state.socket.on('chatPinned', ({ chatId, pinned_messages }) => {
       if (state.currentChat && state.currentChat.id === chatId) {
