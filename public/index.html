@@ -675,7 +675,7 @@
       <h4>6. Возраст пользователей</h4>
       <p>Сервис для лиц старше 14 лет.</p>
       <h4>7. Cookies и localStorage</h4>
-      <p>Мы используем localStorage для токена и настроек.</p>
+      <p>Мы используем защищенные HttpOnly Cookies для токена и localStorage для настроек.</p>
       <h4>8. Изменения политики</h4>
       <p>Продолжая пользоваться сервисом, вы принимаете обновления.</p>
       
@@ -793,7 +793,6 @@
       <div class="admin-tab" data-tab="chats" id="tab-btn-chats" style="display: none;">💬 Группы и Каналы</div>
       <div class="admin-tab" data-tab="users">👥 Управление пользователями</div>
       <div class="admin-tab" data-tab="staff">📋 Список персонала</div>
-      <div class="admin-tab" data-tab="support" id="tab-btn-support" style="display: none;">💬 Поддержка & Логи</div>
       <div class="admin-tab" data-tab="alerts" id="tab-btn-alerts" style="display: none; color: #ff3333; font-weight: bold;">🚨 Срочные оповещения</div>
       <div style="flex: 1;"></div>
       <div class="admin-tab admin-tab-close-desktop" style="color: #ff3333; border-left-color: transparent;" onclick="document.getElementById('admin-dashboard-modal').classList.remove('visible')">✖ Закрыть</div>
@@ -840,20 +839,13 @@
         <div class="admin-header"><h2>Модерация контента</h2></div>
         <div class="admin-section">
           <h4>Управление удаленными сообщениями</h4>
-          <div class="admin-toggle-row"><span>Читать удаленные сообщения</span><input type="checkbox" id="read-deleted-toggle" onchange="toggleReadDeleted(this.checked)"></div>
+          <div class="admin-toggle-row"><span>Читать удаленные сообщения (Логируется)</span><input type="checkbox" id="read-deleted-toggle" onchange="toggleReadDeleted(this.checked)"></div>
           <div id="read-deleted-status-label" style="font-family: 'Fira Code'; font-size: 12px; margin-top: 8px; font-weight: bold;"></div>
         </div>
       </div>
       <div id="tab-users" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Управление пользователями</h2></div>
-        <div class="admin-section" id="passwords-section" style="display: none; border-color: #ff3333; background: rgba(255, 51, 51, 0.05);">
-          <h4 style="color: #ff3333;">🔐 Просмотр паролей</h4>
-          <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-            <input type="text" id="pass-search" placeholder="🔍 Поиск..." oninput="filterPasswords()" style="flex: 1; background: #0d0404; border: 1px solid #4a1515; color: #fff; padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none;">
-            <button id="load-passwords-btn" class="admin-btn admin-btn-danger" onclick="loadAllPasswords(event)" style="background: #ff3333; color: #fff; border: none; font-weight: bold;">👁️ Показать</button>
-          </div>
-          <div id="passwords-list" style="display: none; max-height: 400px; overflow-y: auto;"></div>
-        </div>
+        
         <div class="admin-section" id="admin-grant-section" style="display: none;">
           <h4>⭐ Выдача/снятие админки</h4>
           <div class="admin-input-group"><input type="text" placeholder="Username или ID" id="grant-admin-input"><button class="admin-btn" onclick="grantAdmin()">Выдать</button><button class="admin-btn admin-btn-danger" onclick="revokeAdmin()">Снять</button></div>
@@ -908,15 +900,6 @@
           <div id="staff-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
         </div>
       </div>
-      <div id="tab-support" class="admin-tab-content" style="display: none;">
-        <div class="admin-header"><h2>Поддержка & Логи</h2></div>
-        <div class="admin-section">
-          <h4>Поиск IP пользователя</h4>
-          <div class="admin-input-group"><input type="text" placeholder="Username" id="hash-input"><button class="admin-btn" onclick="searchUserIp()">Найти IP</button></div>
-          <div class="log-box" id="diagnostic-log" style="margin-top: 10px; display: none;">[Log] Waiting...</div>
-        </div>
-        <div class="admin-section"><h4>Логи системы</h4><div class="log-box" id="anomaly-log">[System] Monitoring started...<br></div></div>
-      </div>
       <div id="tab-alerts" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Срочные оповещения</h2></div>
         <div class="admin-section">
@@ -928,14 +911,6 @@
         </div>
       </div>
     </div>
-  </div>
-</div>
-
-<div class="modal" id="chat-details-modal">
-  <div class="modal-content" style="width: 500px; max-height: 85vh;">
-    <h3 style="color: #ff3333;">ДЕТАЛИ ЧАТА</h3>
-    <div id="chat-details-content" style="flex: 1; overflow-y: auto; padding-right: 5px;">Загрузка...</div>
-    <button class="modal-btn" style="background: transparent; color: var(--muted); margin-top: 15px;" onclick="document.getElementById('chat-details-modal').classList.remove('visible')">Закрыть</button>
   </div>
 </div>
 
@@ -1049,9 +1024,9 @@
       <button class="modal-btn" onclick="setChannelUsername()" style="margin-top:0; padding:8px;">Установить ссылку</button>
     </div>
     
-    <div class="admin-toggle-row" style="margin-bottom: 15px; padding: 10px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);">
+    <div class="admin-toggle-row" style="margin-bottom: 15px; padding: 10px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); cursor: not-allowed; opacity: 0.8;">
         <span style="color: var(--accent); font-weight: bold;">🔒 Сквозное шифрование (E2EE)</span>
-        <input type="checkbox" id="e2ee-toggle" onchange="toggleE2EE(this.checked)">
+        <span style="color: #00ff9d; font-size: 12px; font-weight: bold;">ВСЕГДА ВКЛ</span>
     </div>
 
     <button class="modal-btn" id="view-profile-btn" style="background: var(--accent); color: #000; margin-bottom: 10px;">👤 Профиль собеседника</button>
@@ -1076,7 +1051,6 @@
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Уровень допуска:</span><span id="set-my-clearance">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Статус:</span><span id="set-my-status" style="color: #00ccff;">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">ID:</span><span id="set-my-id" style="color: #ffd700;">...</span></div>
-        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">IP:</span><span id="set-my-ip" style="color: #00ff9d;">...</span></div>
       </div>
       <div id="my-xp-bar" style="width: 100%;"></div>
     </div>
@@ -1312,7 +1286,7 @@
 let favoriteChats = JSON.parse(localStorage.getItem('scp_fav_chats') || '[]');
 let chatDrafts = JSON.parse(localStorage.getItem('scp_drafts') || '{}');
 const state = { 
-  token: localStorage.getItem('scp_token'), me: null, chats: [], currentChat: null, socket: null, 
+  me: null, chats: [], currentChat: null, socket: null, 
   unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false, 
   currentPinnedIndex: 0, visiblePinnedMessages: [] 
 };
@@ -1354,7 +1328,6 @@ let currentExpiryTimeout;
 
 // E2EE Переменные
 let e2eeKey = null;
-let isE2EEEnabled = false;
 
 function clearanceBadge(level) {
   const lvl = level || 1;
@@ -1556,25 +1529,6 @@ async function decryptMessage(encryptedBase64, chatId) {
         return "🔒 [Ошибка расшифровки]";
     }
 }
-
-window.toggleE2EE = async function(enabled) {
-    if (!state.currentChat) return;
-    try {
-        await api(`/chats/${state.currentChat.id}/e2ee`, { method: 'POST', body: JSON.stringify({ enabled }) });
-        state.currentChat.e2ee_enabled = enabled;
-        if (enabled) {
-            await getE2EEKey(state.currentChat.id);
-            document.getElementById('e2ee-indicator').style.display = 'inline-block';
-            alert('🔒 Сквозное шифрование включено. Сообщения будут зашифрованы.');
-        } else {
-            document.getElementById('e2ee-indicator').style.display = 'none';
-            alert('🔓 Сквозное шифрование отключено.');
-        }
-    } catch (e) {
-        alert(e.message);
-        document.getElementById('e2ee-toggle').checked = !enabled;
-    }
-};
 
 // ================= ГОЛОСОВОЙ ПЛЕЕР =================
 function formatVoiceDuration(s) {
@@ -2227,27 +2181,22 @@ document.getElementById('tab-register').addEventListener('click', () => {
 
 async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  const token = state.token || localStorage.getItem('scp_token');
-  if (token) { headers['Authorization'] = 'Bearer ' + token; state.token = token; }
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Токен больше не передается в заголовках, используется cookie
   try {
-    const res = await fetch('/api' + path, { ...opts, headers });
+    const res = await fetch('/api' + path, { ...opts, headers, credentials: 'include' });
     let data = {};
     const text = await res.text();
     try { if (text) data = JSON.parse(text); } catch (e) { if (!res.ok) throw new Error(`Сервер вернул ошибку ${res.status}`); }
     if (res.status === 401) { 
         if (path !== '/login' && path !== '/register') {
-            localStorage.removeItem('scp_token'); state.token = null;
             window.location.reload();
             throw new Error('Сессия истекла.');
         }
     }
     if (res.status === 403 && data.error === 'BANNED') { 
-        // ИСПРАВЛЕНИЕ БАГА С БАНОМ: Показываем бан только если время не истекло
         if (data.ban_expires === -1 || data.ban_expires > Date.now()) {
             showBanMessage(data.ban_expires, data.ban_reason); 
         } else {
-            // Если бан истек, просто просим перелогиниться
-            localStorage.removeItem('scp_token'); state.token = null;
             window.location.reload();
         }
         throw new Error('Banned'); 
@@ -2263,7 +2212,6 @@ async function api(path, opts = {}) {
 function showBanMessage(ban_expires, ban_reason) {
   let timeStr = ban_expires === -1 ? 'НАВСЕГДА' : 'до ' + new Date(ban_expires).toLocaleString();
   document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;margin-bottom:10px;font-size:13px;">⛔ <b>ЗАБЛОКИРОВАН</b><br>Срок: ${timeStr}<br>Причина: ${esc(ban_reason || 'Нарушение правил')}</div>`;
-  localStorage.removeItem('scp_token'); state.token = null;
 }
 
 document.getElementById('a-submit').addEventListener('click', async () => {
@@ -2281,8 +2229,7 @@ document.getElementById('a-submit').addEventListener('click', async () => {
   try {
     const url = authMode === 'register' ? '/register' : '/login';
     const data = await api(url, { method: 'POST', body: JSON.stringify({ username, password, invited_by, accepted_privacy }) });
-    state.token = data.token; state.me = data.user; state.read_deleted = data.user.read_deleted || false;
-    localStorage.setItem('scp_token', data.token);
+    state.me = data.user; state.read_deleted = data.user.read_deleted || false;
     
     if (data.warning) {
         alert(data.warning);
@@ -2297,7 +2244,7 @@ document.getElementById('a-submit').addEventListener('click', async () => {
 function updateReadDeletedStatusLabel(isChecked) {
   const label = document.getElementById('read-deleted-status-label');
   if (!label) return;
-  label.textContent = isChecked ? 'Функция ВКЛЮЧЕНА' : 'Функция ВЫКЛЮЧЕНА';
+  label.textContent = isChecked ? 'Функция ВКЛЮЧЕНА (Действия логируются)' : 'Функция ВЫКЛЮЧЕНА';
   label.style.color = isChecked ? '#00ff9d' : '#ff4d4d';
 }
 
@@ -2310,7 +2257,6 @@ function enterChat() {
   document.getElementById('set-my-clearance').innerHTML = clearanceBadge(state.me.clearance_level || 1);
   document.getElementById('set-my-status').textContent = state.me.status === 'online' ? '🟢 В сети' : '⚪ Не в сети';
   document.getElementById('set-my-id').textContent = state.me.id;
-  document.getElementById('set-my-ip').textContent = state.me.ip || 'Скрыт';
   document.getElementById('my-xp-bar').innerHTML = renderXpBar(state.me);
   
   const roleBadge = document.getElementById('my-role-badge');
@@ -2326,15 +2272,9 @@ function enterChat() {
     document.getElementById('tab-btn-alerts').style.display = 'flex';
     document.getElementById('tab-btn-stats').style.display = 'flex';
     document.getElementById('tab-btn-audit').style.display = 'flex';
-    if (state.me.username.toLowerCase() === 'admin') {
-      document.getElementById('passwords-section').style.display = 'block';
-    } else {
-      document.getElementById('passwords-section').style.display = 'none';
-    }
   } else {
     document.querySelectorAll('#user-role-select option[data-sysonly]').forEach(o => o.remove());
     document.getElementById('tab-btn-alerts').style.display = 'none';
-    document.getElementById('passwords-section').style.display = 'none';
     document.getElementById('clearance-section').style.display = 'none';
     document.getElementById('tab-btn-stats').style.display = 'none';
     document.getElementById('tab-btn-audit').style.display = 'none';
@@ -2345,7 +2285,6 @@ function enterChat() {
   }
   if (['sysadmin', 'admin'].includes(state.me.role)) {
     document.getElementById('tab-btn-moderation').style.display = 'flex';
-    document.getElementById('tab-btn-support').style.display = 'flex';
   }
   populateInviteRoles();
   initEmojiPicker();
@@ -2504,8 +2443,10 @@ window.openProfile = async function(userId) {
     document.getElementById('profile-xp-bar').innerHTML = renderXpBar(u);
     
     const ipRow = document.getElementById('profile-ip-row');
-    if (['moderator', 'admin', 'sysadmin'].includes(state.me.role)) { document.getElementById('profile-ip').textContent = u.ip || 'Скрыт'; ipRow.style.display = 'flex'; }
-    else { ipRow.style.display = 'none'; }
+    if (['moderator', 'admin', 'sysadmin'].includes(state.me.role) && u.ip !== 'Скрыт') { 
+        document.getElementById('profile-ip').textContent = u.ip; ipRow.style.display = 'flex'; 
+    } else { ipRow.style.display = 'none'; }
+    
     const onlineEl = document.getElementById('profile-online');
     if (u.status === 'online') { onlineEl.textContent = '🟢 В сети'; onlineEl.style.color = '#00ff9d'; }
     else { onlineEl.textContent = '⚪ Не в сети'; onlineEl.style.color = 'var(--muted)'; }
@@ -2522,10 +2463,14 @@ document.getElementById('header-avatar').addEventListener('click', () => {
     openProfile(state.currentChat.otherUserId);
   }
 });
-document.getElementById('logout-btn').addEventListener('click', () => { localStorage.removeItem('scp_token'); window.location.reload(); });
+document.getElementById('logout-btn').addEventListener('click', () => { 
+    // Очистка куки на клиенте
+    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    window.location.reload(); 
+});
 document.getElementById('delete-account-btn').addEventListener('click', async () => {
   if (!confirm('Удалить аккаунт?')) return;
-  try { await api('/users/me', { method: 'DELETE' }); localStorage.removeItem('scp_token'); window.location.reload(); } catch (e) { alert(e.message); }
+  try { await api('/users/me', { method: 'DELETE' }); window.location.reload(); } catch (e) { alert(e.message); }
 });
 
 // ================= AVATAR UPLOAD =================
@@ -2549,7 +2494,7 @@ document.getElementById('avatar-input').addEventListener('change', (e) => {
       canvas.toBlob((blob) => {
         const fd = new FormData();
         fd.append('avatar', blob, 'avatar.jpg');
-        fetch('/api/users/avatar', { method: 'POST', headers: { 'Authorization': 'Bearer ' + state.token }, body: fd })
+        fetch('/api/users/avatar', { method: 'POST', credentials: 'include', body: fd })
         .then(async r => { const text = await r.text(); try { return JSON.parse(text); } catch (e) { throw new Error('Ошибка сервера'); } })
         .then(data => {
           if (data.error) return alert(data.error);
@@ -2567,7 +2512,6 @@ document.getElementById('avatar-input').addEventListener('change', (e) => {
 
 // ================= ADMIN =================
 document.getElementById('admin-header-btn').addEventListener('click', async () => {
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Всегда проверяем роль на сервере перед открытием
   try {
     state.me = await api('/me');
     if (!['sysadmin', 'admin', 'moderator', 'helper'].includes(state.me.role)) {
@@ -2855,61 +2799,6 @@ function renderStaffList(users) {
   `).join('');
 }
 
-// ================= PASSWORDS =================
-window._cachedPasswords = [];
-window.loadAllPasswords = async function(e) {
-  const btn = e.target;
-  const listEl = document.getElementById('passwords-list');
-  const orig = btn.textContent;
-  btn.disabled = true; btn.textContent = '⏳ Загрузка...';
-  document.getElementById('pass-search').value = '';
-  try {
-    const users = await api('/admin/get-passwords', { method: 'POST' });
-    window._cachedPasswords = users;
-    listEl.style.display = 'block';
-    renderPasswordsList(users);
-  } catch (err) {
-    listEl.style.display = 'block';
-    listEl.innerHTML = `<div style="color: #ff4d4d; padding: 15px; text-align: center;">Ошибка: ${esc(err.message)}</div>`;
-  } finally { btn.disabled = false; btn.textContent = orig; }
-};
-window.filterPasswords = function() {
-  const q = document.getElementById('pass-search').value.toLowerCase().trim();
-  renderPasswordsList(window._cachedPasswords.filter(u => u.username.toLowerCase().includes(q)));
-};
-function renderPasswordsList(users) {
-  const listEl = document.getElementById('passwords-list');
-  if (!users.length) { listEl.innerHTML = '<div class="empty">Никого не найдено</div>'; return; }
-  listEl.innerHTML = users.map(u => {
-    const isBanned = u.ban_expires && u.ban_expires !== 0 && (u.ban_expires === -1 || u.ban_expires > Date.now());
-    const noData = u.password === '(нет данных — зарегистрирован до обновления)';
-    const pw = noData ? `<span style="color: #ff9999; font-style: italic;">${esc(u.password)}</span>` : `<span style="color: #ff3333; font-weight: bold; font-family: 'Fira Code', monospace;">${esc(u.password)}</span>`;
-    const escPw = escAttr(u.password);
-    return `
-      <div style="background: #0d0404; border: 1px solid #4a1515; border-radius: 6px; padding: 12px; margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
-          <div style="font-weight: 600; font-size: 13px; color: #fff;">${esc(u.displayName || u.username)} <span style="color: #884444;">@${esc(u.username)}</span></div>
-          <span>${clearanceBadge(u.clearance_level || 1)}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; font-family: 'Fira Code', monospace; font-size: 12px; flex-wrap: wrap; gap: 6px;">
-          <div>Пароль: ${pw}</div>
-          ${noData ? '' : `<button class="admin-btn" onclick="copyToClipboard('${escPw}', this)" style="padding: 4px 8px; font-size: 11px;">📋 Копировать</button>`}
-        </div>
-        <div style="font-size: 10px; color: #884444; margin-top: 6px; font-family: 'Fira Code';">IP: ${esc(u.ip)} • ${isBanned ? '⛔ Забанен' : '✅ Активен'}</div>
-      </div>
-    `;
-  }).join('');
-}
-window.copyToClipboard = function(text, btn) {
-  const doCopy = () => {
-    const orig = btn.textContent;
-    btn.textContent = '✓ Скопировано'; btn.style.background = '#00ff9d'; btn.style.color = '#000';
-    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; btn.style.color = ''; }, 1500);
-  };
-  if (navigator.clipboard) { navigator.clipboard.writeText(text).then(doCopy).catch(doCopy); }
-  else doCopy();
-};
-
 window.populateInviteRoles = function() {
   const select = document.getElementById('invite-role-select');
   const section = document.getElementById('invite-section');
@@ -2984,16 +2873,6 @@ window.revokeAdmin = async function() {
   if (!u || !confirm(`Снять админа @${u}?`)) return;
   try { await api('/admin/set-role', { method: 'POST', body: JSON.stringify({ username: u, role: 'user' }) }); alert('Готово'); }
   catch (e) { alert(e.message); }
-};
-window.searchUserIp = async function() {
-  const u = cleanUsernameInput(document.getElementById('hash-input').value);
-  if (!u) return;
-  try {
-    const res = await api('/users/search?q=' + encodeURIComponent(u));
-    const found = res.users ? res.users.find(x => x.username.toLowerCase() === u.toLowerCase()) : null;
-    document.getElementById('diagnostic-log').style.display = 'block';
-    document.getElementById('diagnostic-log').innerHTML = found ? `[Log] User: @${found.username}<br>[Log] IP: ${found.ip}<br>[Log] Role: ${found.role}` : `[Log] Не найден`;
-  } catch (e) { alert(e.message); }
 };
 
 function updatePageTitle() {
@@ -3299,17 +3178,14 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   } else headerBadge.innerHTML = '';
   
   const chatObj = state.chats.find(c => c.id === chatId);
-  const e2eeEnabled = chatObj ? chatObj.e2ee_enabled : false;
+  const e2eeEnabled = chatObj && !chatObj.isGroup; // E2EE всегда для личек
   const e2eeIndicator = document.getElementById('e2ee-indicator');
-  const e2eeToggle = document.getElementById('e2ee-toggle');
   
   if (e2eeEnabled) {
       e2eeIndicator.style.display = 'inline-block';
-      e2eeToggle.checked = true;
       await getE2EEKey(chatId);
   } else {
       e2eeIndicator.style.display = 'none';
-      e2eeToggle.checked = false;
   }
 
   const isCreator = !isGroup || (creatorId === state.me.id);
@@ -3381,13 +3257,12 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
     msgsEl.innerHTML = '';
     if (!msgs.length) msgsEl.innerHTML = '<div class="empty">Сообщений пока не было</div>';
     
-    // Рендерим сообщения с расшифровкой, если E2EE включено
     for (const m of msgs) {
         let displayText = m.text;
         if (m.is_encrypted && e2eeEnabled) {
             displayText = await decryptMessage(m.text, chatId);
         } else if (m.is_encrypted && !e2eeEnabled) {
-            displayText = "🔒 [Зашифровано. Включите E2EE для просмотра]";
+            displayText = "🔒 [Зашифровано. E2EE доступно только в личных сообщениях]";
         }
         appendMessage({ ...m, text: displayText }, false);
     }
@@ -3949,7 +3824,10 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
   let body = text;
   let isEncrypted = false;
   
-  if (state.currentChat.e2ee_enabled) {
+  const chatObj = state.chats.find(c => c.id === targetChatId);
+  const e2eeEnabled = chatObj && !chatObj.isGroup;
+  
+  if (e2eeEnabled) {
       body = await encryptMessage(text, targetChatId);
       isEncrypted = true;
   }
@@ -3968,7 +3846,6 @@ document.getElementById('composer').addEventListener('submit', async (e) => {
       body: JSON.stringify({ text: body, expires_in: currentExpiry, is_encrypted: isEncrypted })
     });
     if (state.currentChat && state.currentChat.id === targetChatId) {
-      // Локальное отображение расшифрованного текста
       msg.text = text;
       msg.is_encrypted = isEncrypted;
       appendMessage(msg);
@@ -4161,7 +4038,7 @@ document.getElementById('unblock-user-btn').addEventListener('click', async () =
 // ================= SOCKET =================
 function connectSocket() {
   if (state.socket) state.socket.disconnect();
-  state.socket = io({ auth: { token: state.token } });
+  state.socket = io({ withCredentials: true }); // Передача HttpOnly cookie
   
   state.socket.on('forceLogout', (data) => {
     state.socket.disconnect();
@@ -4202,13 +4079,14 @@ function connectSocket() {
     if (String(msg.sender.id) === String(state.me.id)) return;
     if (!state.chats.some(c => c.id === msg.chatId)) await loadChats();
     
-    // Расшифровка E2EE
     let displayText = msg.text;
     const chat = state.chats.find(c => c.id === msg.chatId);
-    if (msg.is_encrypted && chat && chat.e2ee_enabled) {
+    const e2eeEnabled = chat && !chat.isGroup;
+    
+    if (msg.is_encrypted && e2eeEnabled) {
         displayText = await decryptMessage(msg.text, msg.chatId);
-    } else if (msg.is_encrypted && (!chat || !chat.e2ee_enabled)) {
-        displayText = "🔒 [Зашифровано]";
+    } else if (msg.is_encrypted && !e2eeEnabled) {
+        displayText = "🔒 [Зашифровано. Доступно только в личных сообщениях]";
     }
     
     const finalMsg = { ...msg, text: displayText };
@@ -4336,26 +4214,18 @@ function connectSocket() {
       }
   });
 
-  state.socket.on('e2eeToggled', ({ chatId, enabled }) => {
-      if (state.currentChat && state.currentChat.id === chatId) {
-          state.currentChat.e2ee_enabled = enabled;
-          document.getElementById('e2ee-toggle').checked = enabled;
-          document.getElementById('e2ee-indicator').style.display = enabled ? 'inline-block' : 'none';
-          if (enabled) getE2EEKey(chatId);
-      }
-      const c = state.chats.find(x => x.id === chatId);
-      if (c) c.e2ee_enabled = enabled;
-  });
-
   state.socket.on('messageEdited', ({ messageId }) => {
     if (!state.currentChat) return;
     api('/chats/' + state.currentChat.id + '/messages').then(async msgs => {
       const box = document.getElementById('messages');
       if (!box) return;
       box.innerHTML = '';
+      const chat = state.chats.find(c => c.id === state.currentChat.id);
+      const e2eeEnabled = chat && !chat.isGroup;
+      
       for (const m of msgs) {
           let displayText = m.text;
-          if (m.is_encrypted && state.currentChat.e2ee_enabled) {
+          if (m.is_encrypted && e2eeEnabled) {
               displayText = await decryptMessage(m.text, state.currentChat.id);
           }
           appendMessage({ ...m, text: displayText }, false);
@@ -4848,9 +4718,15 @@ document.addEventListener('click', (e) => {
 });
 
 (async () => {
-  if (state.token) {
-    try { state.me = await api('/me'); state.read_deleted = state.me.read_deleted || false; enterChat(); }
-    catch (e) { if (e.message !== 'Banned') { localStorage.removeItem('scp_token'); state.token = null; } }
+  try { 
+      state.me = await api('/me'); 
+      state.read_deleted = state.me.read_deleted || false; 
+      enterChat(); 
+  }
+  catch (e) { 
+      if (e.message !== 'Banned') { 
+          // Если куки невалидны, ничего не делаем, пользователь увидит экран входа
+      } 
   }
 })();
 
