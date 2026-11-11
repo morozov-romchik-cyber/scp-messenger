@@ -137,34 +137,53 @@ let db = {
 let isS3Syncing = false;
 let pendingS3Sync = false;
 
+// УСТРАНЕНИЕ УЯЗВИМОСТИ: Асинхронная запись БД (чтобы не блокировать Event Loop)
+let isDbSaving = false;
+let pendingDbSave = false;
+
 const saveDb = () => {
+  if (isDbSaving) {
+      pendingDbSave = true;
+      return;
+  }
+  isDbSaving = true;
+  
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-    if (!S3_ENABLED || isS3Syncing) { 
-        if (isS3Syncing) pendingS3Sync = true; 
-        return; 
-    }
-    const upload = async () => {
-      isS3Syncing = true;
-      try {
-        await s3.send(new PutObjectCommand({ 
-            Bucket: S3_BUCKET, 
-            Key: 'database/scp-db.json', 
-            Body: JSON.stringify(db, null, 2), 
-            ContentType: 'application/json' 
-        }));
-      } catch (err) { 
-          serverLog('error', 'Ошибка сохранения БД в S3: ' + err.message); 
-      }
-      isS3Syncing = false;
-      if (pendingS3Sync) { 
-          pendingS3Sync = false; 
-          upload(); 
-      }
-    };
-    upload();
-  } catch (e) { 
-      serverLog('error', 'Ошибка локальной записи БД: ' + e.message); 
+    const data = JSON.stringify(db, null, 2);
+    
+    fs.writeFile(DB_FILE, data, (err) => {
+        if (err) {
+            serverLog('error', 'Ошибка локальной записи БД: ' + err.message);
+        }
+        
+        if (S3_ENABLED && !isS3Syncing) {
+            isS3Syncing = true;
+            s3.send(new PutObjectCommand({ 
+                Bucket: S3_BUCKET, 
+                Key: 'database/scp-db.json', 
+                Body: data, 
+                ContentType: 'application/json' 
+            }))
+            .catch(err => serverLog('error', 'Ошибка сохранения БД в S3: ' + err.message))
+            .finally(() => {
+                isS3Syncing = false;
+                if (pendingS3Sync) {
+                    pendingS3Sync = false;
+                }
+            });
+        } else if (S3_ENABLED && isS3Syncing) {
+            pendingS3Sync = true;
+        }
+        
+        isDbSaving = false;
+        if (pendingDbSave) {
+            pendingDbSave = false;
+            saveDb();
+        }
+    });
+  } catch (e) {
+      isDbSaving = false;
+      serverLog('error', 'Критическая ошибка при сериализации БД: ' + e.message);
   }
 };
 
@@ -1120,17 +1139,21 @@ app.post('/api/users/avatar', authMiddleware, uploadAvatar.single('avatar'), (re
         return res.status(400).json({ error: 'Файл не получен' });
     }
     
-    if (user.avatar_url) {
-      try { 
-          const oldPath = path.join(UPLOAD_DIR, user.avatar_url.split('?')[0].replace('/uploads/', '')); 
-          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); 
-      } catch (e) {}
-    }
+    // УСТРАНЕНИЕ УЯЗВИМОСТИ: Правильное удаление старого аватара при Race Condition
+    const newAvatarUrl = '/uploads/' + req.file.filename + '?v=' + Date.now();
+    const oldAvatarUrl = user.avatar_url;
     
-    user.avatar_url = '/uploads/' + req.file.filename + '?v=' + Date.now();
+    user.avatar_url = newAvatarUrl;
     saveDb(); 
     io.emit('refreshData'); 
     res.json(publicUser(user));
+    
+    if (oldAvatarUrl) {
+      try { 
+          const oldPath = path.join(UPLOAD_DIR, oldAvatarUrl.split('?')[0].replace('/uploads/', '')); 
+          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); 
+      } catch (e) {}
+    }
   } catch (e) { 
       res.status(500).json({ error: 'Ошибка загрузки аватара' }); 
   }
@@ -1915,8 +1938,8 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       expiresAt = Date.now() + seconds * 1000;
   }
 
-  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Увеличен лимит для Base64 и отключена санитизация для E2EE
-  const finalText = is_encrypted ? text.slice(0, 50000) : sanitizeString(text).slice(0, 4000);
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ: Увеличен лимит для Base64 (100000) и отключена санитизация для E2EE
+  const finalText = is_encrypted ? text.slice(0, 100000) : sanitizeString(text).slice(0, 4000);
 
   const msg = {
     id: msgId, 
@@ -2329,9 +2352,14 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
       return res.status(404).json({ error: 'Message not found' });
   }
   
+  // УСТРАНЕНИЕ УЯЗВИМОСТИ: IDOR в исходном чате
+  if (!db.chat_members.find(m => m.chat_id === src.chat_id && m.user_id === req.userId)) {
+      return res.status(403).json({ error: 'Вы не состоите в чате, откуда пересылается сообщение' });
+  }
+  
   const { chatId } = req.body;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) {
-      return res.status(403).json({ error: 'Not a member' });
+      return res.status(403).json({ error: 'Not a member of target chat' });
   }
   if (chatIsBlocked(chatId, req.userId)) {
       return res.status(403).json({ error: 'Пользователь заблокирован' });
@@ -2341,16 +2369,23 @@ app.post('/api/messages/:messageId/forward', authMiddleware, (req, res) => {
   const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   
-  if (targetChat && targetChat.is_group) {
-    if (targetChat.is_channel && targetChat.creator_id !== req.userId) {
-        return res.status(403).json({ error: 'Только создатель канала может пересылать' });
+  if (targetChat) {
+    // УСТРАНЕНИЕ УЯЗВИМОСТИ: Обход лимитов L5
+    if ((targetChat.required_clearance || 1) > myClearance) {
+        return res.status(403).json({ error: 'Недостаточный уровень допуска для пересылки в этот чат' });
     }
-    if (myClearance < (targetChat.min_write_clearance || 1)) {
-        return res.status(403).json({ error: 'Недостаточный уровень допуска' });
-    }
-    // УСТРАНЕНИЕ УЯЗВИМОСТИ: Запрет пересылки E2EE в группы
-    if (src.is_encrypted) {
-        return res.status(400).json({ error: 'Нельзя пересылать зашифрованные (E2EE) сообщения в групповые чаты.' });
+    
+    if (targetChat.is_group) {
+      if (targetChat.is_channel && targetChat.creator_id !== req.userId) {
+          return res.status(403).json({ error: 'Только создатель канала может пересылать' });
+      }
+      if (myClearance < (targetChat.min_write_clearance || 1)) {
+          return res.status(403).json({ error: 'Недостаточный уровень допуска' });
+      }
+      // Запрет пересылки E2EE в группы
+      if (src.is_encrypted) {
+          return res.status(400).json({ error: 'Нельзя пересылать зашифрованные (E2EE) сообщения в групповые чаты.' });
+      }
     }
   }
 
