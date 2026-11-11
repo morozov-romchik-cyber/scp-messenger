@@ -210,7 +210,6 @@ const logAdminAction = (adminId, action, targetId, details) => {
 };
 
 const app = express();
-// Доверяем прокси только если это указано в .env
 app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false); 
 app.disable('x-powered-by');
 
@@ -239,7 +238,6 @@ const allowedOrigins = [
 const io = new Server(server, { 
     cors: { 
         origin: function (origin, callback) {
-            // Разрешаем запросы без origin (например, мобильные приложения или Postman)
             if (!origin) return callback(null, true);
             if (allowedOrigins.indexOf(origin) !== -1) {
                 callback(null, true);
@@ -441,7 +439,7 @@ const chatIsBlocked = (chatId, myId) => {
   return db.blocks.some(b => (b.blocker === myId && b.blocked === otherId) || (b.blocker === otherId && b.blocked === myId));
 };
 
-// Единый интервал для удаления исчезающих сообщений (Защита от OOM)
+// Единый интервал для удаления исчезающих сообщений
 setInterval(() => {
     const now = Date.now();
     let changed = false;
@@ -1291,6 +1289,8 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     const isSelf = !c.is_group && members.length === 1 && members[0].user_id === req.userId;
     const otherId = isSelf ? req.userId : members.find(m => m.user_id !== req.userId)?.user_id;
     const other = otherId ? db.users.find(u => u.id === otherId) : null;
+    
+    const isHelperChat = !c.is_group && !isSelf && otherId === HELPER_ID;
 
     let chatName = 'Chat';
     let chatAvatar = null;
@@ -1336,6 +1336,14 @@ app.get('/api/chats', authMiddleware, (req, res) => {
     if (!c.is_group) {
         pinnedMessages = pinnedMessages.filter(p => p.forAll || p.pinnedBy === req.userId);
     }
+    
+    // Считаем непрочитанные сообщения
+    const unreadCount = db.messages.filter(m => 
+        m.chat_id === c.id && 
+        m.sender_id !== req.userId && 
+        (!m.read_by || !m.read_by.includes(req.userId)) &&
+        (!m.deleted_for || !m.deleted_for.includes(req.userId))
+    ).length;
 
     return {
       id: c.id, 
@@ -1354,14 +1362,15 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       creatorId: c.creator_id,
       isChannel: !!c.is_channel, 
       username: c.username || null,
-      isHelper: !c.is_group && !isSelf && otherId === HELPER_ID,
+      isHelper: isHelperChat,
       otherStatus: other && !c.is_group ? (other.custom_status || '') : '',
       status: other ? (other.status || 'offline') : 'offline',
       required_clearance: requiredClearance,
       min_write_clearance: c.min_write_clearance || 1,
       canAccess: canAccess,
       pinned_messages: pinnedMessages,
-      e2ee_enabled: c.is_group ? false : true 
+      e2ee_enabled: (c.is_group || isHelperChat) ? false : true, // Отключаем E2EE для бота
+      unreadCount: unreadCount
     };
   });
   res.json(chats);
@@ -1932,7 +1941,9 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       return res.status(400).json({ error: 'Empty message' });
   }
 
-  if (!chatForCheck.is_group && !is_encrypted) {
+  const isHelperChat = !chatForCheck.is_group && db.chat_members.some(m => m.chat_id === chatId && m.user_id === HELPER_ID);
+  
+  if (!chatForCheck.is_group && !is_encrypted && !isHelperChat) {
       return res.status(400).json({ error: 'Для личных сообщений требуется сквозное шифрование (E2EE).' });
   }
 
@@ -2014,7 +2025,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       return res.status(400).json({ error: 'Сообщение заблокировано автоматической системой безопасности Фонда (Упоминание запрещенных тем).', autoHidden: true });
   }
 
-  const isHelperChat = !chatForCheck.is_group && db.chat_members.some(m => m.chat_id === chatId && m.user_id === HELPER_ID);
   if (isHelperChat && me.id !== HELPER_ID) {
       const cmd = text.trim().toLowerCase();
       let botReplyText = '';
