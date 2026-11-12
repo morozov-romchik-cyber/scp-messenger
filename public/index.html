@@ -243,6 +243,9 @@
 
   #user-banned-banner { display: none; background: #ff3333; color: #ffffff; padding: 10px 16px; font-size: 13px; font-weight: bold; font-family: 'Fira Code', monospace; text-align: center; border-bottom: 1px solid #4a1515; z-index: 10; }
 
+  /* НОВОЕ: Баннер Локдауна */
+  #lockdown-banner { display: none; background: #ff0000; color: #fff; text-align: center; padding: 5px; font-weight: bold; font-family: 'Fira Code'; font-size: 12px; letter-spacing: 2px; animation: pulseRed 1s infinite; z-index: 100; position: relative; }
+
   #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; position: relative; z-index: 2; }
   .msg-row { display: flex; gap: 12px; align-items: flex-end; max-width: 85%; position: relative; cursor: pointer; border-radius: 8px; transition: background 0.2s; }
   .msg-row.mine { align-self: flex-end; flex-direction: row-reverse; }
@@ -265,6 +268,22 @@
   .msg .reply-quote:hover { background: rgba(0, 0, 0, 0.2); }
   .msg .reply-quote .rq-name { color: var(--accent); font-weight: 600; margin-bottom: 2px; font-family: 'Fira Code', monospace; }
   .msg .reply-quote .rq-text { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* НОВОЕ: Стили для спойлеров */
+  .spoiler {
+      background: var(--border);
+      color: transparent;
+      border-radius: 3px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+      padding: 0 4px;
+  }
+  .spoiler.revealed {
+      background: rgba(0,0,0,0.2);
+      color: var(--text);
+      user-select: text;
+  }
 
   /* СТИЛИ ОПРОСОВ */
   .poll-container { margin-top: 8px; background: rgba(0,0,0,0.1); border: 1px solid var(--border); border-radius: 8px; padding: 10px; width: 280px; }
@@ -774,6 +793,14 @@
           <div id="invite-result" style="font-family: 'Fira Code'; font-size: 14px; color: var(--admin-green); margin-top: 10px;"></div>
           <div id="invite-hint" style="font-size: 12px; color: var(--admin-text); margin-top: 8px; font-family: 'Fira Code';"></div>
         </div>
+        
+        <!-- НОВОЕ: Блок Локдауна -->
+        <div class="admin-section" style="border-color: #ff3333;">
+            <h4 style="color: #ff3333;">🚨 Протокол изоляции (SCP-5000)</h4>
+            <p style="font-size: 12px; color: var(--admin-text); margin-bottom: 15px;">Блокирует отправку сообщений всем, кроме Уровня 5.</p>
+            <button class="admin-btn admin-btn-danger" onclick="toggleLockdown()" style="width: 100%;">АКТИВИРОВАТЬ / СНЯТЬ ЛОКДАУН</button>
+        </div>
+
         <div class="admin-section" style="border-color: var(--admin-accent); background: rgba(255, 51, 51, 0.05);">
           <h4 style="color: var(--admin-accent); border-bottom-color: var(--admin-accent);">⚠️ Опасная зона</h4>
           <p style="font-size: 12px; color: var(--admin-accent); margin-bottom: 15px;">Удалит <b>ВСЕ сообщения и файлы</b>.</p>
@@ -1191,6 +1218,9 @@
 
     <div id="user-banned-banner">⛔ Пользователь заблокирован</div>
     <div id="blocked-banner" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; z-index: 10;">Пользователь заблокирован вами</div>
+
+    <!-- НОВОЕ: Баннер Локдауна -->
+    <div id="lockdown-banner">🚨 ВНИМАНИЕ: АКТИВЕН ПРОТОКОЛ ЛОКДАУН (SCP-5000) 🚨</div>
 
     <div id="messages"><div class="empty">⚡ КАНАЛ НЕ ВЫБРАН</div></div>
     
@@ -2645,6 +2675,16 @@ window.setClearance = async function() {
   } catch (e) { alert(e.message); }
 };
 
+// НОВОЕ: Переключатель Локдауна
+window.toggleLockdown = async function() {
+    if (!confirm('Изменить статус Локдауна?')) return;
+    try {
+        const res = await api('/admin/toggle-lockdown', { method: 'POST' });
+        alert(res.is_lockdown ? 'ЛОКДАУН АКТИВИРОВАН' : 'ЛОКДАУН СНЯТ');
+        document.getElementById('lockdown-banner').style.display = res.is_lockdown ? 'block' : 'none';
+    } catch(e) { alert(e.message); }
+};
+
 // ================= REPORTS =================
 window.toggleCustomReason = function(val) {
   const el = document.getElementById('report-custom-text');
@@ -3340,6 +3380,9 @@ function formatMessageText(rawText) {
   text = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   text = text.replace(/\*(.*?)\*/g, '<i>$1</i>');
   
+  // НОВОЕ: Спойлеры ||текст||
+  text = text.replace(/\|\|(.*?)\|\|/g, '<span class="spoiler" onclick="this.classList.add(\'revealed\')">$1</span>');
+
   const linkRegex = /(?<!href=")((?:https?:\/\/|scp\.me\/|scp\.group\/)[^\s<"]+)/g;
   text = text.replace(linkRegex, function(url) {
     if (url.startsWith('scp.me/join/') || url.startsWith('scp.me/')) {
@@ -3610,7 +3653,7 @@ function appendMessage(msg, scroll = true, insertBefore = null) {
   const startPress = (e) => {
     if (msg.is_deleted) return;
     if (isSelectionMode) return;
-    if (['IMG','VIDEO','AUDIO','A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip, .reply-quote, .msg-reaction, .scp-card, .poll-container, .voice-play-btn, .voice-progress-wrapper')) return;
+    if (['IMG','VIDEO','AUDIO','A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip, .reply-quote, .msg-reaction, .scp-card, .poll-container, .voice-play-btn, .voice-progress-wrapper, .spoiler')) return;
     
     const touch = e.touches ? e.touches[0] : e;
     startX = touch.clientX;
@@ -3633,7 +3676,7 @@ function appendMessage(msg, scroll = true, insertBefore = null) {
       e.preventDefault();
       if (msg.is_deleted) return;
       if (isSelectionMode) return;
-      if (['IMG','VIDEO','AUDIO','A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip, .reply-quote, .msg-reaction, .scp-card, .poll-container, .voice-play-btn, .voice-progress-wrapper')) return;
+      if (['IMG','VIDEO','AUDIO','A'].includes(e.target.tagName) || e.target.closest('video, audio, a, .att-chip, .reply-quote, .msg-reaction, .scp-card, .poll-container, .voice-play-btn, .voice-progress-wrapper, .spoiler')) return;
       openMsgActions(msg);
   });
   
@@ -4231,6 +4274,19 @@ function connectSocket() {
   state.socket.on('roleChanged', async () => {
     try { state.me = await api('/me'); enterChat(); if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList(); } catch (e) {}
   });
+
+  // НОВОЕ: Слушатель Локдауна
+  state.socket.on('lockdownToggled', (isLockdown) => {
+      document.getElementById('lockdown-banner').style.display = isLockdown ? 'block' : 'none';
+      if (isLockdown && state.me.clearance_level < 5) {
+          document.getElementById('composer').style.display = 'none';
+      } else {
+          const c = state.currentChat;
+          if (c && !c.isBlocked && (!c.isChannel || c.creatorId === state.me.id)) {
+              document.getElementById('composer').style.display = 'flex';
+          }
+      }
+  });
   
   let refreshTimeout;
   state.socket.on('refreshData', () => {
@@ -4533,7 +4589,6 @@ function renderAttViewer() {
   } else if (mime.startsWith('audio/')) {
     body.innerHTML = `<audio src="${escAttr(url)}" controls autoplay style="width: 100%;"></audio>`;
   } else {
-    // ИСПРАВЛЕНИЕ: Используем вызов функции для принудительного скачивания
     body.innerHTML = `<div style="text-align: center; padding: 20px;"><div style="font-size: 48px; margin-bottom: 15px;">${getAttIcon(a)}</div><button class="modal-btn" onclick="forceDownloadFile('${escAttr(url)}', '${escAttr(a.name || 'file')}')" style="display: inline-flex; justify-content: center; padding: 10px 20px; background: var(--accent); color: var(--bg); border-radius: 6px; text-decoration: none; font-weight: 600; width: auto;">📥 Скачать (${formatSize(a.size)})</button></div>`;
   }
   const nav = document.getElementById('att-viewer-nav');
@@ -4543,7 +4598,6 @@ function renderAttViewer() {
   } else { nav.style.display = 'none'; nav.innerHTML = ''; }
 }
 
-// ИСПРАВЛЕНИЕ: Функция для принудительного скачивания файлов через Blob
 window.forceDownloadFile = async function(url, filename) {
     try {
         const response = await fetch(url);
