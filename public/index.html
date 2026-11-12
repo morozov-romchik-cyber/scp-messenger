@@ -2489,13 +2489,8 @@ document.getElementById('header-avatar').addEventListener('click', () => {
 // ИСПРАВЛЕННЫЙ ОБРАБОТЧИК КНОПКИ ВЫХОДА
 document.getElementById('logout-btn').addEventListener('click', async () => { 
     try {
-        // Отправляем POST-запрос на сервер, чтобы он удалил HttpOnly cookie
         await api('/logout', { method: 'POST' });
-        
-        // Отключаем сокет
         if (state.socket) state.socket.disconnect();
-        
-        // Принудительно перезагружаем страницу
         window.location.href = '/'; 
     } catch (e) {
         console.error('Ошибка при выходе:', e);
@@ -4538,7 +4533,8 @@ function renderAttViewer() {
   } else if (mime.startsWith('audio/')) {
     body.innerHTML = `<audio src="${escAttr(url)}" controls autoplay style="width: 100%;"></audio>`;
   } else {
-    body.innerHTML = `<div style="text-align: center; padding: 20px;"><div style="font-size: 48px; margin-bottom: 15px;">${getAttIcon(a)}</div><a href="${escAttr(url)}" target="_blank" download="${escAttr(a.name || 'file')}" style="display: inline-flex; justify-content: center; padding: 10px 20px; background: var(--accent); color: var(--bg); border-radius: 6px; text-decoration: none; font-weight: 600;">📥 Скачать (${formatSize(a.size)})</a></div>`;
+    // ИСПРАВЛЕНИЕ: Используем вызов функции для принудительного скачивания
+    body.innerHTML = `<div style="text-align: center; padding: 20px;"><div style="font-size: 48px; margin-bottom: 15px;">${getAttIcon(a)}</div><button class="modal-btn" onclick="forceDownloadFile('${escAttr(url)}', '${escAttr(a.name || 'file')}')" style="display: inline-flex; justify-content: center; padding: 10px 20px; background: var(--accent); color: var(--bg); border-radius: 6px; text-decoration: none; font-weight: 600; width: auto;">📥 Скачать (${formatSize(a.size)})</button></div>`;
   }
   const nav = document.getElementById('att-viewer-nav');
   if (attachments.length > 1) {
@@ -4546,6 +4542,29 @@ function renderAttViewer() {
     nav.innerHTML = `<button class="admin-btn" onclick="navAttViewer(-1)" ${index === 0 ? 'disabled' : ''} style="padding: 4px 10px;">←</button><span>${index + 1} / ${attachments.length}</span><button class="admin-btn" onclick="navAttViewer(1)" ${index === attachments.length - 1 ? 'disabled' : ''} style="padding: 4px 10px;">→</button>`;
   } else { nav.style.display = 'none'; nav.innerHTML = ''; }
 }
+
+// ИСПРАВЛЕНИЕ: Функция для принудительного скачивания файлов через Blob
+window.forceDownloadFile = async function(url, filename) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Ошибка сети');
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        
+        URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+        console.error(e);
+        window.open(url, '_blank');
+    }
+};
+
 function formatSize(b) { if (!b) return '0 B'; const u = ['B','KB','MB','GB']; let i = 0, n = b; while (n >= 1024 && i < u.length-1) { n /= 1024; i++; } return n.toFixed(1) + ' ' + u[i]; }
 function getAttIcon(a) {
   const m = a.mime || ''; const n = (a.name || '').toLowerCase();
