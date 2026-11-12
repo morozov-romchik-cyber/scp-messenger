@@ -1313,7 +1313,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
 
     if (c.is_group) { 
         chatName = c.name || 'Групповой чат'; 
-        chatAvatar = c.avatar_url || null; // <--- ДОБАВЛЕНО ДЛЯ ГРУПП
+        chatAvatar = c.avatar_url || null;
     }
     else if (isSelf) { 
         chatName = 'Избранное'; 
@@ -1384,7 +1384,8 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       canAccess: canAccess,
       pinned_messages: pinnedMessages,
       e2ee_enabled: (c.is_group || isHelperChat) ? false : true,
-      unreadCount: unreadCount
+      unreadCount: unreadCount,
+      description: c.description || ''
     };
   });
   res.json(chats);
@@ -1503,8 +1504,8 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
       required_clearance: reqClearance, 
       min_write_clearance: writeClearance, 
       pinned_messages: [],
-      description: '', // <--- ДОБАВЛЕНО
-      avatar_url: null // <--- ДОБАВЛЕНО
+      description: '',
+      avatar_url: null
     });
 
     const groupId = genId();
@@ -1519,8 +1520,8 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
       required_clearance: reqClearance, 
       min_write_clearance: writeClearance, 
       pinned_messages: [],
-      description: '', // <--- ДОБАВЛЕНО
-      avatar_url: null // <--- ДОБАВЛЕНО
+      description: '',
+      avatar_url: null
     });
 
     uniqueMembers.forEach(uid => {
@@ -1567,8 +1568,8 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     required_clearance: reqClearance, 
     min_write_clearance: writeClearance, 
     pinned_messages: [],
-    description: '', // <--- ДОБАВЛЕНО
-    avatar_url: null // <--- ДОБАВЛЕНО
+    description: '',
+    avatar_url: null
   });
   
   uniqueMembers.forEach(uid => {
@@ -2643,7 +2644,6 @@ app.post('/api/messages/:messageId/react', authMiddleware, (req, res) => {
   res.json({ ok: true, reactions: msg.reactions });
 });
 
-// ИСПРАВЛЕННЫЙ МАРШРУТ РЕДАКТИРОВАНИЯ (ТРАНСЛИРУЕТ ПОЛНЫЙ ПАКЕТ)
 app.put('/api/messages/:messageId', authMiddleware, (req, res) => {
   const msg = db.messages.find(m => m.id === req.params.messageId);
   
@@ -2668,7 +2668,6 @@ app.put('/api/messages/:messageId', authMiddleware, (req, res) => {
   
   saveDb();
   
-  // Отправляем полный пакет данных, чтобы клиент мог расшифровать (если E2EE) и обновить UI
   const payload = buildMessagePayload(msg); 
   emitToChatMembers(msg.chat_id, 'messageEdited', payload); 
   
@@ -2852,7 +2851,6 @@ app.post('/api/login', async (req, res) => {
     }
 
     const user = findUserByUsername(username);
-    // Проверка на существование хэша пароля, чтобы избежать падения
     if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
         return res.status(401).json({ error: 'Неверный ник или пароль' });
     }
@@ -2903,6 +2901,18 @@ app.post('/api/login', async (req, res) => {
   } catch (e) { 
       res.status(500).json({ error: 'Ошибка при входе' }); 
   }
+});
+
+// ================= LOGOUT =================
+app.post('/api/logout', (req, res) => {
+    // Очищаем cookie с теми же параметрами, с которыми она устанавливалась
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/' 
+    });
+    res.json({ ok: true });
 });
 
 const parseCookies = (cookieHeader) => {
