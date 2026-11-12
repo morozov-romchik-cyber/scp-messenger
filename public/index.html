@@ -2485,10 +2485,24 @@ document.getElementById('header-avatar').addEventListener('click', () => {
     openProfile(state.currentChat.otherUserId);
   }
 });
-document.getElementById('logout-btn').addEventListener('click', () => { 
-    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.reload(); 
+
+// ИСПРАВЛЕННЫЙ ОБРАБОТЧИК КНОПКИ ВЫХОДА
+document.getElementById('logout-btn').addEventListener('click', async () => { 
+    try {
+        // Отправляем POST-запрос на сервер, чтобы он удалил HttpOnly cookie
+        await api('/logout', { method: 'POST' });
+        
+        // Отключаем сокет
+        if (state.socket) state.socket.disconnect();
+        
+        // Принудительно перезагружаем страницу
+        window.location.href = '/'; 
+    } catch (e) {
+        console.error('Ошибка при выходе:', e);
+        window.location.href = '/'; 
+    }
 });
+
 document.getElementById('delete-account-btn').addEventListener('click', async () => {
   if (!confirm('Удалить аккаунт?')) return;
   try { await api('/users/me', { method: 'DELETE' }); window.location.reload(); } catch (e) { alert(e.message); }
@@ -3398,7 +3412,6 @@ window.reactToActiveMsg = async function(emoji) {
   } catch (e) { alert(e.message); }
 };
 
-// ИСПРАВЛЕНО: Шифрование при редактировании + сохранение цитаты (ответа)
 document.getElementById('msg-edit-btn').addEventListener('click', async () => {
   const msg = state.activeMsg;
   if (!msg) return;
@@ -3409,14 +3422,12 @@ document.getElementById('msg-edit-btn').addEventListener('click', async () => {
 
   let finalText = newText;
   
-  // Шифруем текст, если чат защищен E2EE
   const chatObj = state.chats.find(c => c.id === state.currentChat.id);
   const e2eeEnabled = chatObj && chatObj.e2ee_enabled;
   if (e2eeEnabled) {
       finalText = await encryptMessage(newText, state.currentChat.id);
   }
 
-  // Сохраняем цитату (ответ), если она была
   if (msg.text.startsWith('> ')) {
       const quoteLine = msg.text.split('\n')[0];
       finalText = quoteLine + '\n' + finalText;
@@ -4383,7 +4394,6 @@ function connectSocket() {
       }
   });
 
-  // ИСПРАВЛЕНО: Обработка отредактированного сообщения с полным пакетом и E2EE
   state.socket.on('messageEdited', async (updatedMsg) => {
     const el = document.getElementById('msg-' + updatedMsg.id);
     if (!el) return;
