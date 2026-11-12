@@ -89,7 +89,7 @@
     transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, fill 0.4s ease !important;
   }
 
-  /* Сезонные цвета (адаптированы под базовые) */
+  /* Сезонные цвета */
   [data-theme="black"][data-season="spring"], [data-theme="gray"][data-season="spring"], [data-theme="dark-blue"][data-season="spring"], [data-theme="dark-green"][data-season="spring"] { --hill-color: #182a1c; --tree-color: #223c28; --ground-color: #2e4d34; }
   [data-theme="black"][data-season="summer"], [data-theme="gray"][data-season="summer"], [data-theme="dark-blue"][data-season="summer"], [data-theme="dark-green"][data-season="summer"] { --hill-color: #142417; --tree-color: #1e3622; --ground-color: #28462d; }
   [data-theme="black"][data-season="autumn"], [data-theme="gray"][data-season="autumn"], [data-theme="dark-blue"][data-season="autumn"], [data-theme="dark-green"][data-season="autumn"] { --hill-color: #2a1a10; --tree-color: #3e2211; --ground-color: #4e2c16; }
@@ -875,9 +875,10 @@
 
 <div class="modal" id="add-member-modal">
   <div class="modal-content" style="height: 70vh; display: flex; flex-direction: column;">
-    <h3>ДОБАВИТЬ В ГРУППУ</h3>
+    <h3>ПРИГЛАСИТЬ В ГРУППУ</h3>
+    <p style="font-size: 11px; color: var(--muted); margin-bottom: 10px; text-align: center;">Пользователям придет приватная ссылка от SCP_Helper</p>
     <div id="add-member-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
-    <button class="modal-btn" onclick="submitAddMembers()" style="background: var(--accent); color: var(--bg); margin-bottom: 10px; flex-shrink: 0;">Добавить выбранных</button>
+    <button class="modal-btn" onclick="submitAddMembers()" style="background: var(--accent); color: var(--bg); margin-bottom: 10px; flex-shrink: 0;">Отправить приглашения</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('add-member-modal').classList.remove('visible')">Отмена</button>
   </div>
 </div>
@@ -974,6 +975,20 @@
       <button class="modal-btn" onclick="setChannelUsername()" style="margin-top:0; padding:8px;">Установить ссылку</button>
     </div>
     
+    <!-- НОВОЕ: Настройки канала (Описание и Аватар) -->
+    <div id="channel-custom-settings" style="display:none; margin-bottom: 15px; border-bottom: 1px dashed var(--border); padding-bottom: 15px;">
+      <div style="font-weight: bold; color: var(--accent); margin-bottom: 10px;">Настройки канала</div>
+      
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+        <img id="chat-settings-avatar" src="" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); display: none;" />
+        <button class="modal-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;" onclick="document.getElementById('chat-avatar-input').click()">Загрузить аватар</button>
+        <input type="file" id="chat-avatar-input" accept="image/*" hidden>
+      </div>
+
+      <textarea id="chat-description-input" placeholder="Описание канала..." style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; font-family: inherit; outline: none; resize: vertical; min-height: 60px; margin-bottom: 8px;"></textarea>
+      <button class="modal-btn" onclick="saveChannelSettings()" style="margin-top:0; padding:8px; background: var(--link-blue); color: #fff;">Сохранить настройки</button>
+    </div>
+
     <div class="admin-toggle-row" style="margin-bottom: 15px; padding: 10px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); cursor: not-allowed; opacity: 0.8;">
         <span style="color: var(--accent); font-weight: bold;">🔒 Сквозное шифрование (E2EE)</span>
         <span style="color: var(--online-green); font-size: 12px; font-weight: bold;">ВСЕГДА ВКЛ</span>
@@ -1288,7 +1303,6 @@ let dataArray;
 let recStream;
 let currentExpiryTimeout;
 
-// E2EE Ключи (кэш для каждого чата отдельно)
 let e2eeKeys = {};
 
 function clearanceBadge(level) {
@@ -2466,7 +2480,6 @@ window.openProfile = async function(userId) {
     if (u.status === 'online') { onlineEl.textContent = '🟢 В сети'; onlineEl.style.color = 'var(--online-green)'; }
     else { onlineEl.textContent = '⚪ Не в сети'; onlineEl.style.color = 'var(--muted)'; }
     const banEl = document.getElementById('profile-ban');
-    // ИСПРАВЛЕНИЕ: Проверка на число
     if (u.ban_expires && Number(u.ban_expires) !== 0) { banEl.style.display = 'block'; banEl.textContent = `⛔ Заблокирован`; }
     else banEl.style.display = 'none';
     document.getElementById('profile-modal').classList.add('visible');
@@ -2988,7 +3001,7 @@ window.createGroup = async function() {
   } catch (e) { alert(e.message); }
 };
 
-// ================= ADD MEMBERS =================
+// ================= ADD MEMBERS (INVITE) =================
 window.openAddMemberModal = async function() {
     if (!state.currentChat?.isGroup || state.currentChat.creatorId !== state.me.id) return;
     const list = document.getElementById('add-member-list');
@@ -3000,7 +3013,7 @@ window.openAddMemberModal = async function() {
         const currentIds = currentMembers.map(m => m.id);
         const available = allUsers.filter(u => !currentIds.includes(u.id));
 
-        if (!available.length) { list.innerHTML = '<div class="empty">Некого добавлять</div>'; return; }
+        if (!available.length) { list.innerHTML = '<div class="empty">Некого приглашать</div>'; return; }
 
         list.innerHTML = available.map(u => {
             const initial = esc((u.displayName || u.username || '?')[0].toUpperCase());
@@ -3023,10 +3036,10 @@ window.submitAddMembers = async function() {
     const userIds = Array.from(checkboxes).map(cb => cb.value);
     if (!userIds.length) return alert('Выберите участников');
     try {
-        await api('/chats/' + state.currentChat.id + '/add-members', { method: 'POST', body: JSON.stringify({ userIds }) });
+        // ИЗМЕНЕНО: Вызываем /invite вместо /add-members
+        await api('/chats/' + state.currentChat.id + '/invite', { method: 'POST', body: JSON.stringify({ userIds }) });
         document.getElementById('add-member-modal').classList.remove('visible');
-        alert('Участники добавлены');
-        document.getElementById('group-members-btn').click();
+        alert('Приглашения отправлены пользователям в личные сообщения!');
         loadChats();
     } catch (e) { alert(e.message); }
 };
@@ -3090,7 +3103,6 @@ function renderChatList() {
     if (c.isHelper) checkmarkHtml = `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: var(--link-blue); display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
     if (c.role && c.role !== 'user' && !c.isGroup) roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 4px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
     
-    // ИСПРАВЛЕНИЕ: Проверка на число
     const isBanned = c.ban_expires && Number(c.ban_expires) !== 0 && (Number(c.ban_expires) === -1 || Number(c.ban_expires) > Date.now());
     const draftText = chatDrafts[c.id];
     let previewHtml = '';
@@ -3224,7 +3236,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   else blockedBanner.style.display = 'none';
   
   const userBannedBanner = document.getElementById('user-banned-banner');
-  // ИСПРАВЛЕНИЕ: Проверка на число
   const isBanned = ban_expires && Number(ban_expires) !== 0 && (Number(ban_expires) === -1 || Number(ban_expires) > Date.now());
   if (isBanned) { userBannedBanner.style.display = 'block'; userBannedBanner.textContent = `⛔ Заблокирован (${Number(ban_expires) === -1 ? 'НАВСЕГДА' : 'до ' + new Date(Number(ban_expires)).toLocaleString()})`; }
   else userBannedBanner.style.display = 'none';
@@ -3241,6 +3252,8 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   
   const channelLinkBox = document.getElementById('channel-link-box');
   const setChannelSection = document.getElementById('set-channel-username-section');
+  const channelCustomSettings = document.getElementById('channel-custom-settings');
+  
   if (isChannel) {
     channelLinkBox.style.display = 'block';
     if (username) {
@@ -3250,13 +3263,25 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
       document.getElementById('channel-link-text').textContent = 'Не задана';
       setChannelSection.style.display = isCreator ? 'block' : 'none';
     }
+    // Настройки канала
+    if (isCreator) {
+        channelCustomSettings.style.display = 'block';
+        const c = state.chats.find(x => x.id === chatId);
+        const avatarImg = document.getElementById('chat-settings-avatar');
+        if (c && c.avatarUrl) { avatarImg.src = c.avatarUrl; avatarImg.style.display = 'block'; } else avatarImg.style.display = 'none';
+        document.getElementById('chat-description-input').value = c ? (c.description || '') : '';
+    } else {
+        channelCustomSettings.style.display = 'none';
+    }
   } else {
     channelLinkBox.style.display = 'none';
     setChannelSection.style.display = 'none';
+    channelCustomSettings.style.display = 'none';
   }
   
   const headerAvatar = document.getElementById('header-avatar');
   if (avatarUrl && !isGroup) { headerAvatar.src = avatarUrl; headerAvatar.style.display = 'block'; headerAvatar.onerror = () => { headerAvatar.style.display = 'none'; }; }
+  else if (avatarUrl && isGroup) { headerAvatar.src = avatarUrl; headerAvatar.style.display = 'block'; headerAvatar.onerror = () => { headerAvatar.style.display = 'none'; }; }
   else headerAvatar.style.display = 'none';
   
   const inputEl = document.getElementById('msg-input');
@@ -3317,7 +3342,7 @@ function formatMessageText(rawText) {
   
   const linkRegex = /(?<!href=")((?:https?:\/\/|scp\.me\/|scp\.group\/)[^\s<"]+)/g;
   text = text.replace(linkRegex, function(url) {
-    if (url.startsWith('scp.')) {
+    if (url.startsWith('scp.me/join/') || url.startsWith('scp.me/')) {
         return `<a href="#" style="color: var(--link-blue); text-decoration: underline;" onclick="event.stopPropagation(); openLinkChat('${url}')">${url}</a>`;
     } else {
         return `<a href="${url}" target="_blank" style="color: var(--link-blue); text-decoration: underline;" onclick="event.stopPropagation();">${url}</a>`;
@@ -3422,7 +3447,6 @@ function renderPollHtml(msgId, poll, isSelfChat, meId) {
 
         const clickHandler = (!isQuiz || !hasVoted) ? `onclick="event.stopPropagation(); votePoll('${msgId}', ${idx})"` : '';
         
-        // СКРЫВАЕМ ПРОЦЕНТЫ ДЛЯ ВИКТОРИНЫ
         const displayBar = isQuiz ? '' : `<div class="poll-option-bar" style="width: ${pct}%;"></div>`;
         const displayPct = isQuiz ? '' : `<span class="poll-option-pct">${pct}%</span>`;
 
@@ -3432,7 +3456,6 @@ function renderPollHtml(msgId, poll, isSelfChat, meId) {
         </div>`;
     }).join('');
 
-    // СКРЫВАЕМ ОБЩЕЕ КОЛИЧЕСТВО ГОЛОСОВ ДЛЯ ВИКТОРИНЫ
     const footerText = isQuiz ? '' : `Всего голосов: ${totalVotes}`;
 
     return `<div class="poll-container" onclick="event.stopPropagation();">
@@ -3625,11 +3648,26 @@ window.scrollToMsg = function(msgId) {
 };
 
 window.openLinkChat = async function(link) {
-  const un = link.split('/')[1];
-  try {
-    const chat = await api(`/chats/resolve/${un}`);
-    if (chat) { await loadChats(); openChat(chat.id, chat.name, null, false, null, 0, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, false, false, false, chat.required_clearance, true); }
-  } catch (e) { alert(e.message); }
+  if (link.includes('/join/')) {
+      const token = link.split('/').pop();
+      try {
+          const res = await api(`/chats/join/${token}`);
+          if (res.ok && res.chatId) {
+              await loadChats();
+              const chat = state.chats.find(c => c.id === res.chatId);
+              if (chat) {
+                  openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem, chat.required_clearance, chat.canAccess);
+                  alert('Вы успешно присоединились к каналу/группе!');
+              }
+          }
+      } catch(e) { alert(e.message); }
+  } else {
+      const un = link.split('/')[1];
+      try {
+        const chat = await api(`/chats/resolve/${un}`);
+        if (chat) { await loadChats(); openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem, chat.required_clearance, chat.canAccess); }
+      } catch (e) { alert(e.message); }
+  }
 };
 
 function openMsgActions(msg) {
@@ -4103,6 +4141,42 @@ window.setChannelUsername = async function() {
     loadChats();
   } catch (e) { alert(e.message); }
 };
+
+// НОВОЕ: Загрузка аватарки канала
+document.getElementById('chat-avatar-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file || !state.currentChat) return;
+    const fd = new FormData();
+    fd.append('avatar', file);
+    try {
+        const res = await fetch(`/api/chats/${state.currentChat.id}/avatar`, { method: 'POST', credentials: 'include', body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Ошибка загрузки');
+        alert('Аватар канала обновлен!');
+        await loadChats();
+        const chat = state.chats.find(c => c.id === state.currentChat.id);
+        if (chat) {
+            state.currentChat.avatarUrl = data.avatarUrl;
+            const headerAvatar = document.getElementById('header-avatar');
+            if (headerAvatar) headerAvatar.src = data.avatarUrl;
+            const settingsAvatar = document.getElementById('chat-settings-avatar');
+            if (settingsAvatar) settingsAvatar.src = data.avatarUrl;
+        }
+    } catch (err) { alert(err.message); }
+});
+
+// НОВОЕ: Сохранение настроек канала (описание)
+window.saveChannelSettings = async function() {
+    if (!state.currentChat?.isChannel) return;
+    const desc = document.getElementById('chat-description-input').value.trim();
+    try {
+        await api(`/chats/${state.currentChat.id}/settings`, { method: 'PUT', body: JSON.stringify({ description: desc }) });
+        alert('Описание сохранено!');
+        document.getElementById('chat-settings-modal').classList.remove('visible');
+        loadChats();
+    } catch(e) { alert(e.message); }
+};
+
 document.getElementById('block-user-btn').addEventListener('click', async () => {
   if (!state.currentChat?.otherUserId) return;
   if (!confirm('Заблокировать?')) return;
