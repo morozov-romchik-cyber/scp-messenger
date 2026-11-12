@@ -141,7 +141,8 @@ let db = {
     banned_ips: [], 
     invite_codes: [], 
     reports: [], 
-    audit_logs: [] 
+    audit_logs: [],
+    chat_invites: [] // <--- Добавлено для приватных ссылок
 };
 
 let isS3Syncing = false;
@@ -275,7 +276,7 @@ const publicUser = (u) => ({
   ip: u.ip || 'Скрыт', 
   role: u.role || 'user', 
   invited_by: u.invited_by || null, 
-  ban_expires: Number(u.ban_expires) || 0, // ИСПРАВЛЕНО: Строгая конвертация в число
+  ban_expires: Number(u.ban_expires) || 0, 
   ban_reason: u.ban_reason || '',
   custom_status: u.custom_status || '',
   clearance_level: u.clearance_level || ROLE_TO_CLEARANCE[u.role] || 1,
@@ -1312,6 +1313,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
 
     if (c.is_group) { 
         chatName = c.name || 'Групповой чат'; 
+        chatAvatar = c.avatar_url || null; // <--- ДОБАВЛЕНО ДЛЯ ГРУПП
     }
     else if (isSelf) { 
         chatName = 'Избранное'; 
@@ -1500,7 +1502,9 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
       creator_id: req.userId,
       required_clearance: reqClearance, 
       min_write_clearance: writeClearance, 
-      pinned_messages: []
+      pinned_messages: [],
+      description: '', // <--- ДОБАВЛЕНО
+      avatar_url: null // <--- ДОБАВЛЕНО
     });
 
     const groupId = genId();
@@ -1514,7 +1518,9 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
       creator_id: req.userId,
       required_clearance: reqClearance, 
       min_write_clearance: writeClearance, 
-      pinned_messages: []
+      pinned_messages: [],
+      description: '', // <--- ДОБАВЛЕНО
+      avatar_url: null // <--- ДОБАВЛЕНО
     });
 
     uniqueMembers.forEach(uid => {
@@ -1560,7 +1566,9 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     creator_id: req.userId,
     required_clearance: reqClearance, 
     min_write_clearance: writeClearance, 
-    pinned_messages: []
+    pinned_messages: [],
+    description: '', // <--- ДОБАВЛЕНО
+    avatar_url: null // <--- ДОБАВЛЕНО
   });
   
   uniqueMembers.forEach(uid => {
@@ -1601,6 +1609,109 @@ app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
   io.emit('refreshData');
   res.json({ ok: true, username: cleanUsername });
 });
+
+// ================= ИНВАЙТЫ И ПРИВАТНЫЕ ССЫЛКИ =================
+app.post('/api/chats/:chatId/invite', authMiddleware, (req, res) => {
+    const chatId = req.params.chatId;
+    const { userIds } = req.body;
+    const me = req.user;
+    const chat = db.chats.find(c => c.id === chatId);
+    
+    if (!chat || !chat.is_group) return res.status(404).json({ error: 'Группа не найдена' });
+    if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель может приглашать' });
+    if (!userIds || !userIds.length) return res.status(400).json({ error: 'Нет пользователей' });
+
+    userIds.forEach(userId => {
+        const token = crypto.randomBytes(16).toString('hex');
+        db.chat_invites.push({
+            id: genId(),
+            token,
+            chat_id: chatId,
+            invited_user_id: userId,
+            created_by: me.id,
+            created_at: Math.floor(Date.now() / 1000)
+        });
+
+        let helperChat = db.chats.find(c => !c.is_group && db.chat_members.some(m => m.chat_id === c.id && m.user_id === userId) && db.chat_members.some(m => m.chat_id === c.id && m.user_id === HELPER_ID));
+        if (!helperChat) {
+            helperChat = { id: genId(), created_at: Math.floor(Date.now() / 1000), is_group: false, pinned_messages: [] };
+            db.chats.push(helperChat);
+            db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: userId });
+            db.chat_members.push({ id: genId(), chat_id: helperChat.id, user_id: HELPER_ID });
+        }
+
+        const inviteText = `📩 **Приглашение в ${chat.is_channel ? 'канал' : 'группу'}**\nПользователь @${me.username} приглашает вас вступить в **${chat.name}**.\n\n🔗 **Ссылка для входа:**\nscp.me/join/${token}`;
+        
+        const botMsg = {
+            id: genId(), chat_id: helperChat.id, sender_id: HELPER_ID,
+            text: inviteText, created_at: Math.floor(Date.now() / 1000),
+            is_deleted: false, delivered_to: [userId], read_by: [], is_encrypted: false
+        };
+        db.messages.push(botMsg);
+        emitToChatMembers(helperChat.id, 'newMessage', buildMessagePayload(botMsg));
+    });
+
+    saveDb();
+    res.json({ ok: true });
+});
+
+app.get('/api/chats/join/:token', authMiddleware, (req, res) => {
+    const invite = db.chat_invites.find(i => i.token === req.params.token);
+    if (!invite) return res.status(404).json({ error: 'Ссылка недействительна или устарела' });
+
+    const chat = db.chats.find(c => c.id === invite.chat_id);
+    if (!chat) return res.status(404).json({ error: 'Группа не найдена' });
+
+    if (invite.invited_user_id !== req.userId) {
+        return res.status(403).json({ error: 'Эта ссылка предназначена для другого пользователя' });
+    }
+
+    const isMember = db.chat_members.some(m => m.chat_id === chat.id && m.user_id === req.userId);
+    if (!isMember) {
+        db.chat_members.push({ id: genId(), chat_id: chat.id, user_id: req.userId });
+    }
+
+    db.chat_invites = db.chat_invites.filter(i => i.token !== invite.token);
+    saveDb();
+    io.emit('refreshData');
+    res.json({ ok: true, chatId: chat.id });
+});
+
+// ================= КАСТОМИЗАЦИЯ КАНАЛОВ =================
+app.post('/api/chats/:chatId/avatar', authMiddleware, uploadAvatar.single('avatar'), (req, res) => {
+    const chat = db.chats.find(c => c.id === req.params.chatId);
+    if (!chat) return res.status(404).json({ error: 'Чат не найден' });
+    if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель' });
+    if (!req.file) return res.status(400).json({ error: 'Файл не получен' });
+
+    const newUrl = '/uploads/' + req.file.filename + '?v=' + Date.now();
+    const oldUrl = chat.avatar_url;
+    chat.avatar_url = newUrl;
+    saveDb();
+    io.emit('refreshData');
+    res.json({ ok: true, avatarUrl: newUrl });
+
+    if (oldUrl) {
+        try { 
+            const p = path.join(UPLOAD_DIR, oldUrl.split('?')[0].replace('/uploads/', '')); 
+            if (fs.existsSync(p)) fs.unlinkSync(p); 
+        } catch(e) {}
+    }
+});
+
+app.put('/api/chats/:chatId/settings', authMiddleware, (req, res) => {
+    const chat = db.chats.find(c => c.id === req.params.chatId);
+    if (!chat) return res.status(404).json({ error: 'Чат не найден' });
+    if (chat.creator_id !== req.userId) return res.status(403).json({ error: 'Только создатель' });
+    
+    if (typeof req.body.description === 'string') {
+        chat.description = sanitizeString(req.body.description).slice(0, 500);
+    }
+    saveDb();
+    io.emit('refreshData');
+    res.json({ ok: true, description: chat.description });
+});
+
 
 app.get('/api/chats/:chatId/members', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
@@ -2532,6 +2643,7 @@ app.post('/api/messages/:messageId/react', authMiddleware, (req, res) => {
   res.json({ ok: true, reactions: msg.reactions });
 });
 
+// ИСПРАВЛЕННЫЙ МАРШРУТ РЕДАКТИРОВАНИЯ (ТРАНСЛИРУЕТ ПОЛНЫЙ ПАКЕТ)
 app.put('/api/messages/:messageId', authMiddleware, (req, res) => {
   const msg = db.messages.find(m => m.id === req.params.messageId);
   
@@ -2555,7 +2667,11 @@ app.put('/api/messages/:messageId', authMiddleware, (req, res) => {
   msg.edited_at = Math.floor(Date.now() / 1000);
   
   saveDb();
-  emitToChatMembers(msg.chat_id, 'messageEdited', { messageId: msg.id });
+  
+  // Отправляем полный пакет данных, чтобы клиент мог расшифровать (если E2EE) и обновить UI
+  const payload = buildMessagePayload(msg); 
+  emitToChatMembers(msg.chat_id, 'messageEdited', payload); 
+  
   res.json({ ok: true, text: msg.text });
 });
 
@@ -2954,7 +3070,7 @@ app.use((req, res, next) => {
     }
   }
 
-  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments', 'reports', 'audit_logs'].forEach(key => { 
+  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments', 'reports', 'audit_logs', 'chat_invites'].forEach(key => { 
       if (!db[key]) db[key] = []; 
   });
 
@@ -2976,7 +3092,6 @@ app.use((req, res, next) => {
     if (!u.invite_code) { u.invite_code = `REF-${u.username.toUpperCase()}`; migrated = true; }
     if (!u.pinned_chats) { u.pinned_chats = []; migrated = true; }
     
-    // Принудительная конвертация ban_expires в число при загрузке
     if (typeof u.ban_expires !== 'number') {
         u.ban_expires = Number(u.ban_expires) || 0;
         migrated = true;
@@ -2992,6 +3107,8 @@ app.use((req, res, next) => {
           migrated = true;
       }
       if (c.e2ee_enabled === undefined) { c.e2ee_enabled = false; migrated = true; }
+      if (c.description === undefined) { c.description = ''; migrated = true; }
+      if (c.avatar_url === undefined) { c.avatar_url = null; migrated = true; }
   });
   if (migrated) saveDb();
 
