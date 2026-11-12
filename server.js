@@ -2368,6 +2368,7 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   res.json(buildMessagePayload(msg, req.userId));
 });
 
+// ИСПРАВЛЕНИЕ: Сервер принудительно скачивает файл из S3 и отдает его с заголовком attachment
 app.get('/api/files/*', (req, res, next) => {
   const token = req.cookies.token;
   if (!token) {
@@ -2411,10 +2412,23 @@ app.get('/api/files/*', (req, res, next) => {
         return res.status(503).send('S3 отключён');
     }
     
+    // Получаем объект из S3
     const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
-    const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
-    res.redirect(url);
+    const s3Response = await s3.send(command);
+
+    // Устанавливаем заголовки для скачивания
+    const encodedFilename = encodeURIComponent(att.original_name || 'file');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodedFilename}"; filename*=UTF-8''${encodedFilename}`);
+    res.setHeader('Content-Type', att.mime_type || 'application/octet-stream');
+    if (s3Response.ContentLength) {
+        res.setHeader('Content-Length', s3Response.ContentLength);
+    }
+
+    // Передаем поток данных (Stream) прямо в ответ
+    s3Response.Body.pipe(res);
+    
   } catch (err) { 
+      console.error("Download error:", err);
       res.status(500).send('Ошибка скачивания'); 
   }
 });
