@@ -143,7 +143,7 @@ let db = {
     reports: [], 
     audit_logs: [],
     chat_invites: [],
-    is_lockdown: false // <--- НОВОЕ: Флаг глобального локдауна
+    is_lockdown: false 
 };
 
 let isS3Syncing = false;
@@ -1155,6 +1155,39 @@ app.get('/api/users/all', authMiddleware, (req, res) => {
   res.json(users);
 });
 
+// НОВЫЙ МАРШРУТ: Только контакты (те, с кем есть личная переписка)
+app.get('/api/users/contacts', authMiddleware, (req, res) => {
+    const myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
+    const contactIds = new Set();
+    
+    myChatIds.forEach(chatId => {
+        const chat = db.chats.find(c => c.id === chatId);
+        if (chat && !chat.is_group) {
+            const members = db.chat_members.filter(m => m.chat_id === chatId);
+            members.forEach(m => {
+                if (m.user_id !== req.userId && m.user_id !== HELPER_ID) {
+                    contactIds.add(m.user_id);
+                }
+            });
+        }
+    });
+
+    const users = Array.from(contactIds).map(id => {
+        const u = db.users.find(user => user.id === id);
+        return u ? {
+            id: u.id, 
+            username: u.username, 
+            displayName: u.display_name || u.username, 
+            avatarUrl: u.avatar_url || null, 
+            status: u.status || 'offline', 
+            role: u.role || 'user',
+            clearance_level: u.clearance_level || ROLE_TO_CLEARANCE[u.role] || 1
+        } : null;
+    }).filter(Boolean).sort((a, b) => a.username.localeCompare(b.username));
+    
+    res.json(users);
+});
+
 app.get('/api/users/:userId', authMiddleware, (req, res) => {
   const target = db.users.find(u => u.id === req.params.userId);
   if (!target) {
@@ -1494,8 +1527,9 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
         return res.status(400).json({ error: 'Для канала обязателен юзернейм' });
     }
     cleanUsername = String(username).trim().toLowerCase().replace(/^@/, '');
-    if (!/^[a-z0-9_]{3,32}$/.test(cleanUsername)) {
-      return res.status(400).json({ error: 'Юзернейм: 3-32 символа (a-z, 0-9, _)' });
+    // Строгая проверка: буквы, цифры, _, -
+    if (!/^[a-z0-9_-]{3,32}$/.test(cleanUsername)) {
+      return res.status(400).json({ error: 'Юзернейм: 3-32 символа (a-z, 0-9, _, -)' });
     }
     if (db.chats.some(c => c.username === cleanUsername)) {
       return res.status(400).json({ error: 'Этот адрес уже занят' });
@@ -1606,8 +1640,9 @@ app.post('/api/chats/:chatId/set-username', authMiddleware, (req, res) => {
   }
 
   let cleanUsername = String(req.body.username || '').trim().toLowerCase().replace(/^@/, '');
-  if (!/^[a-z0-9_]{3,32}$/.test(cleanUsername)) {
-      return res.status(400).json({ error: 'Юзернейм: 3-32 символа (a-z, 0-9, _)' });
+  // Строгая проверка: буквы, цифры, _, -
+  if (!/^[a-z0-9_-]{3,32}$/.test(cleanUsername)) {
+      return res.status(400).json({ error: 'Юзернейм: 3-32 символа (a-z, 0-9, _, -)' });
   }
   if (db.chats.some(c => c.username === cleanUsername && c.id !== chatId)) {
       return res.status(400).json({ error: 'Этот адрес уже занят' });
@@ -2072,7 +2107,7 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
     return res.status(403).json({ error: `Доступ запрещён. Требуется уровень допуска ${chatForCheck.required_clearance}` });
   }
 
-  // НОВОЕ: Проверка глобального локдауна
+  // Проверка глобального локдауна
   if (db.is_lockdown && myClearance < 5) {
       return res.status(403).json({ error: '🚨 ПРОТОКОЛ ЛОКДАУН АКТИВЕН. Связь разрешена только Совету О5.' });
   }
@@ -2386,7 +2421,6 @@ app.post('/api/chats/:chatId/confirm-upload', authMiddleware, (req, res) => {
   res.json(buildMessagePayload(msg, req.userId));
 });
 
-// ИСПРАВЛЕНИЕ: Сервер принудительно скачивает файл из S3 и отдает его с заголовком attachment
 app.get('/api/files/*', (req, res, next) => {
   const token = req.cookies.token;
   if (!token) {
@@ -2430,11 +2464,9 @@ app.get('/api/files/*', (req, res, next) => {
         return res.status(503).send('S3 отключён');
     }
     
-    // Получаем объект из S3
     const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
     const s3Response = await s3.send(command);
 
-    // Устанавливаем заголовки для скачивания
     const encodedFilename = encodeURIComponent(att.original_name || 'file');
     res.setHeader('Content-Disposition', `attachment; filename="${encodedFilename}"; filename*=UTF-8''${encodedFilename}`);
     res.setHeader('Content-Type', att.mime_type || 'application/octet-stream');
@@ -2442,7 +2474,6 @@ app.get('/api/files/*', (req, res, next) => {
         res.setHeader('Content-Length', s3Response.ContentLength);
     }
 
-    // Передаем поток данных (Stream) прямо в ответ
     s3Response.Body.pipe(res);
     
   } catch (err) { 
@@ -2937,7 +2968,6 @@ app.post('/api/login', async (req, res) => {
 
 // ================= LOGOUT =================
 app.post('/api/logout', (req, res) => {
-    // Очищаем cookie с теми же параметрами, с которыми она устанавливалась
     res.clearCookie('token', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -3013,7 +3043,6 @@ io.on('connection', (socket) => {
     io.emit('refreshData');
     socket.join(`user:${socket.userId}`);
 
-    // Отправляем текущий статус локдауна при подключении
     socket.emit('lockdownToggled', db.is_lockdown);
 
     socket.on('typing', ({ chatId }) => {
