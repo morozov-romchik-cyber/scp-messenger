@@ -14,8 +14,8 @@
 <meta name="copyright" content="@aldernx-scp">
 
 <style>
+  /* ЧЕРНАЯ ТЕМА (по умолчанию) */
   :root {
-    /* ЧЕРНАЯ ТЕМА (по умолчанию) */
     --bg: #0d1117; --panel: #161b22; --card: #1c2128; --border: #30363d;
     --border-hover: #8b949e; --accent: #ffffff; --text: #e6edf3; --muted: #8b949e;
     --admin-bg: #110505; --admin-panel: #1a0a0a; --admin-border: #4a1515;
@@ -84,7 +84,6 @@
     --hill-color: #0a1f10; --tree-color: #14301c; --ground-color: #1e4029;
   }
 
-  /* Плавная анимация переключения темы */
   html.theme-changing * {
     transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, fill 0.4s ease !important;
   }
@@ -121,9 +120,7 @@
   .badge-sysadmin { background: #000000; color: #ffffff; border: 1px solid #ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
   [data-theme="light"] .badge-sysadmin { background: #111827; color: #ffffff; border: 1px solid #111827; }
   
-  /* Цвет текста в плашке АДМИН */
   .badge-admin { background: #ff3333; color: #000000; border: 1px solid #000000; font-weight: 900; }
-  
   .badge-moderator { background: #ffcc00; color: #000; }
   .badge-helper { background: #00ccff; color: #000; }
 
@@ -445,9 +442,7 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-  /* ========================================================= */
-  /* СТИЛИ ДЛЯ БЕЛОЙ ДОСКИ (WHITEBOARD)                        */
-  /* ========================================================= */
+  /* СТИЛИ ДЛЯ БЕЛОЙ ДОСКИ */
   #whiteboard-modal .modal-content { width: 900px; height: 85vh; max-width: 95vw; padding: 10px; background: #1e1e1e; resize: none; }
   .wb-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; background: #2d2d2d; padding: 10px; border-radius: 8px; flex-shrink: 0; }
   .wb-group { display: flex; flex-direction: column; border-right: 1px solid #444; padding-right: 10px; }
@@ -868,7 +863,7 @@
   <div class="modal-content" style="height: 80vh; display: flex; flex-direction: column;">
     <h3>УЧАСТНИКИ ГРУППЫ</h3>
     <div id="group-members-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
-    <button class="modal-btn" id="add-member-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); flex-shrink: 0; display: none; margin-bottom: 10px;">➕ Добавить участника</button>
+    <button class="modal-btn" id="add-member-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); flex-shrink: 0; display: none; margin-bottom: 10px;">➕ Пригласить участника</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('group-members-modal').classList.remove('visible')">Закрыть</button>
   </div>
 </div>
@@ -975,7 +970,6 @@
       <button class="modal-btn" onclick="setChannelUsername()" style="margin-top:0; padding:8px;">Установить ссылку</button>
     </div>
     
-    <!-- НОВОЕ: Настройки канала (Описание и Аватар) -->
     <div id="channel-custom-settings" style="display:none; margin-bottom: 15px; border-bottom: 1px dashed var(--border); padding-bottom: 15px;">
       <div style="font-weight: bold; color: var(--accent); margin-bottom: 10px;">Настройки канала</div>
       
@@ -2365,7 +2359,6 @@ document.getElementById('open-settings').addEventListener('click', () => {
   
   document.getElementById('my-xp-bar').innerHTML = renderXpBar(state.me);
   
-  // Sync theme select
   const currentTheme = document.documentElement.getAttribute('data-theme') || 'black';
   document.getElementById('theme-select').value = currentTheme;
   
@@ -3036,10 +3029,9 @@ window.submitAddMembers = async function() {
     const userIds = Array.from(checkboxes).map(cb => cb.value);
     if (!userIds.length) return alert('Выберите участников');
     try {
-        // ИЗМЕНЕНО: Вызываем /invite вместо /add-members
         await api('/chats/' + state.currentChat.id + '/invite', { method: 'POST', body: JSON.stringify({ userIds }) });
         document.getElementById('add-member-modal').classList.remove('visible');
-        alert('Приглашения отправлены пользователям в личные сообщения!');
+        alert('Приглашения отправлены пользователям в SCP_Helper!');
         loadChats();
     } catch (e) { alert(e.message); }
 };
@@ -3263,7 +3255,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
       document.getElementById('channel-link-text').textContent = 'Не задана';
       setChannelSection.style.display = isCreator ? 'block' : 'none';
     }
-    // Настройки канала
     if (isCreator) {
         channelCustomSettings.style.display = 'block';
         const c = state.chats.find(x => x.id === chatId);
@@ -3406,14 +3397,32 @@ window.reactToActiveMsg = async function(emoji) {
     document.getElementById('msg-actions-modal').classList.remove('visible');
   } catch (e) { alert(e.message); }
 };
-document.getElementById('msg-edit-btn').addEventListener('click', () => {
+
+// ИСПРАВЛЕНО: Шифрование при редактировании + сохранение цитаты (ответа)
+document.getElementById('msg-edit-btn').addEventListener('click', async () => {
   const msg = state.activeMsg;
   if (!msg) return;
   let cur = msg.text || '';
   if (cur.startsWith('> ')) { const lines = cur.split('\n'); cur = lines.slice(1).join('\n').trim(); }
   const newText = prompt('Редактировать:', cur);
   if (newText === null || !newText.trim() || newText === cur) return;
-  api('/messages/' + msg.id, { method: 'PUT', body: JSON.stringify({ text: newText }) })
+
+  let finalText = newText;
+  
+  // Шифруем текст, если чат защищен E2EE
+  const chatObj = state.chats.find(c => c.id === state.currentChat.id);
+  const e2eeEnabled = chatObj && chatObj.e2ee_enabled;
+  if (e2eeEnabled) {
+      finalText = await encryptMessage(newText, state.currentChat.id);
+  }
+
+  // Сохраняем цитату (ответ), если она была
+  if (msg.text.startsWith('> ')) {
+      const quoteLine = msg.text.split('\n')[0];
+      finalText = quoteLine + '\n' + finalText;
+  }
+
+  api('/messages/' + msg.id, { method: 'PUT', body: JSON.stringify({ text: finalText }) })
     .then(() => document.getElementById('msg-actions-modal').classList.remove('visible'))
     .catch(e => alert(e.message));
 });
@@ -3465,7 +3474,7 @@ function renderPollHtml(msgId, poll, isSelfChat, meId) {
     </div>`;
 }
 
-function appendMessage(msg, scroll = true) {
+function appendMessage(msg, scroll = true, insertBefore = null) {
   const msgsEl = document.getElementById('messages');
   if (document.getElementById('msg-' + msg.id)) return;
   if (msgsEl.innerHTML === 'Загрузка...' || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
@@ -3629,7 +3638,12 @@ function appendMessage(msg, scroll = true) {
   msgDiv.addEventListener('touchend', cancelPress);
   msgDiv.addEventListener('touchmove', movePress, { passive: true });
   
-  msgsEl.appendChild(row);
+  if (insertBefore) {
+      msgsEl.insertBefore(row, insertBefore);
+  } else {
+      msgsEl.appendChild(row);
+  }
+  
   if (scroll) msgsEl.scrollTop = msgsEl.scrollHeight;
 }
 
@@ -4142,7 +4156,6 @@ window.setChannelUsername = async function() {
   } catch (e) { alert(e.message); }
 };
 
-// НОВОЕ: Загрузка аватарки канала
 document.getElementById('chat-avatar-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file || !state.currentChat) return;
@@ -4165,7 +4178,6 @@ document.getElementById('chat-avatar-input').addEventListener('change', async (e
     } catch (err) { alert(err.message); }
 });
 
-// НОВОЕ: Сохранение настроек канала (описание)
 window.saveChannelSettings = async function() {
     if (!state.currentChat?.isChannel) return;
     const desc = document.getElementById('chat-description-input').value.trim();
@@ -4371,24 +4383,24 @@ function connectSocket() {
       }
   });
 
-  state.socket.on('messageEdited', ({ messageId }) => {
-    if (!state.currentChat) return;
-    api('/chats/' + state.currentChat.id + '/messages').then(async msgs => {
-      const box = document.getElementById('messages');
-      if (!box) return;
-      box.innerHTML = '';
-      const chat = state.chats.find(c => c.id === state.currentChat.id);
-      const e2eeEnabled = chat && chat.e2ee_enabled;
-      
-      for (const m of msgs) {
-          let displayText = m.text;
-          if (m.is_encrypted && e2eeEnabled) {
-              displayText = await decryptMessage(m.text, state.currentChat.id);
-          }
-          appendMessage({ ...m, text: displayText }, false);
-      }
-      box.scrollTop = box.scrollHeight;
-    }).catch(() => {});
+  // ИСПРАВЛЕНО: Обработка отредактированного сообщения с полным пакетом и E2EE
+  state.socket.on('messageEdited', async (updatedMsg) => {
+    const el = document.getElementById('msg-' + updatedMsg.id);
+    if (!el) return;
+    
+    const chat = state.chats.find(c => c.id === state.currentChat.id);
+    const e2eeEnabled = chat && chat.e2ee_enabled;
+    
+    let displayText = updatedMsg.text;
+    if (updatedMsg.is_encrypted && e2eeEnabled) {
+        displayText = await decryptMessage(updatedMsg.text, state.currentChat.id);
+    }
+    updatedMsg.text = displayText;
+    
+    const nextSibling = el.nextElementSibling;
+    el.remove();
+    
+    appendMessage(updatedMsg, false, nextSibling);
   });
   
   state.socket.on('userTyping', ({ chatId }) => {
