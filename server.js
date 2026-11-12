@@ -142,7 +142,8 @@ let db = {
     invite_codes: [], 
     reports: [], 
     audit_logs: [],
-    chat_invites: [] // <--- Добавлено для приватных ссылок
+    chat_invites: [],
+    is_lockdown: false // <--- НОВОЕ: Флаг глобального локдауна
 };
 
 let isS3Syncing = false;
@@ -1005,6 +1006,18 @@ app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   
   io.emit('urgentAlert', { text: sanitizeString(text), sender: me.username, timestamp: Date.now() });
   res.json({ ok: true });
+});
+
+app.post('/api/admin/toggle-lockdown', authMiddleware, (req, res) => {
+    const me = req.user;
+    if (me.role !== 'sysadmin') {
+        return res.status(403).json({ error: 'Доступ запрещён' });
+    }
+    
+    db.is_lockdown = !db.is_lockdown;
+    saveDb();
+    io.emit('lockdownToggled', db.is_lockdown);
+    res.json({ ok: true, is_lockdown: db.is_lockdown });
 });
 
 app.post('/api/admin/wipe-messages-and-files', authMiddleware, (req, res) => {
@@ -2059,6 +2072,11 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
     return res.status(403).json({ error: `Доступ запрещён. Требуется уровень допуска ${chatForCheck.required_clearance}` });
   }
 
+  // НОВОЕ: Проверка глобального локдауна
+  if (db.is_lockdown && myClearance < 5) {
+      return res.status(403).json({ error: '🚨 ПРОТОКОЛ ЛОКДАУН АКТИВЕН. Связь разрешена только Совету О5.' });
+  }
+
   if (chatForCheck.is_group) {
     if (chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
       return res.status(403).json({ error: 'Только создатель канала может писать сообщения' });
@@ -2995,6 +3013,9 @@ io.on('connection', (socket) => {
     io.emit('refreshData');
     socket.join(`user:${socket.userId}`);
 
+    // Отправляем текущий статус локдауна при подключении
+    socket.emit('lockdownToggled', db.is_lockdown);
+
     socket.on('typing', ({ chatId }) => {
       if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === socket.userId)) return;
       db.chat_members
@@ -3097,6 +3118,8 @@ app.use((req, res, next) => {
   ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments', 'reports', 'audit_logs', 'chat_invites'].forEach(key => { 
       if (!db[key]) db[key] = []; 
   });
+  
+  if (db.is_lockdown === undefined) db.is_lockdown = false;
 
   let migrated = false;
   db.users.forEach(u => {
