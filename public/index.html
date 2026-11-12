@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" translate="no" data-theme="dark" data-season="winter">
+<html lang="ru" translate="no" data-theme="black" data-season="winter">
 <head>
 <meta charset="UTF-8" />
 <meta name="google" content="notranslate">
@@ -15,44 +15,73 @@
 
 <style>
   :root {
-    /* Сбалансированная темная тема (темно-серый, не черный) */
-    --bg: #121212; 
-    --panel: #1a1a1a; 
-    --card: #242424; 
-    --border: #333333;
-    --border-hover: #555555; 
-    --accent: #ffffff; 
-    --text: #e6edf3; 
-    --muted: #8b949e;
-    
-    --admin-bg: #1a0a0a; 
-    --admin-panel: #2a1010; 
-    --admin-border: #4a1515;
-    --admin-accent: #ff3333; 
-    --admin-text: #ffcccc; 
-    --admin-green: #00ff9d;
+    /* ЧЕРНАЯ ТЕМА (по умолчанию) */
+    --bg: #0d1117; --panel: #161b22; --card: #1c2128; --border: #30363d;
+    --border-hover: #8b949e; --accent: #ffffff; --text: #e6edf3; --muted: #8b949e;
+    --admin-bg: #110505; --admin-panel: #1a0a0a; --admin-border: #4a1515;
+    --admin-accent: #ff3333; --admin-text: #ffcccc; --admin-green: #00ff9d;
     --logo-filter: invert(1);
     --online-green: #00ff9d;
     --custom-blue: #00ccff;
     --link-blue: #1d9bf0;
+    
+    --hill-color: #1e1e24; --tree-color: #2c2c35; --ground-color: #3a3a45;
   }
 
-  /* СВЕТЛАЯ ТЕМА (Сделана значительно темнее, чтобы не резать глаза) */
+  /* СЕРАЯ ТЕМА */
+  [data-theme="gray"] {
+    --bg: #2d2d2d; --panel: #363636; --card: #404040; --border: #555555;
+    --border-hover: #777777; --accent: #ffffff; --text: #f0f0f0; --muted: #aaaaaa;
+    --admin-bg: #221515; --admin-panel: #2e1c1c; --admin-border: #5a2a2a;
+    --admin-accent: #ff4d4d; --admin-text: #ffd6d6; --admin-green: #00ff9d;
+    --logo-filter: invert(1);
+    --online-green: #00ff9d;
+    --custom-blue: #00ccff;
+    --link-blue: #1d9bf0;
+    
+    --hill-color: #3a3a3a; --tree-color: #4a4a4a; --ground-color: #5a5a5a;
+  }
+
+  /* СВЕТЛАЯ ТЕМА */
   [data-theme="light"] {
-    --bg: #a8b2c1;       /* Более темный серо-синий фон */
-    --panel: #b8c3d1;    /* Панели чуть светлее фона */
-    --card: #cbd5e1;     /* Карточки светлее панелей */
-    --border: #8190a5;
-    --border-hover: #5e6f85; 
-    --accent: #0f172a;   /* Темный акцент */
-    --text: #0f172a; 
-    --muted: #334155;
+    --bg: #a8b2c1; --panel: #b8c3d1; --card: #cbd5e1; --border: #8190a5;
+    --border-hover: #5e6f85; --accent: #0f172a; --text: #0f172a; --muted: #334155;
     --admin-bg: #e2e8f0; --admin-panel: #cbd5e1; --admin-border: #f87171;
     --admin-accent: #dc2626; --admin-text: #991b1b; --admin-green: #16a34a;
     --logo-filter: none;
     --online-green: #047857;
     --custom-blue: #0369a1;
     --link-blue: #0284c7;
+    
+    --hill-color: #cbd5e1; --tree-color: #94a3b8; --ground-color: #f1f5f9;
+  }
+
+  /* ТЕМНО-СИНЯЯ ТЕМА */
+  [data-theme="dark-blue"] {
+    --bg: #0a1224; --panel: #111c33; --card: #1a2942; --border: #2a4066;
+    --border-hover: #4a6fa5; --accent: #93c5fd; --text: #dbeafe; --muted: #93c5fd;
+    --admin-bg: #0a0f1a; --admin-panel: #111c33; --admin-border: #1e3a5f;
+    --admin-accent: #3b82f6; --admin-text: #bfdbfe; --admin-green: #00ff9d;
+    --logo-filter: invert(1);
+    --online-green: #00ff9d;
+    --custom-blue: #00ccff;
+    --link-blue: #3b82f6;
+    
+    --hill-color: #0f172a; --tree-color: #1e293b; --ground-color: #334155;
+  }
+
+  /* ТЕМНО-ЗЕЛЕНАЯ ТЕМА */
+  [data-theme="dark-green"] {
+    --bg: #07140a; --panel: #0f2416; --card: #163621; --border: #235235;
+    --border-hover: #3a7a50; --accent: #86efac; --text: #dcfce7; --muted: #86efac;
+    --admin-bg: #050a06; --admin-panel: #0f2416; --admin-border: #1a3d24;
+    --admin-accent: #22c55e; --admin-text: #bbf7d0; --admin-green: #00ff9d;
+    --logo-filter: invert(1);
+    --online-green: #00ff9d;
+    --custom-blue: #00ccff;
+    --link-blue: #22c55e;
+    
+    --hill-color: #0a1f10; --tree-color: #14301c; --ground-color: #1e4029;
   }
 
   /* Плавная анимация переключения темы */
@@ -60,13 +89,11 @@
     transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, fill 0.4s ease !important;
   }
 
-  /* Яркие цвета природы в темной теме (гармонируют с новым фоном) */
-  [data-theme="dark"][data-season="winter"] { --hill-color: #1e1e24; --tree-color: #2c2c35; --ground-color: #3a3a45; }
-  [data-theme="dark"][data-season="spring"] { --hill-color: #182a1c; --tree-color: #223c28; --ground-color: #2e4d34; }
-  [data-theme="dark"][data-season="summer"] { --hill-color: #142417; --tree-color: #1e3622; --ground-color: #28462d; }
-  [data-theme="dark"][data-season="autumn"] { --hill-color: #2a1a10; --tree-color: #3e2211; --ground-color: #4e2c16; }
+  /* Сезонные цвета (адаптированы под базовые) */
+  [data-theme="black"][data-season="spring"], [data-theme="gray"][data-season="spring"], [data-theme="dark-blue"][data-season="spring"], [data-theme="dark-green"][data-season="spring"] { --hill-color: #182a1c; --tree-color: #223c28; --ground-color: #2e4d34; }
+  [data-theme="black"][data-season="summer"], [data-theme="gray"][data-season="summer"], [data-theme="dark-blue"][data-season="summer"], [data-theme="dark-green"][data-season="summer"] { --hill-color: #142417; --tree-color: #1e3622; --ground-color: #28462d; }
+  [data-theme="black"][data-season="autumn"], [data-theme="gray"][data-season="autumn"], [data-theme="dark-blue"][data-season="autumn"], [data-theme="dark-green"][data-season="autumn"] { --hill-color: #2a1a10; --tree-color: #3e2211; --ground-color: #4e2c16; }
 
-  [data-theme="light"][data-season="winter"] { --hill-color: #cbd5e1; --tree-color: #94a3b8; --ground-color: #f1f5f9; }
   [data-theme="light"][data-season="spring"] { --hill-color: #86efac; --tree-color: #4ade80; --ground-color: #bbf7d0; }
   [data-theme="light"][data-season="summer"] { --hill-color: #4ade80; --tree-color: #22c55e; --ground-color: #86efac; }
   [data-theme="light"][data-season="autumn"] { --hill-color: #fdba74; --tree-color: #ea580c; --ground-color: #fed7aa; }
@@ -94,7 +121,7 @@
   .badge-sysadmin { background: #000000; color: #ffffff; border: 1px solid #ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
   [data-theme="light"] .badge-sysadmin { background: #111827; color: #ffffff; border: 1px solid #111827; }
   
-  /* Измененный цвет текста в плашке АДМИН */
+  /* Цвет текста в плашке АДМИН */
   .badge-admin { background: #ff3333; color: #000000; border: 1px solid #000000; font-weight: 900; }
   
   .badge-moderator { background: #ffcc00; color: #000; }
@@ -192,11 +219,17 @@
   .fab-sub-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--card); border: 1px solid var(--border-hover); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: transform 0.2s, background 0.2s; }
   .fab-sub-btn:hover { transform: scale(1.1); background: var(--border); }
 
-  main { flex: 1; display: flex; flex-direction: column; background: rgba(18, 18, 18, 0.85); position: relative; height: 100%; z-index: 2; min-width: 0; }
+  main { flex: 1; display: flex; flex-direction: column; background: rgba(13, 17, 23, 0.85); position: relative; height: 100%; z-index: 2; min-width: 0; transition: background 0.3s; }
   [data-theme="light"] main { background: rgba(168, 178, 193, 0.85); }
+  [data-theme="gray"] main { background: rgba(45, 45, 45, 0.85); }
+  [data-theme="dark-blue"] main { background: rgba(10, 18, 36, 0.85); }
+  [data-theme="dark-green"] main { background: rgba(7, 20, 10, 0.85); }
   
-  .chat-header { min-height: 73px; flex-shrink: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); background: rgba(26, 26, 26, 0.9); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: space-between; width: 100%; }
+  .chat-header { min-height: 73px; flex-shrink: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); background: rgba(22, 27, 34, 0.9); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: space-between; width: 100%; transition: background 0.3s; }
   [data-theme="light"] .chat-header { background: rgba(184, 195, 209, 0.9); }
+  [data-theme="gray"] .chat-header { background: rgba(54, 54, 54, 0.9); }
+  [data-theme="dark-blue"] .chat-header { background: rgba(17, 28, 51, 0.9); }
+  [data-theme="dark-green"] .chat-header { background: rgba(15, 36, 22, 0.9); }
   
   .chat-header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
   .chat-header h2 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
@@ -390,14 +423,6 @@
   #typing-indicator { display: none; font-size: 11px; color: var(--online-green); font-family: 'Fira Code', monospace; font-weight: 600; padding-left: 2px; margin-top: 2px; animation: typingPulse 1.4s ease-in-out infinite; }
 
   #multi-select-bar { display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 20px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.8); gap: 15px; align-items: center; pointer-events: auto; }
-
-  /* Стили для переключателя темы */
-  .theme-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
-  .theme-switch input { opacity: 0; width: 0; height: 0; }
-  .theme-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 34px; }
-  .theme-icon { position: absolute; height: 22px; width: 22px; left: 2px; bottom: 2px; background-color: var(--panel); transition: transform 0.4s ease, background-color 0.4s; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; z-index: 1; }
-  input:checked + .theme-slider { background-color: var(--link-blue); }
-  input:checked + .theme-slider .theme-icon { transform: translateX(24px); background-color: #fff; }
 
   @media (max-width: 720px) {
     aside { display: none; width: 100%; position: absolute; inset: 0; z-index: 20; }
@@ -1016,12 +1041,13 @@
     <div style="border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <div class="setting-row">
           <span>Тема оформления:</span>
-          <label class="theme-switch">
-              <input type="checkbox" id="theme-checkbox" onchange="applyTheme(this.checked ? 'light' : 'dark')">
-              <span class="theme-slider">
-                  <span class="theme-icon" id="theme-icon">🌙</span>
-              </span>
-          </label>
+          <select id="theme-select" onchange="applyTheme(this.value)" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 4px; outline: none; font-family: inherit;">
+              <option value="black">Черная</option>
+              <option value="gray">Серая</option>
+              <option value="light">Светлая</option>
+              <option value="dark-blue">Темно-синяя</option>
+              <option value="dark-green">Темно-зеленая</option>
+          </select>
       </div>
       <div class="setting-row"><span>Время года:</span><select id="season-select"><option value="winter">Зима ❄️</option><option value="spring">Весна 🌱</option><option value="summer">Лето ☀️</option><option value="autumn">Осень 🍂</option></select></div>
       <div class="setting-row"><span>Погода:</span><select id="weather-select"><option value="none">Ясно</option><option value="rain">Дождь 🌧️</option><option value="snow">Снег 🌨️</option></select></div>
@@ -2218,13 +2244,11 @@ function applyTheme(theme, skipTransition = false) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('scp_theme', theme);
     
-    const themeCheckbox = document.getElementById('theme-checkbox');
-    if (themeCheckbox) themeCheckbox.checked = theme === 'light';
-    const themeIcon = document.getElementById('theme-icon');
-    if (themeIcon) themeIcon.textContent = theme === 'light' ? '☀️' : '🌙';
+    const themeSelect = document.getElementById('theme-select');
+    if (themeSelect) themeSelect.value = theme;
 }
 
-const savedTheme = localStorage.getItem('scp_theme') || 'dark';
+const savedTheme = localStorage.getItem('scp_theme') || 'black';
 applyTheme(savedTheme, true);
 
 function enterChat() {
@@ -2327,10 +2351,9 @@ document.getElementById('open-settings').addEventListener('click', () => {
   
   document.getElementById('my-xp-bar').innerHTML = renderXpBar(state.me);
   
-  // Sync theme checkbox
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  document.getElementById('theme-checkbox').checked = isLight;
-  document.getElementById('theme-icon').textContent = isLight ? '☀️' : '🌙';
+  // Sync theme select
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'black';
+  document.getElementById('theme-select').value = currentTheme;
   
   document.getElementById('settings-modal').classList.add('visible');
 });
