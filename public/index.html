@@ -269,7 +269,7 @@
   .msg .reply-quote .rq-name { color: var(--accent); font-weight: 600; margin-bottom: 2px; font-family: 'Fira Code', monospace; }
   .msg .reply-quote .rq-text { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* НОВОЕ: Стили для спойлеров */
+  /* СТИЛИ СПОЙЛЕРОВ */
   .spoiler {
       background: var(--border);
       color: transparent;
@@ -794,7 +794,7 @@
           <div id="invite-hint" style="font-size: 12px; color: var(--admin-text); margin-top: 8px; font-family: 'Fira Code';"></div>
         </div>
         
-        <!-- НОВОЕ: Блок Локдауна -->
+        <!-- Блок Локдауна -->
         <div class="admin-section" style="border-color: #ff3333;">
             <h4 style="color: #ff3333;">🚨 Протокол изоляции (SCP-5000)</h4>
             <p style="font-size: 12px; color: var(--admin-text); margin-bottom: 15px;">Блокирует отправку сообщений всем, кроме Уровня 5.</p>
@@ -1219,7 +1219,6 @@
     <div id="user-banned-banner">⛔ Пользователь заблокирован</div>
     <div id="blocked-banner" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; z-index: 10;">Пользователь заблокирован вами</div>
 
-    <!-- НОВОЕ: Баннер Локдауна -->
     <div id="lockdown-banner">🚨 ВНИМАНИЕ: АКТИВЕН ПРОТОКОЛ ЛОКДАУН (SCP-5000) 🚨</div>
 
     <div id="messages"><div class="empty">⚡ КАНАЛ НЕ ВЫБРАН</div></div>
@@ -1289,7 +1288,7 @@ let chatDrafts = JSON.parse(localStorage.getItem('scp_drafts') || '{}');
 const state = { 
   me: null, chats: [], currentChat: null, socket: null, 
   unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false, 
-  currentPinnedIndex: 0, visiblePinnedMessages: [] 
+  currentPinnedIndex: 0, visiblePinnedMessages: [], isLockdown: false
 };
 
 let isSelectionMode = false;
@@ -2675,7 +2674,7 @@ window.setClearance = async function() {
   } catch (e) { alert(e.message); }
 };
 
-// НОВОЕ: Переключатель Локдауна
+// Переключатель Локдауна
 window.toggleLockdown = async function() {
     if (!confirm('Изменить статус Локдауна?')) return;
     try {
@@ -3002,25 +3001,11 @@ window.openCreateGroupModal = function(isChannel) {
   document.getElementById('channel-required-clearance').value = '1';
   document.getElementById('channel-min-write-clearance').value = '1';
 
+  // Убираем список людей при создании
   const list = document.getElementById('group-user-list');
-  list.innerHTML = 'Загрузка...';
+  list.innerHTML = '<div class="empty">Создайте чат, а затем пригласите участников через настройки.</div>';
+  
   document.getElementById('create-group-modal').classList.add('visible');
-  api('/users/all').then(users => {
-    if (!users.length) { list.innerHTML = '<div class="empty">Нет других пользователей</div>'; return; }
-    list.innerHTML = users.map(u => {
-      const initial = esc((u.displayName || u.username || '?')[0].toUpperCase());
-      const av = u.avatarUrl 
-        ? `<img src="${escAttr(u.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerText='${initial}'">`
-        : initial;
-      return `
-        <label style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--card); border:1px solid var(--border); border-radius:6px; cursor:pointer;">
-          <input type="checkbox" class="group-user-checkbox" value="${u.id}" style="width:18px; height:18px; accent-color:var(--accent);">
-          <div class="chat-avatar" style="width:28px; height:28px; font-size:11px;">${av}</div>
-          <div style="font-size:14px; font-weight:600;">${esc(u.displayName || u.username)}</div>
-        </label>
-      `;
-    }).join('');
-  }).catch(err => { list.innerHTML = `<div style="color:#ff4d4d; text-align:center; padding: 20px;">Ошибка: ${err.message}</div>`; });
 };
 
 window.createGroup = async function() {
@@ -3030,11 +3015,17 @@ window.createGroup = async function() {
   if (isCreatingChannel) {
     username = document.getElementById('channel-username-input').value.trim();
     if (!username) return alert('Укажите юзернейм для канала');
+    // Строгая валидация
+    if (!/^[a-z0-9_-]{3,32}$/.test(username)) {
+        return alert('Юзернейм может содержать только английские буквы, цифры, символы _ и - (от 3 до 32 символов)');
+    }
   }
   const requiredClearance = Number(document.getElementById('channel-required-clearance').value);
   const minWriteClearance = Number(document.getElementById('channel-min-write-clearance').value);
-  const checkboxes = document.querySelectorAll('.group-user-checkbox:checked');
-  const memberIds = Array.from(checkboxes).map(cb => cb.value);
+  
+  // Создаем пустую группу
+  const memberIds = [];
+
   try {
     const res = await api('/chats/group', { method: 'POST', body: JSON.stringify({ name, memberIds, is_channel: isCreatingChannel, username, required_clearance: requiredClearance, min_write_clearance: minWriteClearance }) });
     document.getElementById('create-group-modal').classList.remove('visible');
@@ -3050,12 +3041,16 @@ window.openAddMemberModal = async function() {
     list.innerHTML = 'Загрузка...';
     document.getElementById('add-member-modal').classList.add('visible');
     try {
-        const allUsers = await api('/users/all');
+        // Берем только контакты
+        const allUsers = await api('/users/contacts');
         const currentMembers = await api('/chats/' + state.currentChat.id + '/members');
         const currentIds = currentMembers.map(m => m.id);
         const available = allUsers.filter(u => !currentIds.includes(u.id));
 
-        if (!available.length) { list.innerHTML = '<div class="empty">Некого приглашать</div>'; return; }
+        if (!available.length) { 
+            list.innerHTML = '<div class="empty">Нет доступных контактов для приглашения.<br>Начните с кем-нибудь личную переписку.</div>'; 
+            return; 
+        }
 
         list.innerHTML = available.map(u => {
             const initial = esc((u.displayName || u.username || '?')[0].toUpperCase());
@@ -3269,6 +3264,11 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
      }
   }
 
+  // Локдаун скрывает композер
+  if (state.isLockdown && myClearance < 5) {
+      showComposer = false;
+  }
+
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
   
   const blockedBanner = document.getElementById('blocked-banner');
@@ -3380,7 +3380,7 @@ function formatMessageText(rawText) {
   text = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   text = text.replace(/\*(.*?)\*/g, '<i>$1</i>');
   
-  // НОВОЕ: Спойлеры ||текст||
+  // Спойлеры ||текст||
   text = text.replace(/\|\|(.*?)\|\|/g, '<span class="spoiler" onclick="this.classList.add(\'revealed\')">$1</span>');
 
   const linkRegex = /(?<!href=")((?:https?:\/\/|scp\.me\/|scp\.group\/)[^\s<"]+)/g;
@@ -4196,6 +4196,10 @@ window.setChannelUsername = async function() {
   if (!state.currentChat?.isChannel) return;
   const un = document.getElementById('modal-set-username').value.trim();
   if (!un) return alert('Введите юзернейм');
+  // Строгая валидация
+  if (!/^[a-z0-9_-]{3,32}$/.test(un)) {
+      return alert('Юзернейм может содержать только английские буквы, цифры, символы _ и - (от 3 до 32 символов)');
+  }
   try {
     const res = await api(`/chats/${state.currentChat.id}/set-username`, { method: 'POST', body: JSON.stringify({ username: un }) });
     state.currentChat.username = res.username;
@@ -4275,10 +4279,11 @@ function connectSocket() {
     try { state.me = await api('/me'); enterChat(); if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList(); } catch (e) {}
   });
 
-  // НОВОЕ: Слушатель Локдауна
+  // Локдаун
   state.socket.on('lockdownToggled', (isLockdown) => {
+      state.isLockdown = isLockdown;
       document.getElementById('lockdown-banner').style.display = isLockdown ? 'block' : 'none';
-      if (isLockdown && state.me.clearance_level < 5) {
+      if (isLockdown && (state.me.clearance_level || 1) < 5) {
           document.getElementById('composer').style.display = 'none';
       } else {
           const c = state.currentChat;
