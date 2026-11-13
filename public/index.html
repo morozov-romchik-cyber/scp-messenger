@@ -141,7 +141,8 @@
     display: inline-flex; align-items: center; justify-content: center;
     padding: 2px 6px; font-size: 9px; font-weight: bold;
     font-family: 'Fira Code', monospace; border-radius: 4px;
-    animation: rotateBadge 6s linear infinite !important; 
+    animation: rotateBadge 6s linear infinite; 
+    animation-delay: inherit;
     transform-style: preserve-3d; transform-origin: center; white-space: nowrap; text-transform: uppercase;
     vertical-align: middle; margin-left: 4px; will-change: transform;
   }
@@ -1380,6 +1381,12 @@ let e2eeKeys = {};
 function clearanceBadge(level) {
   const lvl = level || 1;
   return `<span class="clearance-badge clearance-${lvl}">[${CLEARANCE_SHORT[lvl]}] ${CLEARANCE_LABEL[lvl]}</span>`;
+}
+
+// ================= НЕПРЕРЫВНОЕ ВРАЩЕНИЕ ПЛАШЕК =================
+function getRotatingBadge(role, extraStyle = '') {
+    const delay = -((performance.now() / 1000) % 6);
+    return `<span class="rotating-badge badge-${role}" style="animation-delay: ${delay}s; ${extraStyle}">${(ROLE_LABEL[role] || role).toUpperCase()}</span>`;
 }
 
 function renderXpBar(user) {
@@ -3185,7 +3192,7 @@ function renderChatList() {
     let roleBadgeHtml = '';
     let checkmarkHtml = '';
     if (c.isHelper) checkmarkHtml = `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: var(--link-blue); display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
-    if (c.role && c.role !== 'user' && !c.isGroup) roleBadgeHtml = `<span class="rotating-badge badge-${c.role}" style="margin-left: 4px;">${(ROLE_LABEL[c.role] || c.role).toUpperCase()}</span>`;
+    if (c.role && c.role !== 'user' && !c.isGroup) roleBadgeHtml = getRotatingBadge(c.role, 'margin-left: 4px;');
     
     const isBanned = c.ban_expires && Number(c.ban_expires) !== 0 && (Number(c.ban_expires) === -1 || Number(c.ban_expires) > Date.now());
     const draftText = chatDrafts[c.id];
@@ -3291,7 +3298,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   if (!isGroup && state.chats) {
     const current = state.chats.find(c => c.id === chatId);
     if (current && current.role && current.role !== 'user') {
-      headerBadge.innerHTML = `<span class="rotating-badge badge-${current.role}" style="margin-left: 8px;">${(ROLE_LABEL[current.role] || current.role).toUpperCase()}</span>`;
+      headerBadge.innerHTML = getRotatingBadge(current.role, 'margin-left: 8px;');
     } else headerBadge.innerHTML = '';
   } else headerBadge.innerHTML = '';
   
@@ -3676,7 +3683,7 @@ function appendMessage(msg, scroll = true, insertBefore = null) {
   let whoHtml = '';
   if (!mine) {
     let roleBadge = ''; const r = msg.sender.role;
-    if (r && r !== 'user') roleBadge = `<span class="rotating-badge badge-${r}">${(ROLE_LABEL[r] || r).toUpperCase()}</span>`;
+    if (r && r !== 'user') roleBadge = getRotatingBadge(r);
     let check = isHelper ? `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: var(--link-blue); display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>` : '';
     whoHtml = `<div class="who">@${esc(msg.sender.displayName || msg.sender.username)}${check} ${roleBadge}</div>`;
   }
