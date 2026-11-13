@@ -213,8 +213,35 @@
   .fab-container.open .new-chat-fab { transform: rotate(45deg); }
   .fab-menu { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%) translateY(20px); display: flex; flex-direction: column; gap: 8px; pointer-events: none; opacity: 0; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; align-items: center; }
   .fab-container.open .fab-menu { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
-  .fab-sub-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--card); border: 1px solid var(--border-hover); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: transform 0.2s, background 0.2s; }
+  
+  /* СТИЛИ ДЛЯ ТУЛТИПОВ КНОПОК */
+  .fab-sub-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--card); border: 1px solid var(--border-hover); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: transform 0.2s, background 0.2s; position: relative; }
   .fab-sub-btn:hover { transform: scale(1.1); background: var(--border); }
+  .fab-sub-btn::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--panel);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      border: 1px solid var(--border);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      z-index: 100;
+      margin-left: 10px;
+  }
+  .fab-sub-btn:hover::after {
+      opacity: 1;
+      left: 100%;
+      margin-left: 15px;
+  }
 
   main { flex: 1; display: flex; flex-direction: column; background: rgba(13, 17, 23, 0.85); position: relative; height: 100%; z-index: 2; min-width: 0; transition: background 0.3s; }
   [data-theme="light"] main { background: rgba(168, 178, 193, 0.85); }
@@ -243,7 +270,6 @@
 
   #user-banned-banner { display: none; background: #ff3333; color: #ffffff; padding: 10px 16px; font-size: 13px; font-weight: bold; font-family: 'Fira Code', monospace; text-align: center; border-bottom: 1px solid #4a1515; z-index: 10; }
 
-  /* НОВОЕ: Баннер Локдауна */
   #lockdown-banner { display: none; background: #ff0000; color: #fff; text-align: center; padding: 5px; font-weight: bold; font-family: 'Fira Code'; font-size: 12px; letter-spacing: 2px; animation: pulseRed 1s infinite; z-index: 100; position: relative; }
 
   #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; position: relative; z-index: 2; }
@@ -269,7 +295,6 @@
   .msg .reply-quote .rq-name { color: var(--accent); font-weight: 600; margin-bottom: 2px; font-family: 'Fira Code', monospace; }
   .msg .reply-quote .rq-text { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* СТИЛИ СПОЙЛЕРОВ */
   .spoiler {
       background: var(--border);
       color: transparent;
@@ -285,7 +310,6 @@
       user-select: text;
   }
 
-  /* СТИЛИ ОПРОСОВ */
   .poll-container { margin-top: 8px; background: rgba(0,0,0,0.1); border: 1px solid var(--border); border-radius: 8px; padding: 10px; width: 280px; }
   .poll-question { font-weight: bold; margin-bottom: 10px; font-size: 14px; }
   .poll-option { position: relative; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; cursor: pointer; overflow: hidden; transition: border-color 0.2s; }
@@ -296,7 +320,6 @@
   .poll-option-pct { font-weight: bold; font-family: 'Fira Code'; color: var(--muted); }
   .poll-footer { font-size: 11px; color: var(--muted); text-align: right; margin-top: 4px; font-family: 'Fira Code'; }
 
-  /* КАСТОМНЫЙ ПЛЕЕР ГОЛОСОВЫХ */
   .voice-player { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px; background: rgba(0, 0, 0, 0.1); border: 1px solid var(--border); border-radius: 24px; margin-top: 6px; min-width: 180px; max-width: 100%; box-sizing: border-box; user-select: none; }
   .voice-play-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: var(--bg); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; transition: transform 0.15s, background 0.2s; }
   .voice-play-btn:hover { transform: scale(1.08); }
@@ -461,7 +484,6 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-  /* СТИЛИ ДЛЯ БЕЛОЙ ДОСКИ */
   #whiteboard-modal .modal-content { width: 900px; height: 85vh; max-width: 95vw; padding: 10px; background: #1e1e1e; resize: none; }
   .wb-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; background: #2d2d2d; padding: 10px; border-radius: 8px; flex-shrink: 0; }
   .wb-group { display: flex; flex-direction: column; border-right: 1px solid #444; padding-right: 10px; }
@@ -794,7 +816,6 @@
           <div id="invite-hint" style="font-size: 12px; color: var(--admin-text); margin-top: 8px; font-family: 'Fira Code';"></div>
         </div>
         
-        <!-- Блок Локдауна -->
         <div class="admin-section" style="border-color: #ff3333;">
             <h4 style="color: #ff3333;">🚨 Протокол изоляции (SCP-5000)</h4>
             <p style="font-size: 12px; color: var(--admin-text); margin-bottom: 15px;">Блокирует отправку сообщений всем, кроме Уровня 5.</p>
@@ -1171,10 +1192,10 @@
     <div class="sidebar-bottom">
       <div class="fab-container" id="fab-container">
         <div class="fab-menu" id="fab-menu">
-          <button class="fab-sub-btn" onclick="openCreateGroupModal(false)" title="Создать группу">
+          <button class="fab-sub-btn" data-tooltip="Создать группу" onclick="openCreateGroupModal(false)">
             <svg style="width:18px;height:18px;fill:currentColor;" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
           </button>
-          <button class="fab-sub-btn" onclick="openCreateGroupModal(true)" title="Создать канал">
+          <button class="fab-sub-btn" data-tooltip="Создать канал" onclick="openCreateGroupModal(true)">
             <svg style="width:18px;height:18px;fill:currentColor;" viewBox="0 0 24 24"><path d="M18 11v2h4v-2h-4zm-2 6.11c.72.57 1.5 1.03 2.34 1.38l1.42-1.42c-.59-.76-1.09-1.59-1.48-2.48l-2.28 2.52zm0-10.22l2.28 2.52c.39-.89.89-1.72 1.48-2.48l-1.42-1.42c-.84.35-1.62.81-2.34 1.38zM20 4h-2c0 2.8-1.2 5.3-3.1 7-.4.3-.8.7-1.2 1-.4-.3-.8-.7-1.2-1-1.9-1.7-3.1-4.2-3.1-7H4c0 3.5 1.7 6.6 4.3 8.6C6.3 15.1 5 17.4 5 20h2c0-2.2 1.3-4.1 3.2-5 1.2.6 2.5 1 3.8 1s2.6-.4 3.8-1c1.9.9 3.2 2.8 3.2 5h2c0-2.6-1.3-4.9-3.3-7.4 2.6-2 4.3-5.1 4.3-8.6z"/></svg>
           </button>
         </div>
@@ -2674,7 +2695,6 @@ window.setClearance = async function() {
   } catch (e) { alert(e.message); }
 };
 
-// Переключатель Локдауна
 window.toggleLockdown = async function() {
     if (!confirm('Изменить статус Локдауна?')) return;
     try {
@@ -3001,7 +3021,7 @@ window.openCreateGroupModal = function(isChannel) {
   document.getElementById('channel-required-clearance').value = '1';
   document.getElementById('channel-min-write-clearance').value = '1';
 
-  // Убираем список людей при создании
+  // Скрываем список людей при создании
   const list = document.getElementById('group-user-list');
   list.innerHTML = '<div class="empty">Создайте чат, а затем пригласите участников через настройки.</div>';
   
@@ -4087,7 +4107,17 @@ document.getElementById('clear-chat-btn').addEventListener('click', () => {
     document.getElementById('clear-all-btn').style.display = canClearAll ? 'block' : 'none';
     document.getElementById('clear-modal').classList.add('visible');
 });
-document.getElementById('clear-me-btn').addEventListener('click', () => { if (state.currentChat) { document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕНО</div>'; document.getElementById('clear-modal').classList.remove('visible'); } });
+
+// ИСПРАВЛЕНИЕ: Кнопка "Только у себя" теперь делает запрос к серверу
+document.getElementById('clear-me-btn').addEventListener('click', async () => { 
+    if (!state.currentChat) return; 
+    try {
+        await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'me' }) });
+        document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕНО</div>'; 
+        document.getElementById('clear-modal').classList.remove('visible'); 
+    } catch(e) { alert(e.message); }
+});
+
 document.getElementById('clear-all-btn').addEventListener('click', async () => {
   if (!state.currentChat || !confirm('Очистить у всех?')) return;
   try { await api('/chats/' + state.currentChat.id + '/clear', { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) }); document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕНО</div>'; document.getElementById('clear-modal').classList.remove('visible'); }
@@ -4279,7 +4309,6 @@ function connectSocket() {
     try { state.me = await api('/me'); enterChat(); if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList(); } catch (e) {}
   });
 
-  // Локдаун
   state.socket.on('lockdownToggled', (isLockdown) => {
       state.isLockdown = isLockdown;
       document.getElementById('lockdown-banner').style.display = isLockdown ? 'block' : 'none';
@@ -4386,7 +4415,14 @@ function connectSocket() {
     }
   });
   
-  state.socket.on('chatCleared', ({ chatId }) => { if (state.currentChat && state.currentChat.id === chatId) document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕНО</div>'; });
+  state.socket.on('chatCleared', ({ chatId, scope, userId }) => { 
+      if (state.currentChat && state.currentChat.id === chatId) {
+          if (scope === 'all' || (scope === 'me' && userId === state.me.id)) {
+              document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕНО</div>'; 
+          }
+      }
+  });
+
   state.socket.on('allMessagesWiped', () => {
     if (state.currentChat) document.getElementById('messages').innerHTML = '<div class="empty">ОЧИЩЕНО СИСТЕМОЙ</div>';
     state.chats.forEach(c => { c.preview = 'Очищен'; });
