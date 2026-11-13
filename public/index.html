@@ -5,7 +5,8 @@
 <meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>SCP Foundation — Secure Channel</title>
-<link rel="icon" type="image/png" href="/logo.png" />
+<!-- Встроенный Favicon (Base64), чтобы иконка больше никогда не пропадала -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%230d1117' stroke='%23ffffff' stroke-width='2'/%3E%3Cpath d='M12 4v16M4 12h16' stroke='%23ffffff' stroke-width='2'/%3E%3Ccircle cx='12' cy='12' r='4' fill='%230d1117' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -305,7 +306,6 @@
   .header-btn { background: transparent; border: none; font-size: 20px; cursor: pointer; padding: 4px; color: var(--muted); transition: color 0.2s; flex-shrink: 0; }
   .header-btn:hover { color: var(--accent); }
   
-  /* ИСПРАВЛЕННАЯ КНОПКА ОЧИСТКИ (Без красного круга) */
   .clear-chat-btn { background: transparent; border: none; cursor: pointer; transition: transform 0.2s; padding: 4px; opacity: 0.7; flex-shrink: 0; margin-left: 5px; display: flex; align-items: center; }
   .clear-chat-btn:hover { transform: scale(1.2); opacity: 1; }
   .clear-chat-btn svg { width: 16px; height: 16px; fill: #ff4d4d; }
@@ -320,10 +320,8 @@
 
   #lockdown-banner { display: none; background: #ff0000; color: #fff; text-align: center; padding: 5px; font-weight: bold; font-family: 'Fira Code'; font-size: 12px; letter-spacing: 2px; animation: pulseRed 1s infinite; z-index: 100; position: relative; }
 
-  /* ИСПРАВЛЕНИЕ ПУСТОГО ПРОСТРАНСТВА */
-  #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; justify-content: flex-end; gap: 16px; position: relative; z-index: 2; }
-  #messages > * { margin-top: auto; } /* Прижимает контент к низу, если его мало */
-  #messages > *:first-child { margin-top: 0; }
+  /* ИСПРАВЛЕНИЕ ПРОКРУТКИ ЧАТА (Убрали justify-content) */
+  #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; position: relative; z-index: 2; }
   
   .msg-row { display: flex; gap: 12px; align-items: flex-end; max-width: 85%; position: relative; cursor: pointer; border-radius: 8px; transition: background 0.2s; }
   .msg-row.mine { align-self: flex-end; flex-direction: row-reverse; }
@@ -1406,27 +1404,27 @@ const CLEARANCE_SHORT = { 1: 'D', 2: 'S', 3: 'R', 4: 'Z', 5: 'O5' };
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
 const FILE_SIZE_LIMITS = { 1: 10 * 1024 * 1024, 2: 50 * 1024 * 1024, 3: 200 * 1024 * 1024, 4: 1024 * 1024 * 1024, 5: 10 * 1024 * 1024 * 1024 };
 
-// ================= СИСТЕМА ОБНОВЛЕНИЙ =================
-const APP_VERSION = '1.2.0';
+// ================= СИСТЕМА ОБНОВЛЕНИЙ (v1.3.0) =================
+const APP_VERSION = '1.3.0';
 const CHANGELOG = [
     {
-        version: '1.2.0',
+        version: '1.3.0',
         date: '14.11.2026',
         changes: [
-            'Добавлена система логов обновлений (Changelog).',
+            'ИСПРАВЛЕН БАГ С ПРОКРУТКОЙ ЧАТА (сообщения больше не улетают вверх).',
+            'Иконка сайта (Favicon) встроена прямо в код и теперь не пропадает.',
             'Исправлен баг с красной точкой в заголовке чата.',
-            'Добавлена возможность просмотра истории обновлений через SCP_Helper.',
-            'Исправлено позиционирование сообщений (теперь они прижаты к низу, если их мало).'
+            'Добавлена кнопка просмотра обновлений в SCP_Helper (иконка документа).'
         ]
     },
     {
-        version: '1.1.0',
+        version: '1.2.0',
         date: '13.11.2026',
         changes: [
             'Добавлены SCP-реакции: [REDACTED], [OBSERVED], [MEMETIC HAZARD], [COGNITOHAZARD].',
             'Добавлен Протокол Сдерживания (Containment Breach) для администраторов.',
             'Внедрена система грифов: сообщения с ||текстом|| скрываются от пользователей ниже L3.',
-            'Плашки ролей теперь вращаются непрерывно (синхронизировано с системным временем).'
+            'Плашки ролей теперь вращаются непрерывно.'
         ]
     }
 ];
@@ -2509,8 +2507,8 @@ function enterChat() {
   updatePendingReportsCount();
   startExpiryTimers();
 
-  // Проверка обновлений
-  checkChangelog();
+  // Принудительный показ обновлений
+  setTimeout(checkChangelog, 500);
 }
 
 // ================= VISUAL SETTINGS =================
