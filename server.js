@@ -143,7 +143,9 @@ let db = {
     reports: [], 
     audit_logs: [],
     chat_invites: [],
-    is_lockdown: false 
+    is_lockdown: false,
+    is_breach: false,
+    breach_affected_users: []
 };
 
 let isS3Syncing = false;
@@ -417,15 +419,26 @@ function emitToChatMembers(chatId, event, payload) {
   const members = db.chat_members.filter(m => m.chat_id === chatId);
   members.forEach(m => {
       let customPayload = payload;
-      if (payload && payload.poll && payload.poll.isQuiz) {
+      
+      const memberUser = db.users.find(u => u.id === m.user_id);
+      const memberClearance = memberUser ? (memberUser.clearance_level || ROLE_TO_CLEARANCE[memberUser.role] || 1) : 1;
+      
+      const isRedacted = memberClearance < 3;
+      const needsPollFix = payload && payload.poll && payload.poll.isQuiz;
+      
+      if (isRedacted || needsPollFix) {
           customPayload = { ...payload };
-          let pollCopy = JSON.parse(JSON.stringify(payload.poll));
-          const hasVoted = pollCopy.options.some(o => o.votes.includes(m.user_id));
-          if (!hasVoted) {
-              delete pollCopy.correctOptionIndex;
+          if (needsPollFix) {
+              let pollCopy = JSON.parse(JSON.stringify(payload.poll));
+              const hasVoted = pollCopy.options.some(o => o.votes.includes(m.user_id));
+              if (!hasVoted) delete pollCopy.correctOptionIndex;
+              customPayload.poll = pollCopy;
           }
-          customPayload.poll = pollCopy;
+          if (isRedacted && customPayload.text) {
+              customPayload.text = customPayload.text.replace(/\|\|(.*?)\|\|/g, '[ДАННЫЕ УДАЛЕНЫ]');
+          }
       }
+      
       io.to(`user:${m.user_id}`).emit(event, customPayload);
   });
 }
@@ -1020,6 +1033,37 @@ app.post('/api/admin/toggle-lockdown', authMiddleware, (req, res) => {
     res.json({ ok: true, is_lockdown: db.is_lockdown });
 });
 
+// ================= CONTAINMENT BREACH =================
+app.post('/api/admin/trigger-breach', authMiddleware, (req, res) => {
+    const me = req.user;
+    if (me.role !== 'sysadmin' && me.role !== 'admin') return res.status(403).json({ error: 'Доступ запрещён' });
+    
+    if (db.is_breach) return res.status(400).json({ error: 'Нарушение уже активно!' });
+
+    db.is_breach = true;
+    db.breach_affected_users = [];
+    
+    const allUsers = db.users.filter(u => u.id !== HELPER_ID && u.role !== 'sysadmin');
+    const numAffected = Math.max(1, Math.floor(allUsers.length * 0.2));
+    const shuffled = allUsers.sort(() => 0.5 - Math.random());
+    const affected = shuffled.slice(0, numAffected);
+    db.breach_affected_users = affected.map(u => u.id);
+    
+    saveDb();
+    io.emit('containmentBreach', { active: true, duration: 60000 });
+
+    setTimeout(() => {
+        if (db.is_breach) {
+            db.is_breach = false;
+            db.breach_affected_users = [];
+            saveDb();
+            io.emit('containmentBreach', { active: false });
+        }
+    }, 60000);
+
+    res.json({ ok: true, affectedCount: db.breach_affected_users.length });
+});
+
 app.post('/api/admin/wipe-messages-and-files', authMiddleware, (req, res) => {
   const me = req.user;
   if (me.role !== 'sysadmin') {
@@ -1155,7 +1199,7 @@ app.get('/api/users/all', authMiddleware, (req, res) => {
   res.json(users);
 });
 
-// НОВЫЙ МАРШРУТ: Только контакты (те, с кем есть личная переписка)
+// Только контакты (те, с кем есть личная переписка)
 app.get('/api/users/contacts', authMiddleware, (req, res) => {
     const myChatIds = db.chat_members.filter(m => m.user_id === req.userId).map(m => m.chat_id);
     const contactIds = new Set();
@@ -1959,10 +2003,19 @@ function buildMessagePayload(m, reqUserId = null) {
       }
   }
   
+  let finalText = m.text;
+  if (reqUserId) {
+      const requester = db.users.find(u => u.id === reqUserId);
+      const requesterClearance = requester ? (requester.clearance_level || ROLE_TO_CLEARANCE[requester.role] || 1) : 1;
+      if (requesterClearance < 3) {
+          finalText = finalText.replace(/\|\|(.*?)\|\|/g, '[ДАННЫЕ УДАЛЕНЫ]');
+      }
+  }
+  
   return {
     id: m.id, 
     chatId: m.chat_id, 
-    text: m.text,
+    text: finalText,
     sender: sender ? publicUserSafe(sender) : { id: m.sender_id, username: 'Unknown', displayName: null },
     createdAt: m.created_at, 
     is_deleted: m.is_deleted || false,
@@ -2107,7 +2160,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
     return res.status(403).json({ error: `Доступ запрещён. Требуется уровень допуска ${chatForCheck.required_clearance}` });
   }
 
-  // Проверка глобального локдауна
   if (db.is_lockdown && myClearance < 5) {
       return res.status(403).json({ error: '🚨 ПРОТОКОЛ ЛОКДАУН АКТИВЕН. Связь разрешена только Совету О5.' });
   }
@@ -2135,6 +2187,34 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   if (!text || typeof text !== 'string' || !text.trim()) {
       return res.status(400).json({ error: 'Empty message' });
   }
+
+  // --- CALM COMMAND ---
+  if (text.startsWith('/calm ')) {
+      const targetUsername = text.replace('/calm ', '').trim().replace(/^@/, '');
+      const targetUser = findUserByUsername(targetUsername);
+      
+      if (!targetUser) return res.status(404).json({ error: 'Агент не найден' });
+      if (targetUser.id === req.userId) return res.status(400).json({ error: 'Вы не можете успокоить себя. Попросите другого агента.' });
+
+      if (db.breach_affected_users.includes(targetUser.id)) {
+          db.breach_affected_users = db.breach_affected_users.filter(id => id !== targetUser.id);
+          saveDb();
+          
+          const sysMsgId = genId();
+          const sysMsg = {
+              id: sysMsgId, chat_id: chatId, sender_id: HELPER_ID,
+              text: `✅ Агент @${me.username} успешно применил протокол успокоения к @${targetUser.username}.`,
+              created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], is_encrypted: false
+          };
+          db.messages.push(sysMsg);
+          saveDb();
+          emitToChatMembers(chatId, 'newMessage', buildMessagePayload(sysMsg));
+          return res.json(buildMessagePayload(sysMsg, req.userId));
+      } else {
+          return res.status(400).json({ error: 'Этот агент не заражен меметическим агентом' });
+      }
+  }
+  // --- END CALM COMMAND ---
 
   const isHelperChat = !chatForCheck.is_group && db.chat_members.some(m => m.chat_id === chatId && m.user_id === HELPER_ID);
   
@@ -2169,6 +2249,14 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       }
   }
 
+  let finalText = is_encrypted ? text.slice(0, 100000) : sanitizeString(text).slice(0, 4000);
+  
+  if (db.is_breach && db.breach_affected_users.includes(req.userId)) {
+      const base64Text = Buffer.from(finalText).toString('base64');
+      finalText = '▓▒░ ' + base64Text.slice(0, 20) + ' ░▒▓';
+      isFlagged = false; // Don't auto-ban for noise
+  }
+
   const msgId = genId();
   const now = Math.floor(Date.now() / 1000);
   
@@ -2177,8 +2265,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
       const seconds = Math.min(Number(expires_in), MAX_EXPIRY_SECONDS);
       expiresAt = Date.now() + seconds * 1000;
   }
-
-  const finalText = is_encrypted ? text.slice(0, 100000) : sanitizeString(text).slice(0, 4000);
 
   const msg = {
     id: msgId, 
@@ -2520,6 +2606,7 @@ app.post('/api/chats/:chatId/mark-read', authMiddleware, (req, res) => {
   res.json({ ok: true });
 });
 
+// ИСПРАВЛЕНИЕ: Очистка чата "У себя"
 app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
   const chatId = req.params.chatId;
   if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === req.userId)) {
@@ -2548,6 +2635,19 @@ app.delete('/api/chats/:chatId/clear', authMiddleware, (req, res) => {
     
     saveDb(); 
     emitToChatMembers(chatId, 'chatCleared', { chatId, scope: 'all' });
+  } else if (scope === 'me') {
+    // Добавляем текущего пользователя в deleted_for у всех сообщений этого чата
+    db.messages.forEach(m => {
+        if (m.chat_id === chatId) {
+            if (!m.deleted_for) m.deleted_for = [];
+            if (!m.deleted_for.includes(req.userId)) {
+                m.deleted_for.push(req.userId);
+            }
+        }
+    });
+    saveDb();
+    // Отправляем событие только этому пользователю
+    io.to(`user:${req.userId}`).emit('chatCleared', { chatId, scope: 'me', userId: req.userId });
   }
   res.json({ ok: true });
 });
@@ -2686,7 +2786,7 @@ app.post('/api/messages/:messageId/react', authMiddleware, (req, res) => {
   }
   
   const { emoji } = req.body;
-  if (!emoji || typeof emoji !== 'string' || emoji.length > 8) {
+  if (!emoji || typeof emoji !== 'string' || emoji.length > 30) {
       return res.status(400).json({ error: 'Недопустимая реакция' });
   }
   
@@ -3044,6 +3144,7 @@ io.on('connection', (socket) => {
     socket.join(`user:${socket.userId}`);
 
     socket.emit('lockdownToggled', db.is_lockdown);
+    socket.emit('containmentBreach', { active: db.is_breach });
 
     socket.on('typing', ({ chatId }) => {
       if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === socket.userId)) return;
@@ -3144,11 +3245,12 @@ app.use((req, res, next) => {
     }
   }
 
-  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments', 'reports', 'audit_logs', 'chat_invites'].forEach(key => { 
+  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments', 'reports', 'audit_logs', 'chat_invites', 'breach_affected_users'].forEach(key => { 
       if (!db[key]) db[key] = []; 
   });
   
   if (db.is_lockdown === undefined) db.is_lockdown = false;
+  if (db.is_breach === undefined) db.is_breach = false;
 
   let migrated = false;
   db.users.forEach(u => {
