@@ -84,6 +84,22 @@
     --hill-color: #0a1f10; --tree-color: #14301c; --ground-color: #1e4029;
   }
 
+  /* CONTAINMENT BREACH */
+  [data-breach="true"] {
+    --bg: #2a0000 !important;
+    --panel: #3a0000 !important;
+    --card: #4a0000 !important;
+    --border: #ff0000 !important;
+    --text: #ffcccc !important;
+    --accent: #ff0000 !important;
+    --muted: #ff6666 !important;
+    animation: breachPulse 2s infinite;
+  }
+  @keyframes breachPulse {
+    0%, 100% { box-shadow: inset 0 0 50px rgba(255,0,0,0.3); }
+    50% { box-shadow: inset 0 0 150px rgba(255,0,0,0.7); }
+  }
+
   html.theme-changing * {
     transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, fill 0.4s ease !important;
   }
@@ -851,6 +867,12 @@
             <button class="admin-btn admin-btn-danger" onclick="toggleLockdown()" style="width: 100%;">АКТИВИРОВАТЬ / СНЯТЬ ЛОКДАУН</button>
         </div>
 
+        <div class="admin-section" style="border-color: #ff0000; background: rgba(255, 0, 0, 0.05);">
+            <h4 style="color: #ff3333;">☣️ Протокол Сдерживания (Нарушение)</h4>
+            <p style="font-size: 12px; color: var(--admin-text); margin-bottom: 15px;">Запускает событие "Нарушение условий содержания" на 60 секунд. Зашифровывает сообщения случайных 20% агентов.</p>
+            <button class="admin-btn admin-btn-danger" onclick="triggerBreach()" style="width: 100%;">АКТИВИРОВАТЬ НАРУШЕНИЕ</button>
+        </div>
+
         <div class="admin-section" style="border-color: var(--admin-accent); background: rgba(255, 51, 51, 0.05);">
           <h4 style="color: var(--admin-accent); border-bottom-color: var(--admin-accent);">⚠️ Опасная зона</h4>
           <p style="font-size: 12px; color: var(--admin-accent); margin-bottom: 15px;">Удалит <b>ВСЕ сообщения и файлы</b>.</p>
@@ -1006,12 +1028,11 @@
   <div class="modal-content">
     <h3>ДЕЙСТВИЯ</h3>
     <div class="reaction-picker-row" id="reaction-picker-row">
-      <button onclick="reactToActiveMsg('👍')">👍</button>
-      <button onclick="reactToActiveMsg('❤️')">❤️</button>
-      <button onclick="reactToActiveMsg('😂')">😂</button>
-      <button onclick="reactToActiveMsg('😮')">😮</button>
-      <button onclick="reactToActiveMsg('😢')">😢</button>
-      <button onclick="reactToActiveMsg('🔥')">🔥</button>
+      <button onclick="reactToActiveMsg('🔴 [REDACTED]')" title="[REDACTED]">🔴</button>
+      <button onclick="reactToActiveMsg('👁️ [OBSERVED]')" title="[OBSERVED]">👁️</button>
+      <button onclick="reactToActiveMsg('☣️ [MEMETIC HAZARD]')" title="[MEMETIC HAZARD]">☣️</button>
+      <button onclick="reactToActiveMsg('🧠 [COGNITOHAZARD]')" title="[COGNITOHAZARD]">🧠</button>
+      <button onclick="reactToActiveMsg('🔥')" title="Fire">🔥</button>
     </div>
     <button class="modal-btn" id="msg-pin-btn" style="background: #ffcc00; color: #000; border: none; margin-bottom: 10px; display: none;">📌 Закрепить</button>
     <button class="modal-btn" id="msg-select-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-bottom: 10px;">☑️ Выбрать</button>
@@ -1484,6 +1505,29 @@ function playNotificationSound() {
             osc.stop(startTime + (i === notes.length - 1 ? 0.6 : duration));
         });
     } catch (e) { console.error(e); }
+}
+
+function playSirenSound() {
+    if (!globalAudioCtx) return;
+    try {
+        const osc = globalAudioCtx.createOscillator();
+        const gain = globalAudioCtx.createGain();
+        osc.type = 'sawtooth';
+        
+        const now = globalAudioCtx.currentTime;
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.linearRampToValueAtTime(800, now + 1);
+        osc.frequency.linearRampToValueAtTime(400, now + 2);
+        
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(notifVolume, now + 0.1);
+        gain.gain.linearRampToValueAtTime(0, now + 2);
+        
+        osc.connect(gain);
+        gain.connect(globalAudioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 2);
+    } catch(e) {}
 }
 
 function showNotification(sender, text, avatarUrl, chatId) {
@@ -2736,6 +2780,14 @@ window.toggleLockdown = async function() {
         const res = await api('/admin/toggle-lockdown', { method: 'POST' });
         alert(res.is_lockdown ? 'ЛОКДАУН АКТИВИРОВАН' : 'ЛОКДАУН СНЯТ');
         document.getElementById('lockdown-banner').style.display = res.is_lockdown ? 'block' : 'none';
+    } catch(e) { alert(e.message); }
+};
+
+window.triggerBreach = async function() {
+    if (!confirm('Активировать нарушение условий содержания?')) return;
+    try {
+        const res = await api('/admin/trigger-breach', { method: 'POST' });
+        alert(`Нарушение активировано! Заражено агентов: ${res.affectedCount}`);
     } catch(e) { alert(e.message); }
 };
 
@@ -4353,6 +4405,15 @@ function connectSocket() {
           if (c && !c.isBlocked && (!c.isChannel || c.creatorId === state.me.id)) {
               document.getElementById('composer').style.display = 'flex';
           }
+      }
+  });
+
+  state.socket.on('containmentBreach', (data) => {
+      if (data.active) {
+          document.documentElement.setAttribute('data-breach', 'true');
+          playSirenSound();
+      } else {
+          document.documentElement.removeAttribute('data-breach');
       }
   });
   
