@@ -2457,29 +2457,31 @@ app.post('/api/chats/:chatId/get-upload-url', authMiddleware, async (req, res) =
       return res.status(400).json({ error: 'Недопустимый тип файла: ' + ext });
   }
 
+  // ИСПРАВЛЕНИЕ: Принудительно назначаем правильный MIME-тип на основе расширения
   const mimeMap = {
-    '.png': ['image/png'], 
-    '.jpg': ['image/jpeg'], 
-    '.jpeg': ['image/jpeg'], 
-    '.gif': ['image/gif'], 
-    '.webp': ['image/webp'],
-    '.mp4': ['video/mp4'], 
-    '.webm': ['video/webm'], 
-    '.mp3': ['audio/mpeg'], 
-    '.wav': ['audio/wav', 'audio/x-wav'], 
-    '.ogg': ['audio/ogg'],
-    '.pdf': ['application/pdf'], 
-    '.zip': ['application/zip', 'application/x-zip-compressed', 'multipart/x-zip'], 
-    '.rar': ['application/x-rar-compressed', 'application/x-rar'], 
-    '.txt': ['text/plain']
+    '.png': 'image/png', 
+    '.jpg': 'image/jpeg', 
+    '.jpeg': 'image/jpeg', 
+    '.gif': 'image/gif', 
+    '.webp': 'image/webp',
+    '.mp4': 'video/mp4', 
+    '.webm': 'video/webm', 
+    '.mp3': 'audio/mpeg', 
+    '.wav': 'audio/wav', 
+    '.ogg': 'audio/ogg',
+    '.pdf': 'application/pdf', 
+    '.zip': 'application/zip', 
+    '.rar': 'application/x-rar-compressed', 
+    '.txt': 'text/plain'
   };
   
-  if (mimeMap[ext] && fileType && !mimeMap[ext].includes(fileType.toLowerCase()) && !fileType.startsWith('application/octet-stream')) {
-      return res.status(400).json({ error: 'Несоответствие расширения и MIME-типа файла' });
+  let finalFileType = fileType || 'application/octet-stream';
+  if (mimeMap[ext]) {
+      finalFileType = mimeMap[ext];
   }
 
   const key = `uploads/${genId()}${ext}`;
-  const command = new PutObjectCommand({ Bucket: S3_BUCKET, Key: key, ContentType: fileType });
+  const command = new PutObjectCommand({ Bucket: S3_BUCKET, Key: key, ContentType: finalFileType });
   
   try { 
       const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 }); 
@@ -2616,8 +2618,11 @@ app.get('/api/files/*', (req, res, next) => {
 
     const encodedFilename = encodeURIComponent(att.original_name || 'file');
     
-    // ИСПРАВЛЕНИЕ: Картинки отображаются в браузере (inline), остальное скачивается (attachment)
-    const isImage = att.mime_type && att.mime_type.startsWith('image/');
+    // ИСПРАВЛЕНИЕ: Проверяем и MIME-тип, и расширение файла (для надежности)
+    const ext = path.extname(att.original_name || '').toLowerCase();
+    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const isImage = (att.mime_type && att.mime_type.startsWith('image/')) || imageExts.includes(ext);
+    
     const dispositionType = isImage ? 'inline' : 'attachment';
     
     res.setHeader('Content-Disposition', `${dispositionType}; filename="${encodedFilename}"; filename*=UTF-8''${encodedFilename}`);
