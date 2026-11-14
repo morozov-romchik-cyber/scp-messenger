@@ -124,8 +124,8 @@ const HELPER_ID = 'system_scp_helper_id';
 const BANNED_WORDS = ['побег', 'нарушение условий содержания', 'свобода', 'сбежать'];
 const MAX_EXPIRY_SECONDS = 604800; // 7 дней
 
-// ★ Минимальное число голосов для валидности О5-запроса
-const O5_TYPES = ['unban', 'create_channel', 'change_rules', 'other'];
+// ★ Типы О5-запросов и минимальное число голосов для валидности
+const O5_TYPES = ['ban', 'unban', 'update_suggestion', 'change_rules', 'other'];
 const O5_MIN_TOTAL_VOTES = 3;
 
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
@@ -147,7 +147,7 @@ let db = {
     reports: [], 
     audit_logs: [],
     chat_invites: [],
-    o5_requests: [],                // ★ NEW
+    o5_requests: [],                // ★ О5 запросы
     is_lockdown: false,
     is_breach: false,
     breach_affected_users: [],
@@ -800,17 +800,30 @@ app.post('/api/admin/reports/:id/resolve', authMiddleware, (req, res) => {
 
 // ================= ★ О5 ЗАПРОСЫ (ГОЛОСОВАНИЯ) =================
 app.post('/api/o5/requests', authMiddleware, (req, res) => {
-  const { type, title, description, target_user_id } = req.body;
+  const { type, title, description, target_user_id, is_global } = req.body;
   if (!O5_TYPES.includes(type)) return res.status(400).json({ error: 'Неверный тип' });
   if (!title || !title.trim()) return res.status(400).json({ error: 'Укажите заголовок' });
 
+  // Проверка лимита на глобальные запросы (1 в день)
+  if (is_global) {
+    const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;
+    const recentGlobal = db.o5_requests.find(r => r.creator_id === req.userId && r.is_global && r.created_at > oneDayAgo);
+    if (recentGlobal) {
+      return res.status(400).json({ error: 'Вы можете отправлять только 1 глобальный запрос в 24 часа.' });
+    }
+  }
+
   let targetId = null;
-  if (type === 'unban') {
-    if (!target_user_id) return res.status(400).json({ error: 'Укажите пользователя для разбана' });
-    const target = findUserByIdentifier(target_user_id);
+  if (type === 'ban' || type === 'unban') {
+    if (!target_user_id) return res.status(400).json({ error: 'Выберите пользователя' });
+    const target = db.users.find(u => u.id === target_user_id);
     if (!target) return res.status(404).json({ error: 'Пользователь не найден' });
-    if (!target.ban_expires || Number(target.ban_expires) === 0) {
+    
+    if (type === 'unban' && (!target.ban_expires || Number(target.ban_expires) === 0)) {
       return res.status(400).json({ error: 'Пользователь не забанен' });
+    }
+    if (type === 'ban' && (target.ban_expires && Number(target.ban_expires) !== 0)) {
+      return res.status(400).json({ error: 'Пользователь уже забанен' });
     }
     targetId = target.id;
   }
@@ -818,7 +831,7 @@ app.post('/api/o5/requests', authMiddleware, (req, res) => {
   // Проверка дубликата
   const existing = db.o5_requests.find(r => {
     if (r.status !== 'voting' || r.type !== type) return false;
-    if (type === 'unban') return r.target_user_id === targetId;
+    if (type === 'ban' || type === 'unban') return r.target_user_id === targetId;
     return r.title.toLowerCase() === title.trim().toLowerCase();
   });
   if (existing) return res.status(400).json({ error: 'Похожий запрос уже на голосовании' });
@@ -828,6 +841,7 @@ app.post('/api/o5/requests', authMiddleware, (req, res) => {
     title: sanitizeString(title).slice(0, 200),
     description: sanitizeString(description || '').slice(0, 2000),
     target_user_id: targetId,
+    is_global: !!is_global,
     creator_id: req.userId,
     votes: [],
     status: 'voting',
@@ -853,6 +867,7 @@ app.get('/api/o5/requests', authMiddleware, (req, res) => {
       return {
         id: r.id, type: r.type, title: r.title, description: r.description,
         status: r.status, created_at: r.created_at,
+        is_global: r.is_global,
         creator_name: creator ? creator.username : 'Unknown',
         target_user_id: r.target_user_id,
         target_name: target ? target.username : null,
@@ -909,6 +924,7 @@ app.get('/api/admin/o5-requests', authMiddleware, (req, res) => {
       return {
         id: r.id, type: r.type, title: r.title, description: r.description,
         status: r.status, created_at: r.created_at,
+        is_global: r.is_global,
         creator_name: creator ? creator.username : 'Unknown',
         target_user_id: r.target_user_id,
         target_name: target ? target.username : null,
@@ -946,13 +962,25 @@ app.post('/api/admin/o5-requests/:id/resolve', authMiddleware, (req, res) => {
   request.resolved_by = me.id;
   request.admin_comment = sanitizeString(reason || '').slice(0, 500);
 
-  if (action === 'executed' && request.type === 'unban' && request.target_user_id) {
-    const target = db.users.find(u => u.id === request.target_user_id);
-    if (target) {
-      target.ban_expires = 0; 
-      target.ban_reason = '';
-      io.to(`user:${target.id}`).emit('forceLogout', { unbanned: true });
-      logAdminAction(me.id, 'o5_unban', target.id, `Разбан по О5-запросу ${request.id}`);
+  if (action === 'executed') {
+    if (request.type === 'unban' && request.target_user_id) {
+      const target = db.users.find(u => u.id === request.target_user_id);
+      if (target) {
+        target.ban_expires = 0; 
+        target.ban_reason = '';
+        io.to(`user:${target.id}`).emit('forceLogout', { unbanned: true });
+        logAdminAction(me.id, 'o5_unban', target.id, `Разбан по О5-запросу ${request.id}`);
+      }
+    } else if (request.type === 'ban' && request.target_user_id) {
+      const target = db.users.find(u => u.id === request.target_user_id);
+      if (target) {
+        target.ban_expires = -1; 
+        target.ban_reason = 'Решение Совета О5';
+        io.to(`user:${target.id}`).emit('forceLogout', { ban_expires: -1, ban_reason: target.ban_reason });
+        const userSockets = [...io.sockets.sockets.values()].filter(s => s.userId === target.id);
+        userSockets.forEach(s => s.disconnect(true));
+        logAdminAction(me.id, 'o5_ban', target.id, `Бан по О5-запросу ${request.id}`);
+      }
     }
   }
 
@@ -1726,7 +1754,7 @@ app.get('/api/chats', authMiddleware, (req, res) => {
       e2ee_enabled: (c.is_group || isHelperChat) ? false : true,
       unreadCount: unreadCount,
       description: c.description || '',
-      is_black_channel: !!c.is_black_channel      // ★ NEW
+      is_black_channel: !!c.is_black_channel
     };
   });
   res.json(chats);
@@ -1847,7 +1875,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
       pinned_messages: [],
       description: '',
       avatar_url: null,
-      is_black_channel: wantBlack              // ★
+      is_black_channel: wantBlack
     });
 
     const groupId = genId();
@@ -1864,7 +1892,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
       pinned_messages: [],
       description: '',
       avatar_url: null,
-      is_black_channel: false                  // Группа обсуждения — обычная
+      is_black_channel: false
     });
 
     uniqueMembers.forEach(uid => {
@@ -1915,7 +1943,7 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
     pinned_messages: [],
     description: '',
     avatar_url: null,
-    is_black_channel: wantBlack                // ★
+    is_black_channel: wantBlack
   });
   
   uniqueMembers.forEach(uid => {
@@ -2240,7 +2268,7 @@ function buildMessagePayload(m, reqUserId = null) {
 
   const realSender = db.users.find(u => u.id === m.sender_id);
   let senderPayload;
-  // ★ Анонимизация: если запросил НЕ отправитель
+  
   if (isBlackChannel && reqUserId && reqUserId !== m.sender_id) {
     senderPayload = {
       id: 'anon',
@@ -2301,7 +2329,7 @@ function buildMessagePayload(m, reqUserId = null) {
     edited: m.edited || false,
     expires_at: m.expires_at || null,
     is_encrypted: m.is_encrypted || false,
-    is_anonymous: isBlackChannel,             // ★ NEW
+    is_anonymous: isBlackChannel,
     attachments: atts.map(a => ({ url: a.url, mime: a.mime_type, name: a.original_name, size: a.size, is_voice: !!a.is_voice })),
     poll: poll
   };
@@ -3575,7 +3603,6 @@ app.use((req, res, next) => {
       if (c.e2ee_enabled === undefined) { c.e2ee_enabled = false; migrated = true; }
       if (c.description === undefined) { c.description = ''; migrated = true; }
       if (c.avatar_url === undefined) { c.avatar_url = null; migrated = true; }
-      // ★ Инициализация is_black_channel для старых чатов
       if (c.is_black_channel === undefined) { c.is_black_channel = false; migrated = true; }
   });
   if (migrated) saveDb();
