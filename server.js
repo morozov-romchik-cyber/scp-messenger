@@ -146,7 +146,8 @@ let db = {
     is_lockdown: false,
     is_breach: false,
     breach_affected_users: [],
-    last_auto_event: 0
+    last_auto_event: 0,
+    next_event_time: 0 // НОВОЕ: Время следующего ивента
 };
 
 let isS3Syncing = false;
@@ -548,31 +549,54 @@ setInterval(() => {
 
     // 2% шанс каждую минуту
     if (Math.random() < 0.02) {
-        serverLog('info', 'Автоматический запуск Протокола Сдерживания!');
+        serverLog('info', 'Запланирован Протокол Сдерживания (через 10 секунд)!');
+        
         db.last_auto_event = now;
-        
-        db.is_breach = true;
-        db.breach_affected_users = [];
-        
-        const allUsers = db.users.filter(u => u.id !== HELPER_ID && u.role !== 'sysadmin' && u.role !== 'admin');
-        const numAffected = Math.max(1, Math.floor(allUsers.length * 0.2));
-        const shuffled = allUsers.sort(() => 0.5 - Math.random());
-        const affected = shuffled.slice(0, numAffected);
-        db.breach_affected_users = affected.map(u => u.id);
-        
+        db.next_event_time = now + 10000; // Время начала ивента
         saveDb();
-        io.emit('containmentBreach', { active: true, duration: 60000, auto: true });
+        
+        // 1. Предупреждение за 10 секунд
+        io.emit('eventWarning', { startsIn: 10 });
 
+        // 2. Сам ивент через 10 секунд
         setTimeout(() => {
-            if (db.is_breach) {
-                db.is_breach = false;
-                db.breach_affected_users = [];
-                saveDb();
-                io.emit('containmentBreach', { active: false });
-            }
-        }, 60000);
+            if (db.is_breach) return;
+            
+            serverLog('info', 'Автоматический запуск Протокола Сдерживания!');
+            db.is_breach = true;
+            db.breach_affected_users = [];
+            db.next_event_time = 0; // Сбрасываем таймер
+            
+            const allUsers = db.users.filter(u => u.id !== HELPER_ID && u.role !== 'sysadmin' && u.role !== 'admin');
+            const numAffected = Math.max(1, Math.floor(allUsers.length * 0.2));
+            const shuffled = allUsers.sort(() => 0.5 - Math.random());
+            const affected = shuffled.slice(0, numAffected);
+            db.breach_affected_users = affected.map(u => u.id);
+            
+            saveDb();
+            io.emit('containmentBreach', { active: true, duration: 60000, auto: true });
+
+            setTimeout(() => {
+                if (db.is_breach) {
+                    db.is_breach = false;
+                    db.breach_affected_users = [];
+                    saveDb();
+                    io.emit('containmentBreach', { active: false });
+                }
+            }, 60000);
+        }, 10000);
     }
 }, 60000);
+
+// НОВОЕ: API для сисадмина (таймер до ивента)
+app.get('/api/admin/event-status', authMiddleware, (req, res) => {
+    if (req.user.role !== 'sysadmin') return res.status(403).json({ error: 'Доступ запрещён' });
+    res.json({
+        last_auto_event: db.last_auto_event || 0,
+        next_event_time: db.next_event_time || 0,
+        is_breach: db.is_breach
+    });
+});
 
 // ================= ADMIN STATS & AUDIT =================
 app.get('/api/admin/stats', authMiddleware, (req, res) => {
@@ -3295,6 +3319,7 @@ app.use((req, res, next) => {
   if (db.is_lockdown === undefined) db.is_lockdown = false;
   if (db.is_breach === undefined) db.is_breach = false;
   if (!db.last_auto_event) db.last_auto_event = Date.now();
+  if (db.next_event_time === undefined) db.next_event_time = 0;
 
   let migrated = false;
   db.users.forEach(u => {
