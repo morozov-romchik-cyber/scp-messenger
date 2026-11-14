@@ -569,6 +569,12 @@
   #att-viewer .att-viewer-body img, #att-viewer .att-viewer-body video { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; }
   #att-viewer .att-viewer-nav { padding: 10px; display: flex; justify-content: center; align-items: center; gap: 15px; background: var(--card); border-top: 1px solid var(--border); font-family: 'Fira Code', monospace; font-size: 12px; }
 
+  /* Стили для голосований */
+  .vote-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 10px; }
+  .vote-bar { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin: 10px 0; display: flex; }
+  .vote-yes { background: var(--online-green); height: 100%; transition: width 0.3s; }
+  .vote-no { background: #ff4d4d; height: 100%; transition: width 0.3s; }
+
   @media (max-width: 768px) {
     #admin-dashboard-modal .modal-content { flex-direction: column; width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; border-radius: 0; border: none; }
     .admin-sidebar { width: 100%; flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--admin-border); flex-shrink: 0; padding-top: 65px; }
@@ -617,7 +623,7 @@
   <img id="lightbox-img" src="" alt="Фото">
 </div>
 
-<!-- НОВОЕ ОКНО ОБНОВЛЕНИЙ -->
+<!-- ОКНО ОБНОВЛЕНИЙ -->
 <div class="modal" id="changelog-modal">
   <div class="modal-content" style="width: 500px;">
     <h3>📄 ИСТОРИЯ ОБНОВЛЕНИЙ</h3>
@@ -835,6 +841,7 @@
       <div class="admin-tab active" data-tab="server">👑 Управление сервером</div>
       <div class="admin-tab" data-tab="stats" id="tab-btn-stats" style="display: none;">📈 Статистика</div>
       <div class="admin-tab" data-tab="audit" id="tab-btn-audit" style="display: none;">📜 Аудит-лог</div>
+      <div class="admin-tab" data-tab="passed-votes" id="tab-btn-passed-votes" style="display: none; color: var(--admin-accent); font-weight: bold;">📜 Запросы О5</div>
       <div class="admin-tab" data-tab="reports" id="tab-btn-reports" style="display: none; color: var(--admin-accent);">🚨 Жалобы <span id="report-badge" style="background: var(--admin-accent); color: #fff; border-radius: 10px; padding: 2px 6px; font-size: 10px; margin-left: auto; display: none;">0</span></div>
       <div class="admin-tab" data-tab="moderation" id="tab-btn-moderation" style="display: none;">🛡️ Модерация контента</div>
       <div class="admin-tab" data-tab="chats" id="tab-btn-chats" style="display: none;">💬 Группы и Каналы</div>
@@ -845,6 +852,12 @@
       <div class="admin-tab admin-tab-close-desktop" style="color: var(--admin-accent); border-left-color: transparent;" onclick="document.getElementById('admin-dashboard-modal').classList.remove('visible')">✖ Закрыть</div>
     </div>
     <div class="admin-main">
+      
+      <div id="tab-passed-votes" class="admin-tab-content" style="display: none;">
+        <div class="admin-header"><h2>Одобренные запросы (>50%)</h2><button class="admin-btn" onclick="loadPassedVotes()">🔄 Обновить</button></div>
+        <div id="passed-votes-list" class="admin-section"></div>
+      </div>
+
       <div id="tab-stats" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Статистика сервера</h2><button class="admin-btn" onclick="loadStats()">🔄 Обновить</button></div>
         <div class="admin-section">
@@ -871,12 +884,10 @@
       <div id="tab-server" class="admin-tab-content">
         <div class="admin-header"><h2>Управление сервером</h2></div>
         
-        <!-- НОВЫЙ БЛОК: ТАЙМЕР ИВЕНТА ДЛЯ СИСАДМИНА -->
         <div class="admin-section" id="event-timer-section" style="display: none; border-color: #ffcc00;">
             <h4 style="color: #ffcc00;">⏱️ Статус системы ивентов</h4>
             <div style="font-size: 14px; color: var(--admin-text); font-family: 'Fira Code';">
                 <div>До следующего ивента: <span id="next-event-timer" style="color: #ffcc00; font-weight: bold; font-size: 18px;">--:--</span></div>
-                <div style="font-size: 11px; margin-top: 5px; color: var(--muted);">(Проверка раз в 10 секунд)</div>
             </div>
         </div>
 
@@ -884,25 +895,21 @@
           <h4>Генерация инвайт-кодов</h4>
           <div class="admin-input-group"><select id="invite-role-select"></select><button class="admin-btn" onclick="generateInvite()">Создать код</button></div>
           <div id="invite-result" style="font-family: 'Fira Code'; font-size: 14px; color: var(--admin-green); margin-top: 10px;"></div>
-          <div id="invite-hint" style="font-size: 12px; color: var(--admin-text); margin-top: 8px; font-family: 'Fira Code';"></div>
         </div>
         
         <div class="admin-section" style="border-color: #ff3333;">
             <h4 style="color: #ff3333;">🚨 Протокол изоляции (SCP-5000)</h4>
-            <p style="font-size: 12px; color: var(--admin-text); margin-bottom: 15px;">Блокирует отправку сообщений всем, кроме Уровня 5.</p>
             <button class="admin-btn admin-btn-danger" onclick="toggleLockdown()" style="width: 100%;">АКТИВИРОВАТЬ / СНЯТЬ ЛОКДАУН</button>
         </div>
 
         <div class="admin-section" style="border-color: #ff0000; background: rgba(255, 0, 0, 0.05);">
             <h4 style="color: #ff3333;">☣️ Протокол Сдерживания (Нарушение)</h4>
-            <p style="font-size: 12px; color: var(--admin-text); margin-bottom: 15px;">Запускает событие "Нарушение условий содержания" на 60 секунд. Зашифровывает сообщения случайных 20% агентов.</p>
             <button class="admin-btn admin-btn-danger" onclick="triggerBreach()" style="width: 100%;">АКТИВИРОВАТЬ НАРУШЕНИЕ</button>
         </div>
 
         <div class="admin-section" style="border-color: var(--admin-accent); background: rgba(255, 51, 51, 0.05);">
-          <h4 style="color: var(--admin-accent); border-bottom-color: var(--admin-accent);">⚠️ Опасная зона</h4>
-          <p style="font-size: 12px; color: var(--admin-accent); margin-bottom: 15px;">Удалит <b>ВСЕ сообщения и файлы</b>.</p>
-          <button class="admin-btn admin-btn-danger" onclick="wipeAllMessages(event)" style="background: var(--admin-accent); color: #fff; border: none; width: 100%; padding: 12px; font-size: 16px; font-weight: bold;">🗑️ УДАЛИТЬ ВСЕ ПЕРЕПИСКИ И ФАЙЛЫ</button>
+          <h4 style="color: var(--admin-accent);">⚠️ Опасная зона</h4>
+          <button class="admin-btn admin-btn-danger" onclick="wipeAllMessages(event)" style="background: var(--admin-accent); color: #fff; width: 100%;">🗑️ УДАЛИТЬ ВСЕ ПЕРЕПИСКИ</button>
         </div>
       </div>
       <div id="tab-moderation" class="admin-tab-content" style="display: none;">
@@ -910,7 +917,6 @@
         <div class="admin-section">
           <h4>Управление удаленными сообщениями</h4>
           <div class="admin-toggle-row"><span>Читать удаленные сообщения (Логируется)</span><input type="checkbox" id="read-deleted-toggle" onchange="toggleReadDeleted(this.checked)"></div>
-          <div id="read-deleted-status-label" style="font-family: 'Fira Code'; font-size: 12px; margin-top: 8px; font-weight: bold;"></div>
         </div>
       </div>
       <div id="tab-users" class="admin-tab-content" style="display: none;">
@@ -922,16 +928,11 @@
         </div>
         
         <div class="admin-section" id="clearance-section">
-          <h4>🔐 Назначение уровня допуска (Clearance Level)</h4>
-          <p style="font-size: 11px; color: var(--admin-text); margin-bottom: 10px;">1 = Класс-D, 2 = Научный сотрудник, 3 = Ст. Исследователь, 4 = Рук. Зоны, 5 = Совет О5</p>
+          <h4>🔐 Назначение уровня допуска</h4>
           <div class="admin-input-group">
-            <input type="text" placeholder="Username или ID" id="clearance-user-input">
+            <input type="text" placeholder="Username" id="clearance-user-input">
             <select id="clearance-level-select">
-              <option value="1">Level 1 — Класс-D</option>
-              <option value="2">Level 2 — Научный сотрудник</option>
-              <option value="3">Level 3 — Старший исследователь</option>
-              <option value="4">Level 4 — Руководитель Зоны</option>
-              <option value="5">Level 5 — Совет О5</option>
+              <option value="1">Level 1</option><option value="2">Level 2</option><option value="3">Level 3</option><option value="4">Level 4</option><option value="5">Level 5</option>
             </select>
             <button class="admin-btn" onclick="setClearance()">Назначить</button>
           </div>
@@ -939,34 +940,30 @@
         
         <div class="admin-section">
           <h4>Блокировка аккаунта</h4>
-          <div class="admin-input-group" style="flex-wrap: wrap;">
-            <input type="text" placeholder="Username или ID" id="user-ban-input" style="flex: 2; min-width: 140px;">
-            <select id="user-ban-duration" style="flex: 1; min-width: 120px;" onchange="handleBanPresetChange(this.value)">
-              <option value="custom">Свое время</option><option value="60">1 час</option><option value="1440">24 часа</option><option value="4320">3 дня</option><option value="10080">7 дней</option><option value="-1">Навсегда</option>
+          <div class="admin-input-group">
+            <input type="text" placeholder="Username" id="user-ban-input">
+            <select id="user-ban-duration" onchange="handleBanPresetChange(this.value)">
+              <option value="custom">Свое время</option><option value="60">1 час</option><option value="1440">24 часа</option><option value="10080">7 дней</option><option value="-1">Навсегда</option>
             </select>
-            <input type="number" id="user-ban-custom-minutes" placeholder="Мин." min="1" style="width: 80px; flex: none;" value="10">
+            <input type="number" id="user-ban-custom-minutes" placeholder="Мин." value="10" style="width: 80px;">
             <button class="admin-btn admin-btn-danger" onclick="banUser()">Забанить</button><button class="admin-btn" onclick="unbanUser()">Разбанить</button>
           </div>
         </div>
         <div class="admin-section">
-          <h4>Назначение ролей (Персонал)</h4>
+          <h4>Назначение ролей</h4>
           <div class="admin-input-group">
-            <input type="text" placeholder="Username или ID" id="user-role-input">
+            <input type="text" placeholder="Username" id="user-role-input">
             <select id="user-role-select">
               <option value="user">Пользователь</option><option value="helper">Хелпер</option><option value="moderator">Модератор</option><option value="admin" data-sysonly>Админ</option><option value="sysadmin" data-sysonly>SysAdmin</option>
             </select>
             <button class="admin-btn" onclick="assignRole()">Назначить</button>
           </div>
         </div>
-        <div class="admin-section">
-          <h4>Удаление пользователя</h4>
-          <div class="admin-input-group"><input type="text" placeholder="Username или ID" id="user-action-input"><button class="admin-btn admin-btn-danger" onclick="deleteUser()">Удалить</button></div>
-        </div>
       </div>
       <div id="tab-staff" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Список персонала</h2><button class="admin-btn" onclick="loadStaffList()">🔄 Обновить</button></div>
         <div class="admin-section">
-          <input type="text" id="staff-search" placeholder="🔍 Поиск..." oninput="filterStaff()" style="width: 100%; background: var(--bg); border: 1px solid var(--admin-border); color: var(--text); padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none; margin-bottom: 15px;">
+          <input type="text" id="staff-search" placeholder="🔍 Поиск..." oninput="filterStaff()" style="width: 100%; margin-bottom: 15px; padding: 10px; background: var(--bg); border: 1px solid var(--admin-border); color: var(--text); border-radius: 6px;">
           <div id="staff-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
         </div>
       </div>
@@ -974,10 +971,8 @@
         <div class="admin-header"><h2>Срочные оповещения</h2></div>
         <div class="admin-section">
           <h4>📢 Отправить оповещение</h4>
-          <div class="admin-input-group" style="flex-direction: column; align-items: stretch;">
-            <textarea id="alert-text-input" placeholder="Текст..." rows="4" style="background: var(--bg); border: 1px solid var(--admin-border); color: var(--text); padding: 10px 14px; border-radius: 6px; font-family: inherit; outline: none; resize: vertical; margin-bottom: 10px;"></textarea>
-            <button class="admin-btn admin-btn-danger" onclick="sendUrgentAlert()" style="background: var(--admin-accent); color: #fff; font-size: 16px; padding: 12px;">🚨 ОТПРАВИТЬ ВСЕМ</button>
-          </div>
+          <textarea id="alert-text-input" placeholder="Текст..." rows="4" style="width: 100%; padding: 10px; margin-bottom: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text);"></textarea>
+          <button class="admin-btn admin-btn-danger" onclick="sendUrgentAlert()" style="width: 100%;">🚨 ОТПРАВИТЬ ВСЕМ</button>
         </div>
       </div>
     </div>
@@ -996,7 +991,6 @@
 <div class="modal" id="add-member-modal">
   <div class="modal-content" style="height: 70vh; display: flex; flex-direction: column;">
     <h3>ПРИГЛАСИТЬ В ГРУППУ</h3>
-    <p style="font-size: 11px; color: var(--muted); margin-bottom: 10px; text-align: center;">Пользователям придет приватная ссылка от SCP_Helper</p>
     <div id="add-member-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
     <button class="modal-btn" onclick="submitAddMembers()" style="background: var(--accent); color: var(--bg); margin-bottom: 10px; flex-shrink: 0;">Отправить приглашения</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('add-member-modal').classList.remove('visible')">Отмена</button>
@@ -1012,6 +1006,15 @@
       <div style="font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'Fira Code';">Ссылка: scp.me/...</div>
     </div>
     
+    <!-- НОВОЕ: Черный канал -->
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: var(--bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border); flex-shrink: 0;">
+      <input type="checkbox" id="black-channel-checkbox" style="width: 18px; height: 18px; accent-color: #ff4d4d; cursor: pointer;">
+      <label for="black-channel-checkbox" style="font-size: 13px; color: #ff4d4d; cursor: pointer; user-select: none;">
+        <b>🕵️ Анонимный канал (Dead Drop)</b><br>
+        <span style="font-size: 11px; color: var(--muted);">Все сообщения будут от "Неизвестного агента"</span>
+      </label>
+    </div>
+
     <div id="clearance-required-container" style="display: none; margin-bottom: 10px; flex-shrink: 0;">
       <label style="font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px;">🔒 Требуемый уровень допуска (для входа):</label>
       <select id="channel-required-clearance" style="width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; font-family: inherit; outline: none;">
@@ -1037,6 +1040,27 @@
     <div id="group-user-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
     <button class="modal-btn" onclick="createGroup()" style="background: var(--accent); color: var(--bg); margin-bottom: 10px; flex-shrink: 0;">Создать</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted); flex-shrink: 0;" onclick="document.getElementById('create-group-modal').classList.remove('visible')">Отмена</button>
+  </div>
+</div>
+
+<!-- НОВОЕ: Модалки Голосования -->
+<div class="modal" id="votes-list-modal">
+  <div class="modal-content" style="width: 500px; height: 80vh; display: flex; flex-direction: column;">
+    <h3>📊 АКТИВНЫЕ ГОЛОСОВАНИЯ</h3>
+    <div id="votes-container" style="flex: 1; overflow-y: auto; margin-bottom: 15px;"></div>
+    <button class="modal-btn" style="background: var(--link-blue);" onclick="document.getElementById('create-vote-modal').classList.add('visible')">➕ Создать запрос</button>
+    <button class="modal-btn" style="background: transparent; border: 1px solid var(--border);" onclick="document.getElementById('votes-list-modal').classList.remove('visible')">Закрыть</button>
+  </div>
+</div>
+
+<div class="modal" id="create-vote-modal">
+  <div class="modal-content">
+    <h3>📢 ЗАПРОС В СОВЕТ О5</h3>
+    <p style="font-size: 12px; color: var(--muted); margin-bottom: 15px;">Если запрос наберет >50% голосов "За", он уйдет на рассмотрение администрации.</p>
+    <input type="text" id="vote-title-input" placeholder="Краткая суть (напр. Разбан агента X)" style="width: 100%; padding: 10px; margin-bottom: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px;">
+    <textarea id="vote-desc-input" placeholder="Подробное описание..." style="width: 100%; padding: 10px; height: 80px; margin-bottom: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px; resize: none;"></textarea>
+    <button class="modal-btn" onclick="submitVote()">Отправить запрос</button>
+    <button class="modal-btn" style="background: transparent; border: 1px solid var(--border);" onclick="document.getElementById('create-vote-modal').classList.remove('visible')">Отмена</button>
   </div>
 </div>
 
@@ -1132,7 +1156,6 @@
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Логин:</span><span id="set-my-username" style="font-weight:bold;">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Роль:</span><span id="set-my-role" style="font-weight:bold;">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Уровень допуска:</span><span id="set-my-clearance">...</span></div>
-        <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">Статус:</span><span id="set-my-status" style="color: var(--custom-blue);">...</span></div>
         <div style="display:flex; justify-content:space-between;"><span style="color:var(--muted);">ID:</span><span id="set-my-id" style="color: #ffd700;">...</span></div>
       </div>
       <div id="my-xp-bar" style="width: 100%;"></div>
@@ -1141,11 +1164,8 @@
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px; font-weight: bold; color: var(--accent);">🎁 Ваш инвайт-код:</span>
       <div style="display: flex; gap: 10px; width: 100%;">
-        <input type="text" id="settings-invite-code" readonly value="..." style="flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--online-green); padding: 10px; border-radius: 6px; font-family: 'Fira Code'; font-weight: bold; outline: none; cursor: pointer; user-select: all;" onclick="this.select()" title="Нажмите, чтобы выделить">
+        <input type="text" id="settings-invite-code" readonly value="..." style="flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--online-green); padding: 10px; border-radius: 6px; font-family: 'Fira Code'; font-weight: bold; outline: none; cursor: pointer; user-select: all;" onclick="this.select()">
         <button class="modal-btn" id="copy-invite-code-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;">📋 Копировать</button>
-      </div>
-      <div style="font-size: 11px; color: var(--muted); margin-top: 6px; font-family: 'Fira Code'; line-height: 1.4;">
-        Поделитесь этим кодом с друзьями. При регистрации они вводят его в поле «Код приглашения», а вы получаете <b style="color: var(--online-green);">+200 XP</b> за каждого (до 2-х в день).
       </div>
     </div>
 
@@ -1156,13 +1176,7 @@
         <button class="modal-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;" id="update-display-name-btn">Сохранить</button>
       </div>
     </div>
-    <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
-      <span style="margin-bottom: 10px;">Статус (виден другим):</span>
-      <div style="display: flex; gap: 10px; width: 100%;">
-        <input type="text" id="settings-status-input" placeholder="В секторе 4 / Провожу допрос" style="flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-family: inherit; outline: none;" maxlength="64">
-        <button class="modal-btn" style="width: auto; padding: 8px 12px; margin: 0; font-size: 12px;" id="update-status-btn">Сохранить</button>
-      </div>
-    </div>
+    
     <div class="setting-row" style="flex-direction: column; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
       <span style="margin-bottom: 10px;">Ваш Аватар:</span>
       <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
@@ -1175,11 +1189,7 @@
       <div class="setting-row">
           <span>Тема оформления:</span>
           <select id="theme-select" onchange="applyTheme(this.value)" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 4px; outline: none; font-family: inherit;">
-              <option value="black">Черная</option>
-              <option value="gray">Серая</option>
-              <option value="light">Светлая</option>
-              <option value="dark-blue">Темно-синяя</option>
-              <option value="dark-green">Темно-зеленая</option>
+              <option value="black">Черная</option><option value="gray">Серая</option><option value="light">Светлая</option><option value="dark-blue">Темно-синяя</option><option value="dark-green">Темно-зеленая</option>
           </select>
       </div>
       <div class="setting-row"><span>Время года:</span><select id="season-select"><option value="winter">Зима ❄️</option><option value="spring">Весна 🌱</option><option value="summer">Лето ☀️</option><option value="autumn">Осень 🍂</option></select></div>
@@ -1189,10 +1199,9 @@
         <input type="range" id="volume-slider" min="0" max="1" step="0.05" style="width: 120px; vertical-align: middle;">
       </div>
       <div class="setting-row"><span>Призраки (SCP):</span><input type="checkbox" id="ghosts-toggle"></div>
-      <div class="setting-row"><span>Избранные чаты:</span><input type="checkbox" id="favorites-toggle"></div>
     </div>
     
-    <!-- НОВАЯ КНОПКА ИСТОРИИ ОБНОВЛЕНИЙ -->
+    <!-- КНОПКА ИСТОРИИ ОБНОВЛЕНИЙ -->
     <button class="modal-btn" id="open-changelog-btn" style="background: var(--card); color: var(--link-blue); border: 1px solid var(--border); margin-top: 10px;">📄 История обновлений</button>
     
     <button class="modal-btn" id="logout-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-top: 10px;">Выйти из аккаунта</button>
@@ -1236,7 +1245,6 @@
   </div>
 </div>
 
-<!-- НОВОЕ ОКНО ПРЕДУПРЕЖДЕНИЯ ОБ ИВЕНТЕ -->
 <div class="modal" id="event-warning-modal" style="z-index: 9999998; background: rgba(255, 150, 0, 0.2); backdrop-filter: blur(5px);">
   <div class="modal-content" style="border: 2px solid #ffcc00; box-shadow: 0 0 40px rgba(255, 204, 0, 0.5); text-align: center; max-width: 400px;">
     <h3 style="color: #ffcc00; font-size: 22px; margin-bottom: 15px; text-shadow: 0 0 10px rgba(255,204,0,0.8);">⚠️ ВНИМАНИЕ ⚠️</h3>
@@ -1318,6 +1326,10 @@
         </div>
       </div>
       <div id="my-role-badge" style="font-size: 12px; font-family: 'Fira Code'; margin-right: 15px; font-weight: bold; color: var(--muted);"></div>
+      
+      <!-- Кнопка голосований -->
+      <button class="header-btn" id="votes-header-btn" title="Голосования" style="color: var(--link-blue);">🗳️</button>
+      
       <button class="header-btn" id="chat-options-btn" style="display: none;" title="Опции">⋮</button>
       <button class="header-btn" id="admin-header-btn" style="display: none; color: #ff3333; font-size: 18px; position: relative;" title="Админ-панель">👑</button>
       <button class="header-btn" id="open-settings" title="Настройки">⚙️</button>
@@ -1435,6 +1447,9 @@ const CHANGELOG = [
         changes: [
             'ИСПРАВЛЕНЫ ФОТО: Теперь картинки, которые загружались с ошибкой, будут открываться нормально.',
             'ПЕРЕНОС КНОПКИ: История обновлений теперь находится в Настройках (⚙️), чтобы не мешать в чате.',
+            'ОГРАНИЧЕНИЕ: Создание групп, каналов и черных каналов теперь доступно только с 4 уровня допуска.',
+            'ДОБАВЛЕНЫ ГОЛОСОВАНИЯ: Запросы в О5, которые набирают >50% голосов, уходят в админку.',
+            'ДОБАВЛЕНЫ ЧЕРНЫЕ КАНАЛЫ: Анонимные чаты (Dead Drops).',
             'ОБНОВЛЕНЫ ДАТЫ в истории обновлений (синхронизированы с МСК).'
         ]
     },
@@ -1442,22 +1457,10 @@ const CHANGELOG = [
         version: '1.4.3',
         date: '14.11.2026',
         changes: [
-            'ДОБАВЛЕНО ОКНО ПРЕДУПРЕЖДЕНИЯ: За 10 секунд до ивента появляется уведомление, чтобы никого не напугать.',
-            'ОБНОВЛЕН ЗВУК СИРЕНЫ: Теперь используется реальный аудиофайл (siren.mp3) для максимального реализма.',
+            'ДОБАВЛЕНО ОКНО ПРЕДУПРЕЖДЕНИЯ: За 10 секунд до ивента появляется уведомление.',
+            'ОБНОВЛЕН ЗВУК СИРЕНЫ: Теперь используется реальный аудиофайл (siren.mp3).',
             'ОБНОВЛЕН ЗВУК УВЕДОМЛЕНИЙ: Теперь используется аудиофайл (notify.mp3).',
-            'ДОБАВЛЕН ТАЙМЕР ДЛЯ СИСАДМИНА: В админ-панели можно увидеть точное время до следующего ивента.',
-            'ОБНОВЛЕНЫ ДАТЫ в истории обновлений (синхронизированы с МСК).'
-        ]
-    },
-    {
-        version: '1.4.2',
-        date: '13.11.2026',
-        changes: [
-            'УБРАНА ЗАВИСИМОСТЬ ИВЕНТОВ ОТ КОЛИЧЕСТВА СООБЩЕНИЙ.',
-            'Теперь Протокол Сдерживания запускается исключительно по времени.',
-            'Ивенты стали реже: вероятность 2% каждую минуту (в среднем раз в 1-1.5 часа).',
-            'Обновлен звук уведомлений: теперь он басистый и менее резкий.',
-            'Звук сирены во время ивента теперь циклично повторяется.'
+            'ДОБАВЛЕН ТАЙМЕР ДЛЯ СИСАДМИНА: В админ-панели можно увидеть точное время до следующего ивента.'
         ]
     }
 ];
@@ -1575,7 +1578,6 @@ function initEmojiPicker() {
     <div class="emoji-content" id="emoji-content">
       ${EMOJIS.map(e => `<div class="emoji-item">${e}</div>`).join('')}
     </div>
-    <div class="emoji-resize-handle" id="emoji-resize-handle"></div>
   `;
   const content = document.getElementById('emoji-content');
   content.addEventListener('click', (e) => {
@@ -1620,10 +1622,8 @@ function playSirenSound() {
             sirenAudio = new Audio('/siren.mp3');
             sirenAudio.loop = true; 
         }
-        
         sirenAudio.volume = notifVolume; 
         sirenAudio.currentTime = 0; 
-        
         sirenAudio.play().catch(e => {
             console.error("Браузер заблокировал сирену (нужен клик по экрану):", e);
         });
@@ -2521,12 +2521,14 @@ function enterChat() {
     document.getElementById('tab-btn-alerts').style.display = 'flex';
     document.getElementById('tab-btn-stats').style.display = 'flex';
     document.getElementById('tab-btn-audit').style.display = 'flex';
+    document.getElementById('tab-btn-passed-votes').style.display = 'flex';
   } else {
     document.querySelectorAll('#user-role-select option[data-sysonly]').forEach(o => o.remove());
     document.getElementById('tab-btn-alerts').style.display = 'none';
     document.getElementById('clearance-section').style.display = 'none';
     document.getElementById('tab-btn-stats').style.display = 'none';
     document.getElementById('tab-btn-audit').style.display = 'none';
+    document.getElementById('tab-btn-passed-votes').style.display = 'none';
   }
   if (['sysadmin', 'admin', 'moderator'].includes(state.me.role)) {
     document.getElementById('tab-btn-reports').style.display = 'flex';
@@ -2727,7 +2729,6 @@ document.getElementById('header-avatar').addEventListener('click', () => {
   }
 });
 
-// ИСПРАВЛЕННЫЙ ОБРАБОТЧИК КНОПКИ ВЫХОДА
 document.getElementById('logout-btn').addEventListener('click', async () => { 
     try {
         await api('/logout', { method: 'POST' });
@@ -2794,7 +2795,6 @@ document.getElementById('admin-header-btn').addEventListener('click', async () =
     updateReadDeletedStatusLabel(state.read_deleted);
     populateInviteRoles();
 
-    // НОВОЕ: Таймер для Сисадмина
     const timerSection = document.getElementById('event-timer-section');
     if (state.me.role === 'sysadmin') {
         timerSection.style.display = 'block';
@@ -2808,7 +2808,6 @@ document.getElementById('admin-header-btn').addEventListener('click', async () =
   }
 });
 
-// Функция обновления таймера
 async function updateEventTimer() {
     if (!document.getElementById('admin-dashboard-modal').classList.contains('visible') || state.me.role !== 'sysadmin') return;
     try {
@@ -2830,7 +2829,6 @@ async function updateEventTimer() {
         } else {
             const now = Date.now();
             const last = status.last_auto_event;
-            // Ивент раз в 45 минут минимум, плюс рандом
             const nextPossible = last + (45 * 60 * 1000);
             if (now < nextPossible) {
                 const diff = nextPossible - now;
@@ -2845,7 +2843,7 @@ async function updateEventTimer() {
         }
     } catch(e) { console.error('Timer error', e); }
 }
-setInterval(updateEventTimer, 10000); // Обновляем каждые 10 сек
+setInterval(updateEventTimer, 10000);
 
 document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -2858,232 +2856,105 @@ document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
     if (tab.dataset.tab === 'chats') loadAllChats();
     if (tab.dataset.tab === 'stats') loadStats();
     if (tab.dataset.tab === 'audit') loadAuditLog();
+    if (tab.dataset.tab === 'passed-votes') loadPassedVotes();
   });
 });
 
-window.loadStats = async function() {
+// ================= ADMIN VOTES =================
+window.loadPassedVotes = async function() {
+    const box = document.getElementById('passed-votes-list');
+    box.innerHTML = 'Загрузка...';
     try {
-        const data = await api('/admin/stats');
-        const renderBars = (containerId, arr, color) => {
-            const box = document.getElementById(containerId);
-            const max = Math.max(...arr, 1);
-            box.innerHTML = arr.map((val, i) => {
-                const h = (val / max) * 100;
-                const d = new Date(Date.now() - (6 - i) * 86400000);
-                const label = d.toLocaleDateString('ru-RU', { weekday: 'short' });
-                return `<div class="stat-bar-wrapper"><span class="stat-val">${val}</span><div class="stat-bar" style="height:${h}%; background:${color};"></div><span class="stat-label">${label}</span></div>`;
-            }).join('');
-        };
-        renderBars('msgs-chart', data.msgsPerDay, 'var(--admin-accent)');
-        renderBars('users-chart', data.usersPerDay, 'var(--admin-green)');
+        const votes = await api('/admin/votes');
+        if (!votes.length) { box.innerHTML = '<div class="empty">Нет запросов</div>'; return; }
+        box.innerHTML = votes.map(v => `
+            <div style="background: var(--bg); border: 1px solid var(--admin-accent); padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+                <div style="font-weight: bold; color: var(--admin-accent);">${esc(v.title)}</div>
+                <div style="font-size: 12px; color: var(--text); margin: 5px 0;">${esc(v.description)}</div>
+                <div style="font-size: 11px; color: var(--muted);">Голосов ЗА: ${v.votes_yes.length}</div>
+                <button class="admin-btn" style="margin-top: 10px; width: 100%;" onclick="resolveVoteAdmin('${v.id}')">✅ Принять и закрыть</button>
+            </div>
+        `).join('');
+    } catch(e) { box.innerHTML = `<div style="color:red;">Ошибка: ${e.message}</div>`; }
+};
+
+window.resolveVoteAdmin = async function(id) {
+    try {
+        await api(`/admin/votes/${id}/resolve`, { method: 'POST' });
+        loadPassedVotes();
+        alert('Запрос обработан');
+    } catch(e) { alert(e.message); }
+};
+
+// ================= VOTES USER =================
+window.openVotesList = async function() {
+    document.getElementById('votes-list-modal').classList.add('visible');
+    await loadVotes();
+};
+
+async function loadVotes() {
+    const container = document.getElementById('votes-container');
+    container.innerHTML = 'Загрузка...';
+    try {
+        const votes = await api('/votes');
+        if (!votes.length) {
+            container.innerHTML = '<div class="empty">Нет активных голосований</div>';
+            return;
+        }
         
-        const tu = document.getElementById('top-users-list');
-        tu.innerHTML = data.topUsers.map((u, i) => `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--admin-border);"><span>${i+1}. @${esc(u.username)}</span><span style="color:var(--admin-accent)">${u.count} сообщ.</span></div>`).join('');
-    } catch(e) { alert(e.message); }
-};
+        container.innerHTML = votes.map(v => {
+            const yes = v.votes_yes.length;
+            const no = v.votes_no.length;
+            const total = yes + no || 1;
+            const yesPct = Math.round((yes / total) * 100);
+            const noPct = Math.round((no / total) * 100);
+            const iVotedYes = v.votes_yes.includes(state.me.id);
+            const iVotedNo = v.votes_no.includes(state.me.id);
 
-window.loadAuditLog = async function() {
-    try {
-        const logs = await api('/admin/audit-log');
-        const box = document.getElementById('audit-list');
-        if (!logs.length) { box.innerHTML = '<div class="empty">Логи пусты</div>'; return; }
-        box.innerHTML = logs.map(l => {
-            const date = new Date(l.created_at * 1000).toLocaleString();
-            return `<div class="audit-item"><b>${date}</b> [@${esc(l.admin_name)}] ${esc(l.details)}</div>`;
+            return `
+            <div class="vote-card">
+                <div style="font-weight: bold; color: var(--link-blue); font-size: 15px;">${esc(v.title)}</div>
+                <div style="font-size: 13px; margin-bottom: 10px; color: var(--text);">${esc(v.description)}</div>
+                
+                <div class="vote-bar">
+                    <div class="vote-yes" style="width: ${yesPct}%;"></div>
+                    <div class="vote-no" style="width: ${noPct}%;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; font-family: 'Fira Code'; margin-bottom: 10px;">
+                    <span style="color: var(--online-green);">ЗА: ${yes}</span>
+                    <span style="color: #ff4d4d;">ПРОТИВ: ${no}</span>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button class="admin-btn" onclick="castVote('${v.id}', 'yes')" style="flex:1; background: ${iVotedYes ? 'var(--online-green)' : 'transparent'}; color: ${iVotedYes ? '#000' : 'var(--online-green)'};">ЗА</button>
+                    <button class="admin-btn" onclick="castVote('${v.id}', 'no')" style="flex:1; background: ${iVotedNo ? '#ff4d4d' : 'transparent'}; color: ${iVotedNo ? '#fff' : '#ff4d4d'};">ПРОТИВ</button>
+                </div>
+            </div>
+            `;
         }).join('');
-    } catch(e) { alert(e.message); }
-};
+    } catch(e) { container.innerHTML = `<div style="color:red;">Ошибка: ${e.message}</div>`; }
+}
 
-window.openAdminMembers = async function(chatId) {
-  const modal = document.getElementById('group-members-modal');
-  const list = document.getElementById('group-members-list');
-  const addBtn = document.getElementById('add-member-btn');
-  if (!modal || !list) return;
-  list.innerHTML = 'Загрузка...';
-  addBtn.style.display = 'none';
-  modal.classList.add('visible');
-  try {
-    const members = await api('/admin/chats/' + chatId + '/members');
-    if (!members || members.length === 0) {
-      list.innerHTML = '<div class="empty">Нет участников</div>';
-      return;
-    }
-    list.innerHTML = members.map(u => {
-      const init = esc((u.displayName || u.username || '?')[0].toUpperCase());
-      const av = u.avatarUrl ? `<img src="${escAttr(u.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : init;
-      return `<div style="display:flex; align-items:center; gap:10px; padding:10px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
-          <div class="chat-avatar" style="width:32px; height:32px; font-size:14px;" onclick="document.getElementById('group-members-modal').classList.remove('visible'); openProfile('${u.id}')">${av}</div>
-          <div style="flex:1;">
-              <div style="font-weight:600; font-size:14px;">${esc(u.displayName || u.username)}</div>
-              <div style="font-size:11px;">${clearanceBadge(u.clearance_level || 1)}</div>
-          </div>
-      </div>`;
-    }).join('');
-  } catch (e) {
-    list.innerHTML = `<div style="color:#ff4d4d;">Ошибка: ${e.message}</div>`;
-  }
-};
-
-window.setClearance = async function() {
-  const username = document.getElementById('clearance-user-input').value.trim().replace(/^@/, '');
-  const level = Number(document.getElementById('clearance-level-select').value);
-  if (!username) return alert('Введите Username или ID');
-  if (!confirm(`Назначить Level ${level} пользователю @${username}?`)) return;
-  try {
-    await api('/admin/set-clearance', { method: 'POST', body: JSON.stringify({ username, clearance_level: level }) });
-    alert(`Level ${level} назначен`);
-    loadStaffList();
-  } catch (e) { alert(e.message); }
-};
-
-window.toggleLockdown = async function() {
-    if (!confirm('Изменить статус Локдауна?')) return;
+window.castVote = async function(id, option) {
     try {
-        const res = await api('/admin/toggle-lockdown', { method: 'POST' });
-        alert(res.is_lockdown ? 'ЛОКДАУН АКТИВИРОВАН' : 'ЛОКДАУН СНЯТ');
-        document.getElementById('lockdown-banner').style.display = res.is_lockdown ? 'block' : 'none';
+        await api(`/votes/${id}/cast`, { method: 'POST', body: JSON.stringify({ voteOption: option }) });
+        await loadVotes();
     } catch(e) { alert(e.message); }
 };
 
-window.triggerBreach = async function() {
-    if (!confirm('Активировать нарушение условий содержания?')) return;
+window.submitVote = async function() {
+    const title = document.getElementById('vote-title-input').value.trim();
+    const desc = document.getElementById('vote-desc-input').value.trim();
+    if (!title || !desc) return alert('Заполните все поля');
+    
     try {
-        const res = await api('/admin/trigger-breach', { method: 'POST' });
-        alert(`Нарушение активировано! Заражено агентов: ${res.affectedCount}`);
+        await api('/votes/create', { method: 'POST', body: JSON.stringify({ title, description: desc }) });
+        document.getElementById('vote-title-input').value = '';
+        document.getElementById('vote-desc-input').value = '';
+        document.getElementById('create-vote-modal').classList.remove('visible');
+        await loadVotes();
+        alert('Запрос создан!');
     } catch(e) { alert(e.message); }
-};
-
-// ================= REPORTS =================
-window.toggleCustomReason = function(val) {
-  const el = document.getElementById('report-custom-text');
-  el.style.display = val === 'other' ? 'block' : 'none';
-  if (val === 'other') el.focus();
-};
-window.openReportModal = async function() {
-  document.getElementById('msg-actions-modal').classList.remove('visible');
-  document.getElementById('report-modal').classList.add('visible');
-  const container = document.getElementById('report-msgs-container');
-  container.innerHTML = 'Загрузка...';
-  try {
-    const msgs = await api('/chats/' + state.currentChat.id + '/messages');
-    const targetUserMsgs = msgs.filter(m => m.sender.id === state.activeMsg.sender.id && !m.is_deleted).slice(-10);
-    if (!targetUserMsgs.length) {
-      document.getElementById('report-modal').classList.remove('visible');
-      return alert('Нет доступных сообщений');
-    }
-    container.innerHTML = targetUserMsgs.map(m => `
-      <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 12px; padding: 4px; border-bottom: 1px solid var(--border); color: var(--text);">
-        <input type="checkbox" class="report-msg-checkbox" value="${m.id}" ${m.id === state.activeMsg.id ? 'checked' : ''} style="margin-top: 2px; accent-color: #ff9933;">
-        <span style="word-break: break-word;">${esc(m.text || '(вложение)')}</span>
-      </label>
-    `).join('');
-  } catch (e) { container.innerHTML = `<div style="color: #ff4d4d;">Ошибка: ${esc(e.message)}</div>`; }
-};
-window.submitReport = async function() {
-  let reason = document.getElementById('report-reason').value;
-  if (reason === 'other') {
-    const custom = document.getElementById('report-custom-text').value.trim();
-    if (!custom) return alert('Опишите причину');
-    reason = 'Другое: ' + custom;
-  }
-  
-  let ids = [];
-  let targetUserId = null;
-
-  if (isSelectionMode && selectedMsgIds.size > 0) {
-      ids = Array.from(selectedMsgIds);
-      targetUserId = multiSelectReportTargetId;
-  } else {
-      const checked = document.querySelectorAll('.report-msg-checkbox:checked');
-      ids = Array.from(checked).map(cb => cb.value);
-      if (state.activeMsg) targetUserId = state.activeMsg.sender.id;
-  }
-
-  if (!ids.length || !targetUserId) return alert('Ошибка выбора сообщений');
-
-  try {
-    await api('/reports', { method: 'POST', body: JSON.stringify({ target_user_id: targetUserId, target_message_ids: ids, reason }) });
-    document.getElementById('report-modal').classList.remove('visible');
-    if (isSelectionMode) cancelSelectionMode();
-    alert('Жалоба отправлена');
-  } catch (e) { alert(e.message); }
-};
-window.updatePendingReportsCount = async function() {
-  if (!state.me || !['sysadmin', 'admin', 'moderator'].includes(state.me.role)) return;
-  try {
-    const reports = await api('/admin/reports');
-    const badge = document.getElementById('report-badge');
-    if (reports.length > 0) { badge.textContent = reports.length; badge.style.display = 'inline-block'; }
-    else { badge.style.display = 'none'; }
-  } catch (e) { }
-};
-window.loadReports = async function() {
-  const box = document.getElementById('reports-list');
-  box.innerHTML = 'Загрузка...';
-  try {
-    const reports = await api('/admin/reports');
-    const badge = document.getElementById('report-badge');
-    if (reports.length > 0) { badge.textContent = reports.length; badge.style.display = 'inline-block'; }
-    else { badge.style.display = 'none'; }
-    if (!reports.length) { box.innerHTML = '<div class="empty">Нет активных жалоб</div>'; return; }
-    box.innerHTML = reports.map(r => {
-      const date = new Date(r.created_at * 1000).toLocaleString();
-      const targetName = r.targetUser ? `@${r.targetUser.username}` : 'Неизвестный';
-      const msgsHtml = (r.targetMessages || []).map(m => `
-        <label style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; cursor: pointer;">
-          <input type="checkbox" class="report-del-checkbox-${r.id}" value="${m.id}" style="margin-top: 3px; accent-color: var(--admin-accent);">
-          <span style="color: var(--text); font-style: italic; font-size: 12px;">"${esc((m.text || '(вложение)').slice(0, 100))}"</span>
-        </label>
-      `).join('');
-      return `
-        <div style="background: var(--admin-panel); border: 1px solid var(--admin-accent); border-radius: 8px; padding: 15px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid var(--admin-border); padding-bottom: 10px;">
-            <span style="color: var(--admin-text); font-size: 12px; font-family: 'Fira Code';">От: @${esc(r.reporter)}</span>
-            <span style="color: var(--admin-text); font-size: 12px;">${date}</span>
-          </div>
-          <div style="font-size: 14px; margin-bottom: 10px;"><span style="color: var(--text);">Нарушитель:</span> <a href="#" onclick="event.preventDefault(); openProfile('${r.targetUser?.id || ''}');" style="color: var(--admin-accent); text-decoration: underline;">${targetName}</a></div>
-          <div style="font-size: 14px; margin-bottom: 15px; background: var(--bg); padding: 10px; border-radius: 6px;">
-            <span style="color: var(--admin-accent); font-size: 11px; display: block; margin-bottom: 6px;">Причина: ${esc(r.reason.toUpperCase())}</span>
-            ${msgsHtml}
-          </div>
-          <div style="display: flex; gap: 10px;">
-            ${r.targetUser ? `<button class="admin-btn admin-btn-danger" style="flex: 1; padding: 8px; font-size: 12px;" onclick="banFromReport('${r.targetUser.id}', '${r.id}', '${escAttr(r.reason)}')">🚫 Забанить</button>` : ''}
-            ${r.targetMessages && r.targetMessages.length > 0 ? `<button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px;" onclick="deleteSelectedFromReport('${r.id}')">🗑️ Удалить</button>` : ''}
-            <button class="admin-btn" style="flex: 1; padding: 8px; font-size: 12px;" onclick="resolveReport('${r.id}', 'ignored')">✖ Отклонить</button>
-          </div>
-        </div>
-      `;
-    }).join('');
-  } catch (e) { box.innerHTML = `<div style="color: #ff4d4d;">Ошибка: ${esc(e.message)}</div>`; }
-};
-window.resolveReport = async function(id, action, extra = {}) {
-  try { await api(`/admin/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ action, ...extra }) }); loadReports(); updatePendingReportsCount(); }
-  catch (e) { alert(e.message); }
-};
-window.deleteSelectedFromReport = async function(id) {
-  const checkboxes = document.querySelectorAll(`.report-del-checkbox-${id}:checked`);
-  if (!checkboxes.length) return alert('Выберите сообщения');
-  if (!confirm(`Удалить ${checkboxes.length} сообщений?`)) return;
-  try {
-    for (const cb of checkboxes) await api('/messages/' + cb.value, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
-    await resolveReport(id, 'deleted');
-  } catch (e) { alert(e.message); }
-};
-window.banFromReport = async function(userId, reportId, reason) {
-  const checkboxes = document.querySelectorAll(`.report-del-checkbox-${reportId}:checked`);
-  const ids = Array.from(checkboxes).map(cb => cb.value);
-  if (!confirm(`Забанить?${ids.length ? ` и удалить ${ids.length} сообщений?` : ''}`)) return;
-  const duration = prompt('Время бана (мин, -1 = навсегда):', '1440');
-  if (duration === null) return;
-  const rsn = prompt('Причина:', reason);
-  if (rsn === null) return;
-  try {
-    for (const id of ids) await api('/messages/' + id, { method: 'DELETE', body: JSON.stringify({ scope: 'all' }) });
-    const user = await api('/users/' + userId);
-    await api('/admin/ban-user', { method: 'POST', body: JSON.stringify({ username: user.username, duration: Number(duration), reason: rsn }) });
-    await resolveReport(reportId, 'banned', { duration: Number(duration) });
-    alert('Готово');
-  } catch (e) { alert(e.message); }
 };
 
 // ================= CHATS ADMIN =================
@@ -3098,10 +2969,10 @@ window.loadAllChats = async function() {
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
                 <div style="font-weight: bold; color: var(--text);">
-                    ${esc(c.name)} ${c.isChannel ? '📢' : '👥'}
+                    ${esc(c.name)} ${c.isChannel ? '📢' : '👥'} ${c.is_black_channel ? '🕵️' : ''}
                     ${c.username ? `<span style="color: var(--admin-accent); font-size: 12px; font-family: 'Fira Code'; font-weight: normal; margin-left: 6px;">@${esc(c.username)}</span>` : ''}
                 </div>
-                <div style="font-size: 11px; color: var(--admin-text); font-family: 'Fira Code'; margin-top: 4px;">Создатель: @${esc(c.creatorName || 'Unknown')} • Участников: ${c.memberCount} • Вход: L${c.required_clearance} • Писать: L${c.min_write_clearance || 1}</div>
+                <div style="font-size: 11px; color: var(--admin-text); font-family: 'Fira Code'; margin-top: 4px;">Создатель: @${esc(c.creatorName || 'Unknown')} • Участников: ${c.memberCount} • Вход: L${c.required_clearance}</div>
             </div>
             <button class="admin-btn" onclick="openAdminMembers('${c.id}')" style="padding: 6px 12px; font-size: 12px;">👥 Участники</button>
         </div>
@@ -3143,7 +3014,6 @@ function renderStaffList(users) {
 window.populateInviteRoles = function() {
   const select = document.getElementById('invite-role-select');
   const section = document.getElementById('invite-section');
-  const hint = document.getElementById('invite-hint');
   if (!select || !state.me) return;
   const myRank = ROLE_RANK[state.me.role] || 0;
   const available = Object.keys(ROLE_RANK).filter(r => ROLE_RANK[r] < myRank).sort((a, b) => ROLE_RANK[b] - ROLE_RANK[a]);
@@ -3151,7 +3021,6 @@ window.populateInviteRoles = function() {
   if (!available.length) { if (section) section.style.display = 'none'; return; }
   if (section) section.style.display = 'block';
   available.forEach(r => { const opt = document.createElement('option'); opt.value = r; opt.textContent = ROLE_LABEL[r]; select.appendChild(opt); });
-  if (hint) hint.textContent = `// Максимум: ${ROLE_LABEL[available[0]]}`;
 };
 window.generateInvite = async function() {
   const role = document.getElementById('invite-role-select').value;
@@ -3254,10 +3123,10 @@ document.addEventListener('click', (e) => {
 window.openCreateGroupModal = function(isChannel) {
   document.getElementById('fab-container').classList.remove('open');
   
-  if (state.me.role === 'user') {
-      const myClearance = state.me.clearance_level || 1;
-      if (!isChannel && myClearance < 2) return alert('Для создания групп требуется Уровень 2 (Научный сотрудник)');
-      if (isChannel && myClearance < 3) return alert('Для создания каналов требуется Уровень 3 (Старший исследователь)');
+  const myClearance = state.me.clearance_level || 1;
+  // ОГРАНИЧЕНИЕ 4 УРОВНЯ
+  if (myClearance < 4 && !['sysadmin', 'admin'].includes(state.me.role)) {
+      return alert('Для создания групп, каналов и черных каналов требуется Уровень 4 (Руководитель Зоны)');
   }
 
   isCreatingChannel = isChannel;
@@ -3265,6 +3134,7 @@ window.openCreateGroupModal = function(isChannel) {
   document.getElementById('group-name-input').value = '';
   document.getElementById('channel-username-container').style.display = isChannel ? 'block' : 'none';
   document.getElementById('channel-username-input').value = '';
+  document.getElementById('black-channel-checkbox').checked = false;
   document.getElementById('clearance-required-container').style.display = 'block';
   document.getElementById('min-write-clearance-container').style.display = 'block';
   document.getElementById('channel-required-clearance').value = '1';
@@ -3284,7 +3154,6 @@ window.createGroup = async function() {
   if (isCreatingChannel) {
     username = document.getElementById('channel-username-input').value.trim();
     if (!username) return alert('Укажите юзернейм для канала');
-    // Строгая валидация
     if (!/^[a-z0-9_-]{3,32}$/.test(username)) {
         return alert('Юзернейм может содержать только английские буквы, цифры, символы _ и - (от 3 до 32 символов)');
     }
@@ -3292,11 +3161,15 @@ window.createGroup = async function() {
   const requiredClearance = Number(document.getElementById('channel-required-clearance').value);
   const minWriteClearance = Number(document.getElementById('channel-min-write-clearance').value);
   
-  // Создаем пустую группу
+  const isBlack = document.getElementById('black-channel-checkbox').checked;
   const memberIds = [];
 
   try {
-    const res = await api('/chats/group', { method: 'POST', body: JSON.stringify({ name, memberIds, is_channel: isCreatingChannel, username, required_clearance: requiredClearance, min_write_clearance: minWriteClearance }) });
+    const res = await api('/chats/group', { method: 'POST', body: JSON.stringify({ 
+        name, memberIds, is_channel: isCreatingChannel, username, 
+        required_clearance: requiredClearance, min_write_clearance: minWriteClearance,
+        is_black_channel: isBlack 
+    }) });
     document.getElementById('create-group-modal').classList.remove('visible');
     await loadChats();
     openChat(res.chatId, name, null, false, null, 0, true, state.me.id, isCreatingChannel, res.username, false, false, false, res.required_clearance, true);
@@ -3310,7 +3183,6 @@ window.openAddMemberModal = async function() {
     list.innerHTML = 'Загрузка...';
     document.getElementById('add-member-modal').classList.add('visible');
     try {
-        // Берем только контакты
         const allUsers = await api('/users/contacts');
         const currentMembers = await api('/chats/' + state.currentChat.id + '/members');
         const currentIds = currentMembers.map(m => m.id);
@@ -3545,7 +3417,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
      }
   }
 
-  // Локдаун скрывает композер
   if (state.isLockdown && myClearance < 5) {
       showComposer = false;
   }
@@ -3810,6 +3681,8 @@ function appendMessage(msg, scroll = true, insertBefore = null) {
   if (msgsEl.innerHTML === 'Загрузка...' || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
   
   const mine = msg.sender.id === state.me?.id;
+  const isAnon = msg.sender.id === 'anonymous';
+  
   const row = document.createElement('div');
   row.className = 'msg-row' + (mine ? ' mine' : '');
   row.id = 'msg-' + msg.id;
@@ -3906,7 +3779,7 @@ function appendMessage(msg, scroll = true, insertBefore = null) {
   
   const timeStr = new Date(msg.createdAt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   let statusHtml = '';
-  if (mine && !msg.isSelfChat) {
+  if (mine && !msg.isSelfChat && !isAnon) {
     if (msg.read) statusHtml = `<span class="msg-status read" data-state="read"><span class="tick">✓</span><span class="tick">✓</span></span>`;
     else if (msg.delivered) statusHtml = `<span class="msg-status delivered" data-state="delivered"><span class="tick">✓</span><span class="tick">✓</span></span>`;
     else statusHtml = `<span class="msg-status" data-state="sent"><span class="tick">✓</span></span>`;
@@ -3917,14 +3790,22 @@ function appendMessage(msg, scroll = true, insertBefore = null) {
   let whoHtml = '';
   if (!mine) {
     let roleBadge = ''; const r = msg.sender.role;
-    if (r && r !== 'user') roleBadge = getRotatingBadge(r);
+    if (r && r !== 'user' && !isAnon) roleBadge = getRotatingBadge(r);
     let check = isHelper ? `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: var(--link-blue); display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>` : '';
-    whoHtml = `<div class="who">@${esc(msg.sender.displayName || msg.sender.username)}${check} ${roleBadge}</div>`;
+    
+    const senderName = isAnon ? 'Неизвестный агент' : (msg.sender.displayName || msg.sender.username);
+    const whoClick = isAnon ? '' : `onclick="event.stopPropagation(); openProfile('${escAttr(msg.sender.id)}')"`;
+    
+    whoHtml = `<div class="who" ${whoClick} style="${isAnon ? 'cursor: default;' : ''}">@${esc(senderName)}${check} ${roleBadge}</div>`;
   }
+  
   const isDeletedClass = msg.is_deleted ? 'deleted-msg' : '';
   const expiringClass = isExpiring ? 'msg-expiring' : '';
+  const senderAvatar = isAnon ? '?' : esc((msg.sender.displayName || msg.sender.username || '?')[0].toUpperCase());
+  const avatarClick = isAnon ? '' : `onclick="event.stopPropagation(); openProfile('${escAttr(msg.sender.id)}')"`;
+  
   row.innerHTML = `
-    <div class="msg-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(msg.sender.id)}')" title="Профиль">${esc((msg.sender.displayName || msg.sender.username || '?')[0].toUpperCase())}</div>
+    <div class="msg-avatar" ${avatarClick} style="${isAnon ? 'cursor: default;' : ''}" title="${isAnon ? 'Неизвестный агент' : 'Профиль'}">${senderAvatar}</div>
     <div class="msg ${isDeletedClass} ${expiringClass}">${whoHtml}${content}${deletedLabel}${reactionsHtml}${expiryHtml}${footerHtml}</div>
   `;
   
@@ -4494,7 +4375,6 @@ window.setChannelUsername = async function() {
   if (!state.currentChat?.isChannel) return;
   const un = document.getElementById('modal-set-username').value.trim();
   if (!un) return alert('Введите юзернейм');
-  // Строгая валидация
   if (!/^[a-z0-9_-]{3,32}$/.test(un)) {
       return alert('Юзернейм может содержать только английские буквы, цифры, символы _ и - (от 3 до 32 символов)');
   }
@@ -4590,7 +4470,6 @@ function connectSocket() {
       }
   });
 
-  // НОВЫЙ ОБРАБОТЧИК ПРЕДУПРЕЖДЕНИЯ ОБ ИВЕНТЕ
   state.socket.on('eventWarning', (data) => {
       document.getElementById('event-warning-modal').classList.add('visible');
   });
@@ -4598,10 +4477,10 @@ function connectSocket() {
   state.socket.on('containmentBreach', (data) => {
       if (data.active) {
           document.documentElement.setAttribute('data-breach', 'true');
-          playSirenSound(); // Запускаем цикличный звук из файла
+          playSirenSound(); 
       } else {
           document.documentElement.removeAttribute('data-breach');
-          stopSirenSound(); // Останавливаем
+          stopSirenSound(); 
       }
   });
   
@@ -4635,7 +4514,7 @@ function connectSocket() {
   });
   
   state.socket.on('newMessage', async (msg) => {
-    if (String(msg.sender.id) === String(state.me.id)) return;
+    if (String(msg.sender.id) === String(state.me.id) && msg.sender.id !== 'anonymous') return;
     if (!state.chats.some(c => c.id === msg.chatId)) await loadChats();
     
     let displayText = msg.text;
@@ -4819,6 +4698,13 @@ function connectSocket() {
     const ti = document.getElementById('typing-indicator');
     ti.textContent = '';
     ti.style.display = 'none';
+  });
+
+  // Голосования сокеты
+  state.socket.on('newVote', () => { if(document.getElementById('votes-list-modal').classList.contains('visible')) loadVotes(); });
+  state.socket.on('voteUpdated', () => { if(document.getElementById('votes-list-modal').classList.contains('visible')) loadVotes(); });
+  state.socket.on('votePassed', (vote) => {
+      if (['sysadmin', 'admin'].includes(state.me.role)) alert(`ВНИМАНИЕ! Запрос "${vote.title}" набрал >50% голосов.`);
   });
 }
 
