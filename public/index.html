@@ -836,6 +836,8 @@
       <div class="admin-tab" data-tab="stats" id="tab-btn-stats" style="display: none;">📈 Статистика</div>
       <div class="admin-tab" data-tab="audit" id="tab-btn-audit" style="display: none;">📜 Аудит-лог</div>
       <div class="admin-tab" data-tab="reports" id="tab-btn-reports" style="display: none; color: var(--admin-accent);">🚨 Жалобы <span id="report-badge" style="background: var(--admin-accent); color: #fff; border-radius: 10px; padding: 2px 6px; font-size: 10px; margin-left: auto; display: none;">0</span></div>
+      <!-- ★ O5 ЗАПРОСЫ -->
+      <div class="admin-tab" data-tab="o5" id="tab-btn-o5" style="display: none; color: #8b5cf6;">🏛️ О5 Запросы <span id="o5-admin-badge" style="background: #8b5cf6; color: #fff; border-radius: 10px; padding: 2px 6px; font-size: 10px; margin-left: auto; display: none;">0</span></div>
       <div class="admin-tab" data-tab="moderation" id="tab-btn-moderation" style="display: none;">🛡️ Модерация контента</div>
       <div class="admin-tab" data-tab="chats" id="tab-btn-chats" style="display: none;">💬 Группы и Каналы</div>
       <div class="admin-tab" data-tab="users">👥 Управление пользователями</div>
@@ -863,6 +865,11 @@
       <div id="tab-reports" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Рассмотрение жалоб</h2><button class="admin-btn" onclick="loadReports()">🔄 Обновить</button></div>
         <div id="reports-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+      </div>
+      <!-- ★ O5 ЗАПРОСЫ TAB -->
+      <div id="tab-o5" class="admin-tab-content" style="display: none;">
+        <div class="admin-header"><h2>Запросы Совета О5</h2><button class="admin-btn" onclick="loadAdminO5Requests()">🔄 Обновить</button></div>
+        <div id="admin-o5-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
       </div>
       <div id="tab-chats" class="admin-tab-content" style="display: none;">
         <div class="admin-header"><h2>Все группы и каналы</h2><button class="admin-btn" onclick="loadAllChats()">🔄 Обновить</button></div>
@@ -1032,6 +1039,14 @@
         <option value="4">Level 4 — Руководитель Зоны и выше</option>
         <option value="5">Level 5 — Только Совет О5</option>
       </select>
+    </div>
+
+    <!-- ★ ЧЁРНЫЙ КАНАЛ -->
+    <div id="black-channel-container" style="margin-bottom:10px; flex-shrink:0;">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(139,92,246,0.08); border:1px solid #8b5cf6; border-radius:6px;">
+        <input type="checkbox" id="channel-is-black" style="accent-color:#8b5cf6; width:18px; height:18px;">
+        <span style="font-size:13px; color:var(--text);">🕵️ <b>Чёрный канал (Dead Drop)</b> — все сообщения от «Неизвестного агента»</span>
+      </label>
     </div>
 
     <div id="group-user-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
@@ -1227,6 +1242,39 @@
   </div>
 </div>
 
+<!-- ★ НОВЫЕ МОДАЛКИ О5 (СОВЕТ О5) -->
+<div class="modal" id="o5-requests-modal">
+  <div class="modal-content" style="width: 600px; max-height: 85vh;">
+    <h3>🏛️ СОВЕТ О5 — ГОЛОСОВАНИЯ</h3>
+    <p style="font-size:12px; color:var(--muted); text-align:center; margin-bottom:12px; font-family:'Fira Code';">
+      Запрос уходит в администрацию при наборе &gt;50% голосов «За»
+    </p>
+    <div id="o5-requests-list" style="flex:1; overflow-y:auto; margin-bottom:15px; display:flex; flex-direction:column; gap:10px; min-height:200px;"></div>
+    <button class="modal-btn" onclick="openCreateO5Form()" style="background:#8b5cf6; color:#fff; margin-bottom:10px;">➕ Создать запрос</button>
+    <button class="modal-btn" style="background:transparent; color:var(--muted);" onclick="document.getElementById('o5-requests-modal').classList.remove('visible')">Закрыть</button>
+  </div>
+</div>
+
+<div class="modal" id="create-o5-modal">
+  <div class="modal-content" style="width:460px;">
+    <h3>📝 НОВЫЙ ЗАПРОС К О5</h3>
+    <select id="o5-type" onchange="onO5TypeChange(this.value)" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; margin-bottom:10px; outline:none;">
+      <option value="unban">🔓 Разбан пользователя</option>
+      <option value="create_channel">📢 Создание канала</option>
+      <option value="change_rules">📜 Изменение правил</option>
+      <option value="other">❓ Другое</option>
+    </select>
+    <input type="text" id="o5-title" placeholder="Краткий заголовок" maxlength="200"
+      style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; margin-bottom:10px; outline:none; font-family:inherit;">
+    <textarea id="o5-description" placeholder="Опишите запрос..." rows="4"
+      style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; margin-bottom:10px; outline:none; font-family:inherit; resize:vertical;"></textarea>
+    <input type="text" id="o5-target" placeholder="@username (для разбана)" maxlength="64"
+      style="display:none; width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; margin-bottom:10px; outline:none; font-family:inherit;">
+    <button class="modal-btn" onclick="submitO5Request()" style="background:#8b5cf6; color:#fff; margin-bottom:10px;">Отправить на голосование</button>
+    <button class="modal-btn" style="background:transparent; color:var(--muted);" onclick="document.getElementById('create-o5-modal').classList.remove('visible')">Отмена</button>
+  </div>
+</div>
+
 <div class="modal" id="urgent-alert-modal" style="z-index: 9999999; background: rgba(255, 0, 0, 0.2); backdrop-filter: blur(8px);">
   <div class="modal-content" style="border: 2px solid #ff3333; box-shadow: 0 0 50px rgba(255, 51, 51, 0.6); text-align: center; max-width: 450px;">
     <h3 style="color: #ff3333; font-size: 26px; margin-bottom: 20px; text-shadow: 0 0 10px rgba(255,51,51,0.8);">🚨 ВНИМАНИЕ 🚨</h3>
@@ -1276,6 +1324,15 @@
     <div class="favorites-shortcut" onclick="openSavedMessages()">
       <div class="chat-avatar" style="background: var(--accent); color: var(--bg); font-size: 16px;">⭐</div>
       <div class="chat-info"><div class="name">Избранное</div><div class="preview">Сохраненные заметки</div></div>
+    </div>
+    <!-- ★ ЯРЛЫК СОВЕТА О5 -->
+    <div class="favorites-shortcut" onclick="openO5RequestsModal()" style="position: relative;">
+      <div class="chat-avatar" style="background: linear-gradient(135deg,#8b5cf6,#6d28d9); color:#fff; font-size:16px;">🏛️</div>
+      <div class="chat-info">
+        <div class="name">Совет О5</div>
+        <div class="preview">Голосования сообщества</div>
+      </div>
+      <span id="o5-sidebar-badge" class="badge" style="display:none; background:#8b5cf6;">0</span>
     </div>
     <div class="search"><input id="user-search" placeholder="🔍 Поиск чатов, каналов, людей..." /></div>
     <div id="chat-list"></div>
@@ -2521,12 +2578,15 @@ function enterChat() {
     document.getElementById('tab-btn-alerts').style.display = 'flex';
     document.getElementById('tab-btn-stats').style.display = 'flex';
     document.getElementById('tab-btn-audit').style.display = 'flex';
+    // ★ O5 вкладка для sysadmin
+    document.getElementById('tab-btn-o5').style.display = 'flex';
   } else {
     document.querySelectorAll('#user-role-select option[data-sysonly]').forEach(o => o.remove());
     document.getElementById('tab-btn-alerts').style.display = 'none';
     document.getElementById('clearance-section').style.display = 'none';
     document.getElementById('tab-btn-stats').style.display = 'none';
     document.getElementById('tab-btn-audit').style.display = 'none';
+    document.getElementById('tab-btn-o5').style.display = (state.me.role === 'admin') ? 'flex' : 'none';
   }
   if (['sysadmin', 'admin', 'moderator'].includes(state.me.role)) {
     document.getElementById('tab-btn-reports').style.display = 'flex';
@@ -2534,6 +2594,8 @@ function enterChat() {
   }
   if (['sysadmin', 'admin'].includes(state.me.role)) {
     document.getElementById('tab-btn-moderation').style.display = 'flex';
+    // ★ O5 для админов
+    if (state.me.role === 'admin') document.getElementById('tab-btn-o5').style.display = 'flex';
   }
   populateInviteRoles();
   initEmojiPicker();
@@ -2727,7 +2789,6 @@ document.getElementById('header-avatar').addEventListener('click', () => {
   }
 });
 
-// ИСПРАВЛЕННЫЙ ОБРАБОТЧИК КНОПКИ ВЫХОДА
 document.getElementById('logout-btn').addEventListener('click', async () => { 
     try {
         await api('/logout', { method: 'POST' });
@@ -2794,7 +2855,6 @@ document.getElementById('admin-header-btn').addEventListener('click', async () =
     updateReadDeletedStatusLabel(state.read_deleted);
     populateInviteRoles();
 
-    // НОВОЕ: Таймер для Сисадмина
     const timerSection = document.getElementById('event-timer-section');
     if (state.me.role === 'sysadmin') {
         timerSection.style.display = 'block';
@@ -2803,12 +2863,17 @@ document.getElementById('admin-header-btn').addEventListener('click', async () =
         timerSection.style.display = 'none';
     }
 
+    // ★ Проверка O5 вкладки
+    if (['sysadmin', 'admin'].includes(state.me.role)) {
+      document.getElementById('tab-btn-o5').style.display = 'flex';
+      loadAdminO5Requests();
+    }
+
   } catch (e) {
     alert('Ошибка проверки прав: ' + e.message);
   }
 });
 
-// Функция обновления таймера
 async function updateEventTimer() {
     if (!document.getElementById('admin-dashboard-modal').classList.contains('visible') || state.me.role !== 'sysadmin') return;
     try {
@@ -2830,7 +2895,6 @@ async function updateEventTimer() {
         } else {
             const now = Date.now();
             const last = status.last_auto_event;
-            // Ивент раз в 45 минут минимум, плюс рандом
             const nextPossible = last + (45 * 60 * 1000);
             if (now < nextPossible) {
                 const diff = nextPossible - now;
@@ -2845,7 +2909,7 @@ async function updateEventTimer() {
         }
     } catch(e) { console.error('Timer error', e); }
 }
-setInterval(updateEventTimer, 10000); // Обновляем каждые 10 сек
+setInterval(updateEventTimer, 10000);
 
 document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -2858,6 +2922,7 @@ document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
     if (tab.dataset.tab === 'chats') loadAllChats();
     if (tab.dataset.tab === 'stats') loadStats();
     if (tab.dataset.tab === 'audit') loadAuditLog();
+    if (tab.dataset.tab === 'o5') loadAdminO5Requests();
   });
 });
 
@@ -2951,6 +3016,151 @@ window.triggerBreach = async function() {
         const res = await api('/admin/trigger-breach', { method: 'POST' });
         alert(`Нарушение активировано! Заражено агентов: ${res.affectedCount}`);
     } catch(e) { alert(e.message); }
+};
+
+// ================= ★ О5 ЗАПРОСЫ (ГОЛОСОВАНИЯ) =================
+window.openO5RequestsModal = function() {
+  document.getElementById('o5-requests-modal').classList.add('visible');
+  loadO5Requests();
+};
+
+window.onO5TypeChange = function(v) {
+  document.getElementById('o5-target').style.display = (v === 'unban') ? 'block' : 'none';
+};
+
+window.openCreateO5Form = function() {
+  document.getElementById('o5-type').value = 'unban';
+  document.getElementById('o5-title').value = '';
+  document.getElementById('o5-description').value = '';
+  document.getElementById('o5-target').value = '';
+  onO5TypeChange('unban');
+  document.getElementById('create-o5-modal').classList.add('visible');
+};
+
+window.submitO5Request = async function() {
+  const type = document.getElementById('o5-type').value;
+  const title = document.getElementById('o5-title').value.trim();
+  const description = document.getElementById('o5-description').value.trim();
+  const targetInput = document.getElementById('o5-target').value.trim();
+  if (!title) return alert('Введите заголовок');
+
+  let target_user_id = null;
+  if (type === 'unban') {
+    if (!targetInput) return alert('Укажите пользователя');
+    try {
+      const clean = targetInput.replace('@','');
+      const users = await api('/users/search?q=' + encodeURIComponent(clean));
+      const found = (users.users || []).find(u => u.username.toLowerCase() === clean.toLowerCase());
+      if (!found) return alert('Пользователь не найден');
+      target_user_id = found.id;
+    } catch(e) { return alert(e.message); }
+  }
+
+  try {
+    await api('/o5/requests', { method:'POST', body: JSON.stringify({ type, title, description, target_user_id })});
+    document.getElementById('create-o5-modal').classList.remove('visible');
+    loadO5Requests();
+    alert('Запрос создан и открыт для голосования');
+  } catch(e) { alert(e.message); }
+};
+
+window.loadO5Requests = async function() {
+  const box = document.getElementById('o5-requests-list');
+  if (!box) return;
+  box.innerHTML = 'Загрузка...';
+  try {
+    const requests = await api('/o5/requests');
+    const activeCount = requests.filter(r => r.status === 'voting').length;
+    const sb = document.getElementById('o5-sidebar-badge');
+    if (sb) { sb.textContent = activeCount; sb.style.display = activeCount ? 'inline-block' : 'none'; }
+
+    if (!requests.length) { box.innerHTML = '<div class="empty">Нет активных голосований</div>'; return; }
+
+    box.innerHTML = requests.map(r => {
+      const pct = r.threshold ? Math.round((r.for_votes / r.threshold) * 100) : 0;
+      const statusBadge = r.status === 'approved'
+        ? '<span style="background:#16a34a; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px;">✅ ОДОБРЕНО — ждёт админа</span>'
+        : '<span style="background:#8b5cf6; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px;">ГОЛОСОВАНИЕ</span>';
+
+      const voteButtons = r.status === 'voting'
+        ? `<div style="display:flex; gap:8px; margin-top:10px;">
+            <button onclick="voteO5('${r.id}', 'for')" ${r.my_vote==='for'?'disabled':''}
+              style="flex:1; padding:6px; background:${r.my_vote==='for'?'#16a34a':'var(--card)'}; color:${r.my_vote==='for'?'#fff':'var(--text)'}; border:1px solid #16a34a; border-radius:6px; cursor:pointer; font-weight:bold;">✅ За (${r.for_votes})</button>
+            <button onclick="voteO5('${r.id}', 'against')" ${r.my_vote==='against'?'disabled':''}
+              style="flex:1; padding:6px; background:${r.my_vote==='against'?'#dc2626':'var(--card)'}; color:${r.my_vote==='against'?'#fff':'var(--text)'}; border:1px solid #dc2626; border-radius:6px; cursor:pointer; font-weight:bold;">❌ Против (${r.against_votes})</button>
+           </div>`
+        : '';
+
+      return `<div style="background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px;">
+          <b style="color:var(--text);">${esc(r.title)}</b>
+          ${statusBadge}
+        </div>
+        ${r.description ? `<div style="font-size:12px; color:var(--muted); margin-bottom:8px;">${esc(r.description)}</div>` : ''}
+        ${r.target_name ? `<div style="font-size:12px; color:#ff9933; margin-bottom:6px;">Цель: @${esc(r.target_name)}</div>` : ''}
+        <div style="font-size:11px; color:var(--muted); font-family:'Fira Code'; margin-bottom:6px;">
+          от @${esc(r.creator_name)} • за ${r.for_votes} • против ${r.against_votes} • порог ${r.threshold}
+        </div>
+        <div style="height:8px; background:var(--border); border-radius:4px; overflow:hidden;">
+          <div style="height:100%; width:${Math.min(100,pct)}%; background:${pct>=100?'#16a34a':'#8b5cf6'};"></div>
+        </div>
+        ${voteButtons}
+      </div>`;
+    }).join('');
+  } catch(e) { box.innerHTML = `<div style="color:#ff4d4d;">Ошибка: ${esc(e.message)}</div>`; }
+};
+
+window.voteO5 = async function(id, vote) {
+  try {
+    await api(`/o5/requests/${id}/vote`, { method:'POST', body: JSON.stringify({ vote })});
+    loadO5Requests();
+  } catch(e) { alert(e.message); }
+};
+
+window.loadAdminO5Requests = async function() {
+  const box = document.getElementById('admin-o5-list');
+  if (!box) return;
+  box.innerHTML = 'Загрузка...';
+  try {
+    const requests = await api('/admin/o5-requests');
+    const approved = requests.filter(r => r.status === 'approved').length;
+    const badge = document.getElementById('o5-admin-badge');
+    if (badge) { badge.textContent = approved; badge.style.display = approved ? 'inline-block' : 'none'; }
+
+    if (!requests.length) { box.innerHTML = '<div class="empty">Нет запросов</div>'; return; }
+
+    box.innerHTML = requests.map(r => {
+      const approvedBlock = r.status === 'approved' ? `
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="admin-btn" style="flex:1; padding:8px; font-size:12px; border-color:#16a34a; color:#16a34a;" onclick="resolveO5('${r.id}','executed')">✅ Исполнено</button>
+          <button class="admin-btn admin-btn-danger" style="flex:1; padding:8px; font-size:12px;" onclick="resolveO5('${r.id}','rejected')">❌ Отклонить</button>
+        </div>` : '';
+      return `<div style="background:var(--admin-panel); border:1px solid ${r.status==='approved'?'#16a34a':'var(--admin-border)'}; border-radius:8px; padding:14px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px; gap:8px;">
+          <b style="color:var(--admin-text);">${esc(r.title)}</b>
+          <span style="font-size:11px; color:${r.status==='approved'?'#16a34a':'#8b5cf6'}; font-family:'Fira Code';">${r.status.toUpperCase()}</span>
+        </div>
+        ${r.description ? `<div style="font-size:12px; color:var(--muted); margin-bottom:6px;">${esc(r.description)}</div>` : ''}
+        <div style="font-size:11px; color:var(--admin-text); font-family:'Fira Code';">
+          Тип: ${r.type} • Автор: @${esc(r.creator_name)}
+          ${r.target_name ? ` • Цель: @${esc(r.target_name)}` : ''}
+        </div>
+        <div style="font-size:11px; color:var(--admin-text); font-family:'Fira Code'; margin-top:4px;">
+          За: ${r.for_votes} • Против: ${r.against_votes} • Всего: ${r.total_users}
+        </div>
+        ${approvedBlock}
+      </div>`;
+    }).join('');
+  } catch(e) { box.innerHTML = `<div style="color:#ff4d4d;">Ошибка: ${esc(e.message)}</div>`; }
+};
+
+window.resolveO5 = async function(id, action) {
+  const reason = prompt(action === 'executed' ? 'Комментарий (что сделано):' : 'Причина отказа:', '');
+  if (reason === null) return;
+  try {
+    await api(`/admin/o5-requests/${id}/resolve`, { method:'POST', body: JSON.stringify({ action, reason })});
+    loadAdminO5Requests();
+  } catch(e) { alert(e.message); }
 };
 
 // ================= REPORTS =================
@@ -3250,14 +3460,14 @@ document.addEventListener('click', (e) => {
   if (fab && !fab.contains(e.target)) fab.classList.remove('open');
 });
 
-// ================= CREATE GROUP =================
+// ================= CREATE GROUP (★ L4+) =================
 window.openCreateGroupModal = function(isChannel) {
   document.getElementById('fab-container').classList.remove('open');
-  
-  if (state.me.role === 'user') {
-      const myClearance = state.me.clearance_level || 1;
-      if (!isChannel && myClearance < 2) return alert('Для создания групп требуется Уровень 2 (Научный сотрудник)');
-      if (isChannel && myClearance < 3) return alert('Для создания каналов требуется Уровень 3 (Старший исследователь)');
+
+  const myClearance = state.me.clearance_level || 1;
+  // ★ НОВОЕ: любой чат/канал — только L4+
+  if (myClearance < 4) {
+    return alert('Для создания групп и каналов требуется Уровень 4 (Руководитель Зоны)');
   }
 
   isCreatingChannel = isChannel;
@@ -3269,8 +3479,8 @@ window.openCreateGroupModal = function(isChannel) {
   document.getElementById('min-write-clearance-container').style.display = 'block';
   document.getElementById('channel-required-clearance').value = '1';
   document.getElementById('channel-min-write-clearance').value = '1';
+  document.getElementById('channel-is-black').checked = false;
 
-  // Скрываем список людей при создании
   const list = document.getElementById('group-user-list');
   list.innerHTML = '<div class="empty">Создайте чат, а затем пригласите участников через настройки.</div>';
   
@@ -3284,19 +3494,22 @@ window.createGroup = async function() {
   if (isCreatingChannel) {
     username = document.getElementById('channel-username-input').value.trim();
     if (!username) return alert('Укажите юзернейм для канала');
-    // Строгая валидация
     if (!/^[a-z0-9_-]{3,32}$/.test(username)) {
         return alert('Юзернейм может содержать только английские буквы, цифры, символы _ и - (от 3 до 32 символов)');
     }
   }
   const requiredClearance = Number(document.getElementById('channel-required-clearance').value);
   const minWriteClearance = Number(document.getElementById('channel-min-write-clearance').value);
+  const isBlackChannel = document.getElementById('channel-is-black').checked;
   
-  // Создаем пустую группу
   const memberIds = [];
 
   try {
-    const res = await api('/chats/group', { method: 'POST', body: JSON.stringify({ name, memberIds, is_channel: isCreatingChannel, username, required_clearance: requiredClearance, min_write_clearance: minWriteClearance }) });
+    const res = await api('/chats/group', { method: 'POST', body: JSON.stringify({ 
+        name, memberIds, is_channel: isCreatingChannel, username, 
+        required_clearance: requiredClearance, min_write_clearance: minWriteClearance,
+        is_black_channel: isBlackChannel
+    }) });
     document.getElementById('create-group-modal').classList.remove('visible');
     await loadChats();
     openChat(res.chatId, name, null, false, null, 0, true, state.me.id, isCreatingChannel, res.username, false, false, false, res.required_clearance, true);
@@ -3310,7 +3523,6 @@ window.openAddMemberModal = async function() {
     list.innerHTML = 'Загрузка...';
     document.getElementById('add-member-modal').classList.add('visible');
     try {
-        // Берем только контакты
         const allUsers = await api('/users/contacts');
         const currentMembers = await api('/chats/' + state.currentChat.id + '/members');
         const currentIds = currentMembers.map(m => m.id);
@@ -3366,7 +3578,7 @@ window.openSavedMessages = async function() {
   } catch (e) { alert(e.message); }
 };
 
-// ================= CHAT LIST =================
+// ================= CHAT LIST (★ с индикацией ЧК) =================
 function renderChatList() {
   const list = document.getElementById('chat-list');
   if (!state.chats.length) { list.innerHTML = '<div class="empty">НЕТ ЧАТОВ<br><br>Используйте поиск выше</div>'; return; }
@@ -3391,7 +3603,10 @@ function renderChatList() {
     const isFav = favoriteChats.includes(c.id);
     const isPinned = state.me.pinned_chats && state.me.pinned_chats.includes(c.id);
     const targetId = c.otherUserId || state.me.id;
-    const isG = c.isGroup ? (c.isChannel ? '📢' : '👥') : esc((c.name || '?')[0].toUpperCase());
+    const isBlack = !!c.is_black_channel;
+    const isG = c.isGroup 
+      ? (isBlack ? '🕵️' : (c.isChannel ? '📢' : '👥'))
+      : esc((c.name || '?')[0].toUpperCase());
     const avInner = c.avatarUrl ? `<img src="${escAttr(c.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerText='${isG}'">` : isG;
     const avatar = `<div class="chat-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(targetId)}')">${avInner}</div>`;
     const active = state.currentChat && state.currentChat.id === c.id ? ' active' : '';
@@ -3417,6 +3632,8 @@ function renderChatList() {
       previewHtml = `<span style="color: var(--custom-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block;">💬 ${esc(c.otherStatus)}</span>`;
     } else if (!c.canAccess) {
       previewHtml = `<span style="color: #ff4d4d;">Требуется Level ${c.required_clearance}</span>`;
+    } else if (isBlack) {
+      previewHtml = `<span style="color:#8b5cf6;">🕵️ Dead Drop • анонимный канал</span>`;
     } else {
       previewHtml = isBanned ? '⛔ Заблокирован' : (c.isBlocked ? '🚫 Заблокирован' : (c.isSelf ? 'Личные заметки' : (c.isChannel ? 'Канал' : (c.isGroup ? 'Группа' : 'Открыть чат'))));
     }
@@ -3450,15 +3667,17 @@ function updateChatPreview(chatId) {
   const isBanned = chat.ban_expires && Number(chat.ban_expires) !== 0 && (Number(chat.ban_expires) === -1 || Number(chat.ban_expires) > Date.now());
   const draft = chatDrafts[chatId];
   const unread = state.unreadCounts[chatId] || chat.unreadCount || 0;
+  const isBlack = !!chat.is_black_channel;
   let html = '';
   if (draft) html = `<span style="color: #ff9933; font-weight: bold; margin-right: 4px;">[Черновик]</span> <span style="color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; display: inline-block;">${esc(draft)}</span>`;
   else if (chat.otherStatus && !chat.isGroup) html = `<span style="color: var(--custom-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block;">💬 ${esc(chat.otherStatus)}</span>`;
   else if (!chat.canAccess) html = `<span style="color: #ff4d4d;">Требуется Level ${chat.required_clearance}</span>`;
+  else if (isBlack) html = `<span style="color:#8b5cf6;">🕵️ Dead Drop • анонимный канал</span>`;
   else html = isBanned ? '⛔ Заблокирован' : (chat.isBlocked ? '🚫 Заблокирован' : (chat.isSelf ? 'Личные заметки' : (chat.isChannel ? 'Канал' : (chat.isGroup ? 'Группа' : 'Открыть чат'))));
   pv.innerHTML = `${html} ${unread ? ` <span class="badge" style="margin-left: auto;">${unread}</span>` : ''}`;
 }
 
-// ================= OPEN CHAT =================
+// ================= OPEN CHAT (★ с индикацией ЧК в шапке) =================
 async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_expires = 0, isGroup = false, creatorId = '', isChannel = false, username = '', isHelper = false, blockedByMe = false, blockedByThem = false, required_clearance = 1, canAccess = true) {
   const myClearance = state.me.clearance_level || 1;
   if (!canAccess && myClearance < required_clearance) {
@@ -3486,7 +3705,7 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
       clearanceEl.style.display = 'inline-flex';
   } else {
       clearanceEl.innerHTML = '';
-      clearanceEl.style.display = 'none'; // ИСПРАВЛЕНИЕ КРАСНОЙ ТОЧКИ
+      clearanceEl.style.display = 'none';
   }
   
   const statusLine = document.getElementById('chat-status-line');
@@ -3511,6 +3730,16 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
     if (isChannel) document.getElementById('chat-subtitle').textContent = username ? `scp.me/${username}` : 'Канал';
     else if (isGroup) document.getElementById('chat-subtitle').textContent = username ? `scp.group/${username}` : 'Группа';
     else document.getElementById('chat-subtitle').textContent = '';
+  }
+  
+  // ★ Индикатор Чёрного канала в шапке
+  const chatMeta = state.chats.find(c => c.id === chatId);
+  const isBlackChannel = !!(chatMeta && chatMeta.is_black_channel);
+  if (isBlackChannel && !isHelper) {
+    document.getElementById('chat-subtitle').textContent = '🕵️ Чёрный канал • Dead Drop • анонимно';
+    document.getElementById('chat-subtitle').style.color = '#8b5cf6';
+  } else {
+    document.getElementById('chat-subtitle').style.color = 'var(--muted)';
   }
   
   const headerBadge = document.getElementById('header-chat-role-badge');
@@ -3545,7 +3774,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
      }
   }
 
-  // Локдаун скрывает композер
   if (state.isLockdown && myClearance < 5) {
       showComposer = false;
   }
@@ -3661,7 +3889,6 @@ function formatMessageText(rawText) {
   text = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   text = text.replace(/\*(.*?)\*/g, '<i>$1</i>');
   
-  // Спойлеры ||текст||
   text = text.replace(/\|\|(.*?)\|\|/g, '<span class="spoiler" onclick="this.classList.add(\'revealed\')">$1</span>');
 
   const linkRegex = /(?<!href=")((?:https?:\/\/|scp\.me\/|scp\.group\/)[^\s<"]+)/g;
@@ -3757,7 +3984,7 @@ document.getElementById('msg-edit-btn').addEventListener('click', async () => {
     .catch(e => alert(e.message));
 });
 
-// ================= APPEND MESSAGE =================
+// ================= APPEND MESSAGE (★ с анонимизацией) =================
 function renderPollHtml(msgId, poll, isSelfChat, meId) {
     let totalVotes = 0;
     poll.options.forEach(o => totalVotes += o.votes.length);
@@ -3810,6 +4037,7 @@ function appendMessage(msg, scroll = true, insertBefore = null) {
   if (msgsEl.innerHTML === 'Загрузка...' || msgsEl.querySelector('.empty')) msgsEl.innerHTML = '';
   
   const mine = msg.sender.id === state.me?.id;
+  const isAnonymous = !!msg.is_anonymous;
   const row = document.createElement('div');
   row.className = 'msg-row' + (mine ? ' mine' : '');
   row.id = 'msg-' + msg.id;
@@ -3902,7 +4130,6 @@ function appendMessage(msg, scroll = true, insertBefore = null) {
   const expiryHtml = renderExpiryBadge(msg);
   const editedLabel = msg.edited ? ' <span class="msg-edited">(изменено)</span>' : '';
   const isExpiring = msg.expires_at && msg.expires_at > Date.now();
-  const e2eeLabel = '';
   
   const timeStr = new Date(msg.createdAt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   let statusHtml = '';
@@ -3912,19 +4139,23 @@ function appendMessage(msg, scroll = true, insertBefore = null) {
     else statusHtml = `<span class="msg-status" data-state="sent"><span class="tick">✓</span></span>`;
   }
   
-  const footerHtml = `<div class="msg-footer"><span>${timeStr}${editedLabel}${e2eeLabel}</span>${statusHtml}</div>`;
+  const footerHtml = `<div class="msg-footer"><span>${timeStr}${editedLabel}</span>${statusHtml}</div>`;
   
   let whoHtml = '';
   if (!mine) {
     let roleBadge = ''; const r = msg.sender.role;
-    if (r && r !== 'user') roleBadge = getRotatingBadge(r);
-    let check = isHelper ? `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: var(--link-blue); display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>` : '';
+    // ★ Скрываем бейдж роли у анонимных
+    if (r && r !== 'user' && !isAnonymous) roleBadge = getRotatingBadge(r);
+    // ★ Скрываем галочку у анонимных
+    let check = (!isAnonymous && isHelper) ? `<svg onclick="event.stopPropagation(); openScpVerifyModal();" style="width: 14px; height: 14px; fill: var(--link-blue); display: inline-block; margin-left: 4px; cursor: pointer;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>` : '';
     whoHtml = `<div class="who">@${esc(msg.sender.displayName || msg.sender.username)}${check} ${roleBadge}</div>`;
   }
   const isDeletedClass = msg.is_deleted ? 'deleted-msg' : '';
   const expiringClass = isExpiring ? 'msg-expiring' : '';
+  // ★ Анонимный аватар
+  const initialChar = isAnonymous ? '?' : (msg.sender.displayName || msg.sender.username || '?')[0].toUpperCase();
   row.innerHTML = `
-    <div class="msg-avatar" onclick="event.stopPropagation(); openProfile('${escAttr(msg.sender.id)}')" title="Профиль">${esc((msg.sender.displayName || msg.sender.username || '?')[0].toUpperCase())}</div>
+    <div class="msg-avatar" onclick="event.stopPropagation(); ${isAnonymous ? '' : `openProfile('${escAttr(msg.sender.id)}')`}" title="Профиль">${esc(initialChar)}</div>
     <div class="msg ${isDeletedClass} ${expiringClass}">${whoHtml}${content}${deletedLabel}${reactionsHtml}${expiryHtml}${footerHtml}</div>
   `;
   
@@ -4494,7 +4725,6 @@ window.setChannelUsername = async function() {
   if (!state.currentChat?.isChannel) return;
   const un = document.getElementById('modal-set-username').value.trim();
   if (!un) return alert('Введите юзернейм');
-  // Строгая валидация
   if (!/^[a-z0-9_-]{3,32}$/.test(un)) {
       return alert('Юзернейм может содержать только английские буквы, цифры, символы _ и - (от 3 до 32 символов)');
   }
@@ -4571,6 +4801,7 @@ function connectSocket() {
     document.getElementById('chat').classList.remove('visible');
     document.getElementById('auth').style.display = 'flex';
     if (data.deleted) document.getElementById('a-error').innerHTML = `<div style="background:#ff4d4d;color:#fff;padding:10px;border-radius:6px;">Аккаунт удален.</div>`;
+    else if (data.unbanned) { document.getElementById('a-error').innerHTML = `<div style="background:#16a34a;color:#fff;padding:10px;border-radius:6px;">Вас разбанили! Войдите снова.</div>`; }
     else showBanMessage(data.ban_expires, data.ban_reason);
   });
   state.socket.on('roleChanged', async () => {
@@ -4590,7 +4821,6 @@ function connectSocket() {
       }
   });
 
-  // НОВЫЙ ОБРАБОТЧИК ПРЕДУПРЕЖДЕНИЯ ОБ ИВЕНТЕ
   state.socket.on('eventWarning', (data) => {
       document.getElementById('event-warning-modal').classList.add('visible');
   });
@@ -4598,10 +4828,10 @@ function connectSocket() {
   state.socket.on('containmentBreach', (data) => {
       if (data.active) {
           document.documentElement.setAttribute('data-breach', 'true');
-          playSirenSound(); // Запускаем цикличный звук из файла
+          playSirenSound();
       } else {
           document.documentElement.removeAttribute('data-breach');
-          stopSirenSound(); // Останавливаем
+          stopSirenSound();
       }
   });
   
@@ -4820,9 +5050,29 @@ function connectSocket() {
     ti.textContent = '';
     ti.style.display = 'none';
   });
+
+  // ★ O5 Socket
+  state.socket.on('o5RequestUpdated', () => {
+    if (document.getElementById('o5-requests-modal').classList.contains('visible')) loadO5Requests();
+    if (document.getElementById('admin-dashboard-modal').classList.contains('visible')
+        && document.getElementById('tab-o5').style.display === 'block') loadAdminO5Requests();
+  });
+  state.socket.on('newO5Request', () => {
+    loadO5Requests().catch(()=>{});
+  });
+  state.socket.on('o5RequestApproved', (data) => {
+    if (['admin','sysadmin'].includes(state.me.role)) {
+      showNotification('Совет О5', 'Запрос одобрен: ' + data.title, null, null);
+    }
+  });
 }
 
-async function loadChats() { state.chats = await api('/chats'); renderChatList(); }
+async function loadChats() { 
+  state.chats = await api('/chats'); 
+  renderChatList();
+  // ★ Обновление бейджа O5
+  loadO5Requests().catch(()=>{});
+}
 function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
 function escAttr(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
 
@@ -5300,16 +5550,14 @@ document.addEventListener('click', (e) => {
 
 // ================= CLICK EFFECTS =================
 document.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return; // Только левая кнопка мыши
+    if (e.button !== 0) return;
 
-    // Эффект для курсора
     const ripple = document.createElement('div');
     ripple.className = 'cursor-click-effect';
     ripple.style.left = e.clientX + 'px';
     ripple.style.top = e.clientY + 'px';
     document.body.appendChild(ripple);
 
-    // Удаляем элемент после завершения анимации
     setTimeout(() => {
         ripple.remove();
     }, 400);
