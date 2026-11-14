@@ -147,7 +147,7 @@ let db = {
     is_breach: false,
     breach_affected_users: [],
     last_auto_event: 0,
-    next_event_time: 0 // НОВОЕ: Время следующего ивента
+    next_event_time: 0 // Время следующего ивента
 };
 
 let isS3Syncing = false;
@@ -2615,8 +2615,14 @@ app.get('/api/files/*', (req, res, next) => {
     const s3Response = await s3.send(command);
 
     const encodedFilename = encodeURIComponent(att.original_name || 'file');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodedFilename}"; filename*=UTF-8''${encodedFilename}`);
+    
+    // ИСПРАВЛЕНИЕ: Картинки отображаются в браузере (inline), остальное скачивается (attachment)
+    const isImage = att.mime_type && att.mime_type.startsWith('image/');
+    const dispositionType = isImage ? 'inline' : 'attachment';
+    
+    res.setHeader('Content-Disposition', `${dispositionType}; filename="${encodedFilename}"; filename*=UTF-8''${encodedFilename}`);
     res.setHeader('Content-Type', att.mime_type || 'application/octet-stream');
+    
     if (s3Response.ContentLength) {
         res.setHeader('Content-Length', s3Response.ContentLength);
     }
