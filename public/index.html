@@ -1191,6 +1191,10 @@
       <div class="setting-row"><span>Призраки (SCP):</span><input type="checkbox" id="ghosts-toggle"></div>
       <div class="setting-row"><span>Избранные чаты:</span><input type="checkbox" id="favorites-toggle"></div>
     </div>
+    
+    <!-- НОВАЯ КНОПКА ИСТОРИИ ОБНОВЛЕНИЙ -->
+    <button class="modal-btn" id="open-changelog-btn" style="background: var(--card); color: var(--link-blue); border: 1px solid var(--border); margin-top: 10px;">📄 История обновлений</button>
+    
     <button class="modal-btn" id="logout-btn" style="background: var(--card); color: var(--text); border: 1px solid var(--border); margin-top: 10px;">Выйти из аккаунта</button>
     <button class="modal-btn" id="delete-account-btn" style="background: #ff4d4d; color: #fff; margin-top: 10px;">Удалить аккаунт</button>
     <button class="modal-btn" style="background: transparent; color: var(--muted); margin-top: 10px;" onclick="document.getElementById('settings-modal').classList.remove('visible')">Закрыть</button>
@@ -1303,9 +1307,6 @@
             <span id="chat-title">Выберите чат</span>
             <span id="chat-clearance-badge" style="display: none;"></span>
             <svg id="verified-star" style="width: 18px; height: 18px; fill: var(--link-blue); display: none; vertical-align: middle; flex-shrink: 0; margin-left: 6px; cursor: pointer;" viewBox="0 0 24 24" onclick="openScpVerifyModal()"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-            <button class="header-btn" id="changelog-btn" style="display: none; font-size: 16px; padding: 0 4px; color: var(--link-blue); margin-left: 4px;" title="История обновлений" onclick="renderChangelog(); document.getElementById('changelog-modal').classList.add('visible');">
-                <svg style="width: 16px; height: 16px; fill: currentColor;" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
-            </button>
             <span id="header-chat-role-badge" style="display: none;"></span>
             <button class="clear-chat-btn" id="clear-chat-btn" title="Очистить" style="display: none;">
                 <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
@@ -1425,9 +1426,18 @@ const CLEARANCE_SHORT = { 1: 'D', 2: 'S', 3: 'R', 4: 'Z', 5: 'O5' };
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
 const FILE_SIZE_LIMITS = { 1: 10 * 1024 * 1024, 2: 50 * 1024 * 1024, 3: 200 * 1024 * 1024, 4: 1024 * 1024 * 1024, 5: 10 * 1024 * 1024 * 1024 };
 
-// ================= СИСТЕМА ОБНОВЛЕНИЙ (v1.4.3) =================
-const APP_VERSION = '1.4.3';
+// ================= СИСТЕМА ОБНОВЛЕНИЙ (v1.4.4) =================
+const APP_VERSION = '1.4.4';
 const CHANGELOG = [
+    {
+        version: '1.4.4',
+        date: '14.11.2026',
+        changes: [
+            'ИСПРАВЛЕНЫ ФОТО: Теперь картинки, которые загружались с ошибкой, будут открываться нормально.',
+            'ПЕРЕНОС КНОПКИ: История обновлений теперь находится в Настройках (⚙️), чтобы не мешать в чате.',
+            'ОБНОВЛЕНЫ ДАТЫ в истории обновлений (синхронизированы с МСК).'
+        ]
+    },
     {
         version: '1.4.3',
         date: '14.11.2026',
@@ -1448,18 +1458,6 @@ const CHANGELOG = [
             'Ивенты стали реже: вероятность 2% каждую минуту (в среднем раз в 1-1.5 часа).',
             'Обновлен звук уведомлений: теперь он басистый и менее резкий.',
             'Звук сирены во время ивента теперь циклично повторяется.'
-        ]
-    },
-    {
-        version: '1.4.1',
-        date: '13.11.2026',
-        changes: [
-            'ИСПРАВЛЕНЫ ДАТЫ в истории обновлений (теперь они соответствуют реальному времени).',
-            'ОДНА РЕАКЦИЯ НА СООБЩЕНИЕ: Теперь можно ставить только 1 реакцию. Если выбрать другую — старая заменится.',
-            'ИСПРАВЛЕН БАГ С ПРОКРУТКОЙ ЧАТА (сообщения больше не улетают вверх).',
-            'Иконка сайта (Favicon) встроена прямо в код и теперь не пропадает.',
-            'Исправлен баг с красной точкой в заголовке чата.',
-            'Добавлена кнопка просмотра обновлений в SCP_Helper (иконка документа).'
         ]
     }
 ];
@@ -1491,6 +1489,12 @@ window.closeChangelog = function() {
     localStorage.setItem('scp_last_seen_version', APP_VERSION);
     document.getElementById('changelog-modal').classList.remove('visible');
 };
+
+document.getElementById('open-changelog-btn').addEventListener('click', () => {
+    renderChangelog();
+    document.getElementById('changelog-modal').classList.add('visible');
+    document.getElementById('settings-modal').classList.remove('visible');
+});
 // ======================================================
 
 let notifVolume = parseFloat(localStorage.getItem('scp_notif_volume') || '0.5');
@@ -1508,7 +1512,7 @@ let recStream;
 let currentExpiryTimeout;
 
 let e2eeKeys = {};
-let sirenAudio = null; // Заменяем sirenInterval на Audio объект
+let sirenAudio = null;
 
 function clearanceBadge(level) {
   const lvl = level || 1;
@@ -1599,7 +1603,6 @@ document.addEventListener('keydown', unlockAudio, { once: true });
 function playNotificationSound() {
     try {
         if (notifVolume <= 0) return;
-        // Используем ваш файл из папки public
         const audio = new Audio('/notify.mp3'); 
         audio.volume = notifVolume;
         audio.play().catch(e => {
@@ -1613,10 +1616,9 @@ function playNotificationSound() {
 // ================= ЗВУК СИРЕНЫ ИЗ ВАШЕГО ФАЙЛА =================
 function playSirenSound() {
     try {
-        // Если аудио еще не создано, создаем его
         if (!sirenAudio) {
-            sirenAudio = new Audio('/siren.mp3'); // Ваш файл из папки public
-            sirenAudio.loop = true; // Зацикливаем
+            sirenAudio = new Audio('/siren.mp3');
+            sirenAudio.loop = true; 
         }
         
         sirenAudio.volume = notifVolume; 
@@ -2148,7 +2150,6 @@ window.ctxDeleteChat = function() {
                     document.getElementById('header-avatar').style.display = 'none';
                     document.getElementById('group-members-btn').style.display = 'none';
                     document.getElementById('pinned-banner').style.display = 'none';
-                    document.getElementById('changelog-btn').style.display = 'none';
                 }
                 loadChats();
             }).catch(e => alert(e.message));
@@ -2539,7 +2540,7 @@ function enterChat() {
   updatePendingReportsCount();
   startExpiryTimers();
 
-  // Принудительный показ обновлений
+  // Принудительный показ обновлений при входе
   setTimeout(checkChangelog, 500);
 }
 
@@ -3502,14 +3503,11 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
   }
   
   const verifiedStar = document.getElementById('verified-star');
-  const changelogBtn = document.getElementById('changelog-btn');
   if (isHelper) {
     verifiedStar.style.display = 'inline-block';
-    changelogBtn.style.display = 'inline-block'; // Показываем кнопку обновлений
     document.getElementById('chat-subtitle').textContent = 'Служебные уведомления';
   } else {
     verifiedStar.style.display = 'none';
-    changelogBtn.style.display = 'none';
     if (isChannel) document.getElementById('chat-subtitle').textContent = username ? `scp.me/${username}` : 'Канал';
     else if (isGroup) document.getElementById('chat-subtitle').textContent = username ? `scp.group/${username}` : 'Группа';
     else document.getElementById('chat-subtitle').textContent = '';
@@ -3871,7 +3869,15 @@ function appendMessage(msg, scroll = true, insertBefore = null) {
           </div>`;
       });
       
-      const images = msg.attachments.filter(a => !a.is_voice && a.mime && a.mime.startsWith('image/'));
+      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+      const images = msg.attachments.filter(a => {
+          if (a.is_voice) return false;
+          const mimeIsImage = a.mime && a.mime.startsWith('image/');
+          const ext = (a.name || '').split('.').pop().toLowerCase();
+          const extIsImage = imageExts.includes(ext);
+          return mimeIsImage || extIsImage;
+      });
+      
       images.forEach((img) => {
         const idx = msg.attachments.indexOf(img);
         const fullUrl = atts[idx].url;
@@ -3879,7 +3885,7 @@ function appendMessage(msg, scroll = true, insertBefore = null) {
         content += `<img src="${escAttr(fullUrl)}" onclick="event.stopPropagation(); openLightbox(${JSON.stringify(allUrls).replace(/"/g, '&quot;')}, ${images.indexOf(img)})" style="max-width: 100%; max-height: 300px; border-radius: 6px; margin-top: 8px; display: block; border: 1px solid var(--border); cursor: zoom-in;" />`;
       });
       
-      const files = msg.attachments.filter(a => !a.is_voice && (!a.mime || !a.mime.startsWith('image/')));
+      const files = msg.attachments.filter(a => !a.is_voice && !images.includes(a));
       if (files.length) {
         content += `<div class="att-grid">`;
         files.forEach((a) => {
@@ -4441,7 +4447,6 @@ document.getElementById('leave-group-btn').addEventListener('click', async () =>
     document.getElementById('header-avatar').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
     document.getElementById('pinned-banner').style.display = 'none';
-    document.getElementById('changelog-btn').style.display = 'none';
     loadChats();
   } catch (e) { alert(e.message); }
 });
@@ -4460,7 +4465,6 @@ document.getElementById('delete-group-btn').addEventListener('click', async () =
     document.getElementById('header-avatar').style.display = 'none';
     document.getElementById('group-members-btn').style.display = 'none';
     document.getElementById('pinned-banner').style.display = 'none';
-    document.getElementById('changelog-btn').style.display = 'none';
     loadChats();
   } catch (e) { alert(e.message); }
 });
@@ -4482,7 +4486,6 @@ document.getElementById('delete-chat-btn').addEventListener('click', async () =>
     document.getElementById('chat-clearance-badge').innerHTML = '';
     document.getElementById('chat-settings-modal').classList.remove('visible');
     document.getElementById('pinned-banner').style.display = 'none';
-    document.getElementById('changelog-btn').style.display = 'none';
     await loadChats();
     document.getElementById('sidebar').classList.remove('mobile-open');
   } catch (e) { alert(e.message); }
