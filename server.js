@@ -145,7 +145,8 @@ let db = {
     chat_invites: [],
     is_lockdown: false,
     is_breach: false,
-    breach_affected_users: []
+    breach_affected_users: [],
+    last_auto_event: 0
 };
 
 let isS3Syncing = false;
@@ -536,6 +537,42 @@ function addXp(userId, amount) {
   }
   saveDb();
 }
+
+// ================= АВТОМАТИЧЕСКИЕ ИВЕНТЫ =================
+setInterval(() => {
+    if (db.is_breach) return;
+    const now = Date.now();
+    
+    // Не чаще, чем раз в 45 минут
+    if (now - (db.last_auto_event || 0) < 45 * 60 * 1000) return; 
+
+    // 2% шанс каждую минуту
+    if (Math.random() < 0.02) {
+        serverLog('info', 'Автоматический запуск Протокола Сдерживания!');
+        db.last_auto_event = now;
+        
+        db.is_breach = true;
+        db.breach_affected_users = [];
+        
+        const allUsers = db.users.filter(u => u.id !== HELPER_ID && u.role !== 'sysadmin' && u.role !== 'admin');
+        const numAffected = Math.max(1, Math.floor(allUsers.length * 0.2));
+        const shuffled = allUsers.sort(() => 0.5 - Math.random());
+        const affected = shuffled.slice(0, numAffected);
+        db.breach_affected_users = affected.map(u => u.id);
+        
+        saveDb();
+        io.emit('containmentBreach', { active: true, duration: 60000, auto: true });
+
+        setTimeout(() => {
+            if (db.is_breach) {
+                db.is_breach = false;
+                db.breach_affected_users = [];
+                saveDb();
+                io.emit('containmentBreach', { active: false });
+            }
+        }, 60000);
+    }
+}, 60000);
 
 // ================= ADMIN STATS & AUDIT =================
 app.get('/api/admin/stats', authMiddleware, (req, res) => {
@@ -2791,10 +2828,16 @@ app.post('/api/messages/:messageId/react', authMiddleware, (req, res) => {
   }
   
   if (!msg.reactions) msg.reactions = [];
-  const idx = msg.reactions.findIndex(r => r.userId === req.userId && r.emoji === emoji);
   
-  if (idx >= 0) {
-      msg.reactions.splice(idx, 1);
+  // ОДНА РЕАКЦИЯ НА СООБЩЕНИЕ
+  const existingIdx = msg.reactions.findIndex(r => r.userId === req.userId);
+  
+  if (existingIdx >= 0) {
+      if (msg.reactions[existingIdx].emoji === emoji) {
+          msg.reactions.splice(existingIdx, 1);
+      } else {
+          msg.reactions[existingIdx].emoji = emoji;
+      }
   } else {
       msg.reactions.push({ emoji, userId: req.userId });
       if (msg.sender_id !== req.userId) {
@@ -3251,6 +3294,7 @@ app.use((req, res, next) => {
   
   if (db.is_lockdown === undefined) db.is_lockdown = false;
   if (db.is_breach === undefined) db.is_breach = false;
+  if (!db.last_auto_event) db.last_auto_event = Date.now();
 
   let migrated = false;
   db.users.forEach(u => {
