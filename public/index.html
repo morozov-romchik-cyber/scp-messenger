@@ -1433,8 +1433,8 @@ const CHANGELOG = [
         date: '14.11.2026',
         changes: [
             'ДОБАВЛЕНО ОКНО ПРЕДУПРЕЖДЕНИЯ: За 10 секунд до ивента появляется уведомление, чтобы никого не напугать.',
-            'ОБНОВЛЕН ЗВУК СИРЕНЫ: Теперь это классическая воздушная тревога (плавное нарастание и спад).',
-            'ИСПРАВЛЕН ЗВУК УВЕДОМЛЕНИЙ: Теперь он глубокий, басистый и приятный на слух.',
+            'ОБНОВЛЕН ЗВУК СИРЕНЫ: Теперь используется реальный аудиофайл (siren.mp3) для максимального реализма.',
+            'ОБНОВЛЕН ЗВУК УВЕДОМЛЕНИЙ: Теперь используется аудиофайл (notify.mp3).',
             'ДОБАВЛЕН ТАЙМЕР ДЛЯ СИСАДМИНА: В админ-панели можно увидеть точное время до следующего ивента.',
             'ОБНОВЛЕНЫ ДАТЫ в истории обновлений (синхронизированы с МСК).'
         ]
@@ -1508,7 +1508,7 @@ let recStream;
 let currentExpiryTimeout;
 
 let e2eeKeys = {};
-let sirenInterval = null;
+let sirenAudio = null; // Заменяем sirenInterval на Audio объект
 
 function clearanceBadge(level) {
   const lvl = level || 1;
@@ -1595,80 +1595,48 @@ function unlockAudio() {
 document.addEventListener('click', unlockAudio, { once: true });
 document.addEventListener('keydown', unlockAudio, { once: true });
 
-// НОВЫЙ БАСИСТЫЙ ЗВУК УВЕДОМЛЕНИЙ
+// ================= ЗВУК УВЕДОМЛЕНИЙ ИЗ ФАЙЛА =================
 function playNotificationSound() {
     try {
-        if (!globalAudioCtx || notifVolume <= 0) return;
-        const now = globalAudioCtx.currentTime;
+        if (notifVolume <= 0) return;
         
-        // Используем фильтр низких частот для создания "глухого" звука
-        const filter = globalAudioCtx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(300, now); // Отсекаем высокие частоты
-        filter.connect(globalAudioCtx.destination);
+        // Создаем новый объект Audio для каждого уведомления, чтобы они могли играть одновременно
+        const audio = new Audio('/notify.mp3'); 
+        audio.volume = notifVolume;
         
-        const osc = globalAudioCtx.createOscillator();
-        const gain = globalAudioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(filter);
-        
-        osc.type = 'sine'; // Плавная волна, звучит менее резко
-        osc.frequency.setValueAtTime(120, now); 
-        osc.frequency.exponentialRampToValueAtTime(60, now + 0.3); 
-        
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(notifVolume * 1.5, now + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4); 
-        
-        osc.start(now);
-        osc.stop(now + 0.5);
-    } catch (e) { console.error(e); }
+        // Пытаемся воспроизвести. Если браузер блокирует - ловим ошибку.
+        audio.play().catch(e => {
+            console.log('Autoplay blocked (нужен клик по экрану):', e);
+        });
+    } catch (e) { 
+        console.error("Ошибка воспроизведения уведомления:", e); 
+    }
 }
 
-// НОВЫЙ ЦИКЛИЧНЫЙ ЗВУК СИРЕНЫ (Воздушная тревога)
+// ================= ЗВУК СИРЕНЫ ИЗ ФАЙЛА =================
 function playSirenSound() {
-    if (!globalAudioCtx) return;
     try {
-        // Останавливаем предыдущую сирену, если она была
-        if (sirenInterval) clearInterval(sirenInterval);
+        // Если аудио еще не создано, создаем его
+        if (!sirenAudio) {
+            sirenAudio = new Audio('/siren.mp3'); // Путь к вашему файлу
+            sirenAudio.loop = true; // Зацикливаем, чтобы играло постоянно во время ивента
+        }
         
-        const playSirenCycle = () => {
-            const now = globalAudioCtx.currentTime;
-            
-            const filter = globalAudioCtx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(1000, now); 
-            filter.connect(globalAudioCtx.destination);
-
-            const osc = globalAudioCtx.createOscillator();
-            const gain = globalAudioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(filter);
-            
-            osc.type = 'triangle'; // Более реалистичный звук сирены
-            osc.frequency.setValueAtTime(400, now);
-            osc.frequency.linearRampToValueAtTime(800, now + 1); // Нарастание
-            osc.frequency.linearRampToValueAtTime(400, now + 2); // Спад
-            
-            gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(notifVolume * 0.6, now + 0.1);
-            gain.gain.setValueAtTime(notifVolume * 0.6, now + 1.8);
-            gain.gain.linearRampToValueAtTime(0, now + 2);
-            
-            osc.start(now);
-            osc.stop(now + 2);
-        };
-
-        playSirenCycle();
-        // Повторяем каждые 2 секунды для создания классической воздушной тревоги
-        sirenInterval = setInterval(playSirenCycle, 2000);
-    } catch(e) {}
+        sirenAudio.volume = notifVolume; 
+        sirenAudio.currentTime = 0; // Начинаем с начала
+        
+        sirenAudio.play().catch(e => {
+            console.error("Браузер заблокировал автовоспроизведение сирены (нужен клик по экрану):", e);
+        });
+    } catch (e) { 
+        console.error("Ошибка воспроизведения сирены:", e); 
+    }
 }
 
 function stopSirenSound() {
-    if (sirenInterval) {
-        clearInterval(sirenInterval);
-        sirenInterval = null;
+    if (sirenAudio) {
+        sirenAudio.pause();
+        sirenAudio.currentTime = 0; // Останавливаем и перематываем в начало
     }
 }
 
@@ -4648,7 +4616,7 @@ function connectSocket() {
   state.socket.on('containmentBreach', (data) => {
       if (data.active) {
           document.documentElement.setAttribute('data-breach', 'true');
-          playSirenSound(); // Запускаем цикличный звук воздушной тревоги
+          playSirenSound(); // Запускаем цикличный звук из файла
       } else {
           document.documentElement.removeAttribute('data-breach');
           stopSirenSound(); // Останавливаем
