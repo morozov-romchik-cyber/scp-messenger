@@ -1595,38 +1595,35 @@ function unlockAudio() {
 document.addEventListener('click', unlockAudio, { once: true });
 document.addEventListener('keydown', unlockAudio, { once: true });
 
-// ================= ЗВУК УВЕДОМЛЕНИЙ ИЗ ФАЙЛА =================
+// ================= ЗВУК УВЕДОМЛЕНИЙ ИЗ ВАШЕГО ФАЙЛА =================
 function playNotificationSound() {
     try {
         if (notifVolume <= 0) return;
-        
-        // Создаем новый объект Audio для каждого уведомления, чтобы они могли играть одновременно
+        // Используем ваш файл из папки public
         const audio = new Audio('/notify.mp3'); 
         audio.volume = notifVolume;
-        
-        // Пытаемся воспроизвести. Если браузер блокирует - ловим ошибку.
         audio.play().catch(e => {
-            console.log('Autoplay blocked (нужен клик по экрану):', e);
+            console.log('Браузер заблокировал автовоспроизведение (нужен клик по экрану):', e);
         });
     } catch (e) { 
         console.error("Ошибка воспроизведения уведомления:", e); 
     }
 }
 
-// ================= ЗВУК СИРЕНЫ ИЗ ФАЙЛА =================
+// ================= ЗВУК СИРЕНЫ ИЗ ВАШЕГО ФАЙЛА =================
 function playSirenSound() {
     try {
         // Если аудио еще не создано, создаем его
         if (!sirenAudio) {
-            sirenAudio = new Audio('/siren.mp3'); // Путь к вашему файлу
-            sirenAudio.loop = true; // Зацикливаем, чтобы играло постоянно во время ивента
+            sirenAudio = new Audio('/siren.mp3'); // Ваш файл из папки public
+            sirenAudio.loop = true; // Зацикливаем
         }
         
         sirenAudio.volume = notifVolume; 
-        sirenAudio.currentTime = 0; // Начинаем с начала
+        sirenAudio.currentTime = 0; 
         
         sirenAudio.play().catch(e => {
-            console.error("Браузер заблокировал автовоспроизведение сирены (нужен клик по экрану):", e);
+            console.error("Браузер заблокировал сирену (нужен клик по экрану):", e);
         });
     } catch (e) { 
         console.error("Ошибка воспроизведения сирены:", e); 
@@ -1636,7 +1633,7 @@ function playSirenSound() {
 function stopSirenSound() {
     if (sirenAudio) {
         sirenAudio.pause();
-        sirenAudio.currentTime = 0; // Останавливаем и перематываем в начало
+        sirenAudio.currentTime = 0;
     }
 }
 
@@ -4593,24 +4590,6 @@ function connectSocket() {
   // НОВЫЙ ОБРАБОТЧИК ПРЕДУПРЕЖДЕНИЯ ОБ ИВЕНТЕ
   state.socket.on('eventWarning', (data) => {
       document.getElementById('event-warning-modal').classList.add('visible');
-      // Звук предупреждения (короткий писк)
-      try {
-        if (globalAudioCtx && notifVolume > 0) {
-            const now = globalAudioCtx.currentTime;
-            const osc = globalAudioCtx.createOscillator();
-            const gain = globalAudioCtx.createGain();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(600, now);
-            osc.frequency.setValueAtTime(800, now + 0.2);
-            gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(notifVolume, now + 0.05);
-            gain.gain.linearRampToValueAtTime(0, now + 0.5);
-            osc.connect(gain);
-            gain.connect(globalAudioCtx.destination);
-            osc.start(now);
-            osc.stop(now + 0.5);
-        }
-      } catch(e) {}
   });
 
   state.socket.on('containmentBreach', (data) => {
