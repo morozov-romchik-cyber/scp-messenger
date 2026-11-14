@@ -870,6 +870,16 @@
       </div>
       <div id="tab-server" class="admin-tab-content">
         <div class="admin-header"><h2>Управление сервером</h2></div>
+        
+        <!-- НОВЫЙ БЛОК: ТАЙМЕР ИВЕНТА ДЛЯ СИСАДМИНА -->
+        <div class="admin-section" id="event-timer-section" style="display: none; border-color: #ffcc00;">
+            <h4 style="color: #ffcc00;">⏱️ Статус системы ивентов</h4>
+            <div style="font-size: 14px; color: var(--admin-text); font-family: 'Fira Code';">
+                <div>До следующего ивента: <span id="next-event-timer" style="color: #ffcc00; font-weight: bold; font-size: 18px;">--:--</span></div>
+                <div style="font-size: 11px; margin-top: 5px; color: var(--muted);">(Проверка раз в 10 секунд)</div>
+            </div>
+        </div>
+
         <div class="admin-section" id="invite-section">
           <h4>Генерация инвайт-кодов</h4>
           <div class="admin-input-group"><select id="invite-role-select"></select><button class="admin-btn" onclick="generateInvite()">Создать код</button></div>
@@ -1222,6 +1232,17 @@
   </div>
 </div>
 
+<!-- НОВОЕ ОКНО ПРЕДУПРЕЖДЕНИЯ ОБ ИВЕНТЕ -->
+<div class="modal" id="event-warning-modal" style="z-index: 9999998; background: rgba(255, 150, 0, 0.2); backdrop-filter: blur(5px);">
+  <div class="modal-content" style="border: 2px solid #ffcc00; box-shadow: 0 0 40px rgba(255, 204, 0, 0.5); text-align: center; max-width: 400px;">
+    <h3 style="color: #ffcc00; font-size: 22px; margin-bottom: 15px; text-shadow: 0 0 10px rgba(255,204,0,0.8);">⚠️ ВНИМАНИЕ ⚠️</h3>
+    <div style="font-size: 15px; margin-bottom: 20px; font-family: 'Fira Code', monospace; color: var(--text); line-height: 1.6;">
+      Система фиксирует нестабильность.<br>Через <b style="color:#ffcc00; font-size:18px;">10 секунд</b> ожидается <b>Протокол Сдерживания</b>.
+    </div>
+    <button class="modal-btn" onclick="document.getElementById('event-warning-modal').classList.remove('visible')" style="background: #ffcc00; color: #000; border: none; font-weight: bold;">ПОНЯТНО</button>
+  </div>
+</div>
+
 <div id="auth">
   <div class="auth-card">
     <h1>SCP FOUNDATION</h1>
@@ -1404,9 +1425,20 @@ const CLEARANCE_SHORT = { 1: 'D', 2: 'S', 3: 'R', 4: 'Z', 5: 'O5' };
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
 const FILE_SIZE_LIMITS = { 1: 10 * 1024 * 1024, 2: 50 * 1024 * 1024, 3: 200 * 1024 * 1024, 4: 1024 * 1024 * 1024, 5: 10 * 1024 * 1024 * 1024 };
 
-// ================= СИСТЕМА ОБНОВЛЕНИЙ (v1.4.2) =================
-const APP_VERSION = '1.4.2';
+// ================= СИСТЕМА ОБНОВЛЕНИЙ (v1.4.3) =================
+const APP_VERSION = '1.4.3';
 const CHANGELOG = [
+    {
+        version: '1.4.3',
+        date: '14.11.2026',
+        changes: [
+            'ДОБАВЛЕНО ОКНО ПРЕДУПРЕЖДЕНИЯ: За 10 секунд до ивента появляется уведомление, чтобы никого не напугать.',
+            'ОБНОВЛЕН ЗВУК СИРЕНЫ: Теперь это классическая воздушная тревога (плавное нарастание и спад).',
+            'ИСПРАВЛЕН ЗВУК УВЕДОМЛЕНИЙ: Теперь он глубокий, басистый и приятный на слух.',
+            'ДОБАВЛЕН ТАЙМЕР ДЛЯ СИСАДМИНА: В админ-панели можно увидеть точное время до следующего ивента.',
+            'ОБНОВЛЕНЫ ДАТЫ в истории обновлений (синхронизированы с МСК).'
+        ]
+    },
     {
         version: '1.4.2',
         date: '13.11.2026',
@@ -1572,7 +1604,7 @@ function playNotificationSound() {
         // Используем фильтр низких частот для создания "глухого" звука
         const filter = globalAudioCtx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(400, now); // Отсекаем высокие частоты
+        filter.frequency.setValueAtTime(300, now); // Отсекаем высокие частоты
         filter.connect(globalAudioCtx.destination);
         
         const osc = globalAudioCtx.createOscillator();
@@ -1581,27 +1613,19 @@ function playNotificationSound() {
         gain.connect(filter);
         
         osc.type = 'sine'; // Плавная волна, звучит менее резко
-        osc.frequency.setValueAtTime(80, now); // Низкая частота (бас)
-        
-        // Модуляция частоты для эффекта "треу-треу-треу"
-        osc.frequency.setValueAtTime(80, now);
-        osc.frequency.linearRampToValueAtTime(110, now + 0.15);
-        osc.frequency.linearRampToValueAtTime(80, now + 0.3);
-        osc.frequency.linearRampToValueAtTime(110, now + 0.45);
-        osc.frequency.linearRampToValueAtTime(80, now + 0.6);
-        osc.frequency.linearRampToValueAtTime(110, now + 0.75);
-        osc.frequency.linearRampToValueAtTime(80, now + 0.9);
+        osc.frequency.setValueAtTime(120, now); 
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.3); 
         
         gain.gain.setValueAtTime(0, now);
         gain.gain.linearRampToValueAtTime(notifVolume * 1.5, now + 0.05);
-        gain.gain.linearRampToValueAtTime(0, now + 0.9); // Плавное затухание
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4); 
         
         osc.start(now);
-        osc.stop(now + 1);
+        osc.stop(now + 0.5);
     } catch (e) { console.error(e); }
 }
 
-// НОВЫЙ ЦИКЛИЧНЫЙ ЗВУК СИРЕНЫ
+// НОВЫЙ ЦИКЛИЧНЫЙ ЗВУК СИРЕНЫ (Воздушная тревога)
 function playSirenSound() {
     if (!globalAudioCtx) return;
     try {
@@ -1613,7 +1637,7 @@ function playSirenSound() {
             
             const filter = globalAudioCtx.createBiquadFilter();
             filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(600, now); 
+            filter.frequency.setValueAtTime(1000, now); 
             filter.connect(globalAudioCtx.destination);
 
             const osc = globalAudioCtx.createOscillator();
@@ -1621,22 +1645,23 @@ function playSirenSound() {
             osc.connect(gain);
             gain.connect(filter);
             
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(200, now);
-            osc.frequency.linearRampToValueAtTime(400, now + 0.5);
-            osc.frequency.linearRampToValueAtTime(200, now + 1);
+            osc.type = 'triangle'; // Более реалистичный звук сирены
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.linearRampToValueAtTime(800, now + 1); // Нарастание
+            osc.frequency.linearRampToValueAtTime(400, now + 2); // Спад
             
             gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(notifVolume * 0.8, now + 0.1);
-            gain.gain.linearRampToValueAtTime(0, now + 1.2);
+            gain.gain.linearRampToValueAtTime(notifVolume * 0.6, now + 0.1);
+            gain.gain.setValueAtTime(notifVolume * 0.6, now + 1.8);
+            gain.gain.linearRampToValueAtTime(0, now + 2);
             
             osc.start(now);
-            osc.stop(now + 1.2);
+            osc.stop(now + 2);
         };
 
         playSirenCycle();
-        // Повторяем каждые 1.5 секунды, чтобы создать непрерывную тревогу
-        sirenInterval = setInterval(playSirenCycle, 1500);
+        // Повторяем каждые 2 секунды для создания классической воздушной тревоги
+        sirenInterval = setInterval(playSirenCycle, 2000);
     } catch(e) {}
 }
 
@@ -2802,10 +2827,60 @@ document.getElementById('admin-header-btn').addEventListener('click', async () =
     document.getElementById('read-deleted-toggle').checked = state.read_deleted;
     updateReadDeletedStatusLabel(state.read_deleted);
     populateInviteRoles();
+
+    // НОВОЕ: Таймер для Сисадмина
+    const timerSection = document.getElementById('event-timer-section');
+    if (state.me.role === 'sysadmin') {
+        timerSection.style.display = 'block';
+        updateEventTimer();
+    } else {
+        timerSection.style.display = 'none';
+    }
+
   } catch (e) {
     alert('Ошибка проверки прав: ' + e.message);
   }
 });
+
+// Функция обновления таймера
+async function updateEventTimer() {
+    if (!document.getElementById('admin-dashboard-modal').classList.contains('visible') || state.me.role !== 'sysadmin') return;
+    try {
+        const status = await api('/admin/event-status');
+        const timerEl = document.getElementById('next-event-timer');
+        if (status.is_breach) {
+            timerEl.textContent = 'АКТИВЕН!';
+            timerEl.style.color = '#ff0000';
+        } else if (status.next_event_time > 0) {
+            const now = Date.now();
+            const diff = Math.max(0, status.next_event_time - now);
+            if (diff > 0) {
+                const secs = Math.floor(diff / 1000);
+                timerEl.textContent = `00:${secs.toString().padStart(2, '0')}`;
+                timerEl.style.color = '#ffcc00';
+            } else {
+                timerEl.textContent = 'Вот-вот начнется...';
+            }
+        } else {
+            const now = Date.now();
+            const last = status.last_auto_event;
+            // Ивент раз в 45 минут минимум, плюс рандом
+            const nextPossible = last + (45 * 60 * 1000);
+            if (now < nextPossible) {
+                const diff = nextPossible - now;
+                const mins = Math.floor(diff / 60000);
+                const secs = Math.floor((diff % 60000) / 1000);
+                timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                timerEl.style.color = 'var(--online-green)';
+            } else {
+                timerEl.textContent = 'Ожидание... (2% шанс)';
+                timerEl.style.color = '#fff';
+            }
+        }
+    } catch(e) { console.error('Timer error', e); }
+}
+setInterval(updateEventTimer, 10000); // Обновляем каждые 10 сек
+
 document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.admin-tab[data-tab]').forEach(t => t.classList.remove('active'));
@@ -4547,10 +4622,33 @@ function connectSocket() {
       }
   });
 
+  // НОВЫЙ ОБРАБОТЧИК ПРЕДУПРЕЖДЕНИЯ ОБ ИВЕНТЕ
+  state.socket.on('eventWarning', (data) => {
+      document.getElementById('event-warning-modal').classList.add('visible');
+      // Звук предупреждения (короткий писк)
+      try {
+        if (globalAudioCtx && notifVolume > 0) {
+            const now = globalAudioCtx.currentTime;
+            const osc = globalAudioCtx.createOscillator();
+            const gain = globalAudioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.setValueAtTime(800, now + 0.2);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(notifVolume, now + 0.05);
+            gain.gain.linearRampToValueAtTime(0, now + 0.5);
+            osc.connect(gain);
+            gain.connect(globalAudioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.5);
+        }
+      } catch(e) {}
+  });
+
   state.socket.on('containmentBreach', (data) => {
       if (data.active) {
           document.documentElement.setAttribute('data-breach', 'true');
-          playSirenSound(); // Запускаем цикличный звук
+          playSirenSound(); // Запускаем цикличный звук воздушной тревоги
       } else {
           document.documentElement.removeAttribute('data-breach');
           stopSirenSound(); // Останавливаем
