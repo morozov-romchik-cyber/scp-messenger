@@ -1200,7 +1200,8 @@
   <div class="modal-content" style="width: 600px; max-height: 85vh;">
     <h3>🏛️ СОВЕТ О5 — ГОЛОСОВАНИЯ</h3>
     <p style="font-size:12px; color:var(--muted); text-align:center; margin-bottom:12px; font-family:'Fira Code';">
-      Запрос уходит в администрацию при наборе &gt;50% голосов «За»
+      Запрос уходит в администрацию при наборе &gt;50% голосов «За»<br>
+      <b style="color:#ff9933;">Лимит: 1 запрос в 24 часа</b>
     </p>
     <div id="o5-requests-list" style="flex:1; overflow-y:auto; margin-bottom:15px; display:flex; flex-direction:column; gap:10px; min-height:200px;"></div>
     <button class="modal-btn" onclick="openCreateO5Form()" style="background:#8b5cf6; color:#fff; margin-bottom:10px;">➕ Создать запрос</button>
@@ -1211,6 +1212,7 @@
 <div class="modal" id="create-o5-modal">
   <div class="modal-content" style="width:460px;">
     <h3>📝 НОВЫЙ ЗАПРОС К О5</h3>
+    <p style="font-size:11px; color:#ff9933; margin-bottom:10px; text-align:center; font-family:'Fira Code';">Можно отправлять только 1 запрос в 24 часа</p>
     <select id="o5-type" onchange="onO5TypeChange(this.value)" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; margin-bottom:10px; outline:none;">
       <option value="update_suggestion">💡 Предложение по обновлению</option>
       <option value="ban">🚫 Забанить пользователя</option>
@@ -1233,7 +1235,7 @@
 
     <label style="display:flex; align-items:center; gap:8px; margin-bottom:15px; cursor:pointer;">
       <input type="checkbox" id="o5-is-global" style="accent-color:#8b5cf6; width:18px; height:18px;">
-      <span style="font-size:13px; color:var(--text);">🌐 Глобальный запрос (макс. 1 в день)</span>
+      <span style="font-size:13px; color:var(--text);">🌐 Глобальный запрос (виден всем)</span>
     </label>
 
     <button class="modal-btn" onclick="submitO5Request()" style="background:#8b5cf6; color:#fff; margin-bottom:10px;">Отправить на рассмотрение</button>
@@ -1443,7 +1445,9 @@ const CHANGELOG = [
         date: '15.11.2026',
         changes: [
             'ОБНОВЛЕНА СИСТЕМА МУЛЬТИАККАУНТОВ: Теперь отслеживание идет по устройству. Разрешено 1 аккаунт на ПК и 1 на Телефоне. Регистрация второго аккаунта на том же устройстве (например, два на ПК) приведет к сбросу XP.',
-            'ОБНОВЛЕНА ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ: Пункт 9 изменен в соответствии с новой системой устройств.'
+            'ОБНОВЛЕНА ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ: Пункт 9 изменен в соответствии с новой системой устройств.',
+            'УДАЛЕН ЭФФЕКТ ГЛАЗА: Убран раздражающий глаз, появляющийся при движении курсора.',
+            'О5 ЗАПРОСЫ: Теперь лимит 1 запрос в 24 часа действует на любые запросы (а не только на глобальные).'
         ]
     },
     {
@@ -5382,33 +5386,7 @@ const FXEngine = {
 };
 FXEngine.init();
 
-(function() {
-    const style = document.createElement('style');
-    style.innerHTML = `
-        #cursor-ghost { position: fixed; width: 20px; height: 20px; background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%); border-radius: 50%; pointer-events: none; z-index: 9999999; opacity: 0; transition: opacity 0.3s; mix-blend-mode: screen; }
-        #cursor-eye { position: fixed; font-size: 24px; pointer-events: none; z-index: 9999998; opacity: 0; transition: opacity 0.3s, transform 0.1s; }
-    `;
-    document.head.appendChild(style);
-    const ghost = document.createElement('div'); ghost.id = 'cursor-ghost';
-    const eye = document.createElement('div'); eye.id = 'cursor-eye'; eye.textContent = '👁️';
-    document.body.appendChild(ghost); document.body.appendChild(eye);
-    document.addEventListener('mousemove', (e) => {
-        if (!visualSettings.ghosts) { ghost.style.opacity = '0'; eye.style.opacity = '0'; return; }
-        if (Math.random() < 0.05) {
-            ghost.style.left = (e.clientX + (Math.random() - 0.5) * 100) + 'px';
-            ghost.style.top = (e.clientY + (Math.random() - 0.5) * 100) + 'px';
-            ghost.style.opacity = '0.5';
-            setTimeout(() => { ghost.style.opacity = '0'; }, 500);
-        }
-        if (Math.random() < 0.005) {
-            eye.style.left = e.clientX + 'px';
-            eye.style.top = e.clientY + 'px';
-            eye.style.opacity = '1';
-            eye.style.transform = `translate(-50%, -50%) rotate(${Math.random() * 360}deg) scale(${1 + Math.random() * 0.5})`;
-            setTimeout(() => { eye.style.opacity = '0'; }, 1000);
-        }
-    });
-})();
+// ★ УДАЛЕН БЛОК С ГЛАЗОМ (cursor-ghost / cursor-eye)
 
 document.addEventListener('click', (e) => {
     const effect = document.createElement('div');
