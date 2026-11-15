@@ -147,7 +147,7 @@ let db = {
     reports: [], 
     audit_logs: [],
     chat_invites: [],
-    o5_requests: []                // ★ О5 запросы
+    o5_requests: []
 };
 
 let isS3Syncing = false;
@@ -216,7 +216,8 @@ const logAdminAction = (adminId, action, targetId, details) => {
 };
 
 const app = express();
-app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false); 
+// ★ ИСПРАВЛЕНИЕ IP: Доверяем прокси, чтобы Express читал X-Forwarded-For
+app.set('trust proxy', true); 
 app.disable('x-powered-by');
 
 app.use((req, res, next) => {
@@ -296,8 +297,11 @@ const publicUserSafe = (u) => {
   return safe;
 };
 
+// ★ ИСПРАВЛЕНИЕ: Правильное извлечение реального IP из заголовков
 const getRealIp = (req) => {
-  return (req.ip || req.socket.remoteAddress || 'unknown').replace('::ffff:', '');
+  const forwarded = req.headers['x-forwarded-for'];
+  let ip = forwarded ? forwarded.split(',')[0].trim() : (req.ip || req.socket.remoteAddress || 'unknown');
+  return ip.replace('::ffff:', '').replace('::1', '127.0.0.1');
 };
 
 const sanitizeString = (str) => {
@@ -350,18 +354,6 @@ const upload = multer({
     cb(null, true);
   }
 });
-
-const uploadSingle = (field) => (req, res, next) => {
-  upload.single(field)(req, res, (err) => {
-    if (err) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({ error: 'Файл слишком большой. Максимум 10 ГБ.' });
-        }
-        return res.status(400).json({ error: err.message || 'Ошибка загрузки' });
-    }
-    next();
-  });
-};
 
 function authMiddleware(req, res, next) {
   const token = req.cookies.token; 
@@ -432,7 +424,6 @@ function emitToChatMembers(chatId, event, payload) {
       
       const isRedacted = memberClearance < 3;
       const needsPollFix = payload && payload.poll && payload.poll.isQuiz;
-      // ★ Анонимизация: только для ЧК, только если получатель НЕ реальный отправитель
       const needsAnonymize = isBlackChannel && realSenderId && realSenderId !== 'anon' && m.user_id !== realSenderId;
       
       if (isRedacted || needsPollFix || needsAnonymize) {
@@ -743,7 +734,6 @@ app.post('/api/o5/requests', authMiddleware, (req, res) => {
   if (!O5_TYPES.includes(type)) return res.status(400).json({ error: 'Неверный тип' });
   if (!title || !title.trim()) return res.status(400).json({ error: 'Укажите заголовок' });
 
-  // Проверка лимита на глобальные запросы (1 в день)
   if (is_global) {
     const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;
     const recentGlobal = db.o5_requests.find(r => r.creator_id === req.userId && r.is_global && r.created_at > oneDayAgo);
@@ -767,7 +757,6 @@ app.post('/api/o5/requests', authMiddleware, (req, res) => {
     targetId = target.id;
   }
 
-  // Проверка дубликата
   const existing = db.o5_requests.find(r => {
     if (r.status !== 'voting' || r.type !== type) return false;
     if (type === 'ban' || type === 'unban') return r.target_user_id === targetId;
@@ -851,7 +840,7 @@ app.post('/api/o5/requests/:id/vote', authMiddleware, (req, res) => {
   res.json({ ok: true, status: request.status });
 });
 
-// ★ НОВЫЙ ЭНДПОИНТ: Отмена голосования О5
+// ★ ОТМЕНА ГОЛОСОВАНИЯ
 app.post('/api/o5/requests/:id/cancel', authMiddleware, (req, res) => {
   const request = db.o5_requests.find(r => r.id === req.params.id);
   if (!request) return res.status(404).json({ error: 'Запрос не найден' });
@@ -1751,7 +1740,6 @@ app.post('/api/chats/group', authMiddleware, (req, res) => {
   const me = req.user;
   const myClearance = me.clearance_level || ROLE_TO_CLEARANCE[me.role] || 1;
   
-  // ★ Только L4+ может создавать группы и каналы
   if (myClearance < 4) {
       return res.status(403).json({ error: 'Для создания групп и каналов требуется Уровень 4 (Руководитель Зоны)' });
   }
@@ -3037,7 +3025,7 @@ app.put('/api/messages/:messageId', authMiddleware, (req, res) => {
 // ================= AUTH =================
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, password, invited_by, accepted_privacy } = req.body || {};
+    const { username, password, invited_by, accepted_privacy, device_id } = req.body || {};
     
     if (!username || !password) {
         return res.status(400).json({ error: 'Заполните все поля' });
@@ -3071,19 +3059,35 @@ app.post('/api/register', async (req, res) => {
         return res.status(403).json({ error: 'Ваш IP заблокирован' });
     }
 
-    const accountsOnIp = db.users.filter(u => u.ip === ip && u.id !== HELPER_ID);
+    // ★ НОВАЯ ЛОГИКА: Отслеживание по устройству (ПК / Телефон)
     let warningMessage = null;
+    const ua = req.headers['user-agent'] || '';
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    const deviceType = isMobile ? 'mobile' : 'desktop'; // 'mobile' или 'desktop'
 
-    if (accountsOnIp.length === 1) {
-        warningMessage = "⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ (ДИРЕКТИВА СБ)\n\nС данного IP-адреса зафиксирована регистрация второй учетной записи. Вынесено предупреждение 1 из 2.\n\nВнимание: После фиксации 3-го аккаунта система инициирует немедленное обнуление всех связанных профилей до статуса Класса-D (L1 и 0 XP) без права обжалования.";
-    } else if (accountsOnIp.length >= 2) {
-        db.users.forEach(u => {
-            if (u.ip === ip && u.id !== HELPER_ID && u.username.toLowerCase() !== 'admin') {
-                u.xp = 0;
-                u.clearance_level = 1;
-            }
-        });
-        warningMessage = "🚨 КРИТИЧЕСКОЕ НАРУШЕНИЕ БЕЗОПАСНОСТИ!\n\nЗафиксирована регистрация 3-го аккаунта с одного IP-адреса.\n\nВСЕ СВЯЗАННЫЕ ПРОФИЛИ ОБНУЛЕНЫ до статуса Класса-D (L1 и 0 XP) без права обжалования.";
+    if (device_id) {
+        const accountsOnDevice = db.users.filter(u => u.device_id === device_id && u.id !== HELPER_ID);
+        const accountsOnSameType = accountsOnDevice.filter(u => u.device_type === deviceType);
+
+        if (accountsOnSameType.length >= 1) {
+            db.users.forEach(u => {
+                if (u.device_id === device_id && u.id !== HELPER_ID && u.username.toLowerCase() !== 'admin') {
+                    u.xp = 0;
+                    u.clearance_level = 1;
+                }
+            });
+            warningMessage = "🚨 КРИТИЧЕСКОЕ НАРУШЕНИЕ БЕЗОПАСНОСТИ!\n\nЗафиксирована регистрация второго аккаунта на одном и том же устройстве (" + (isMobile ? "Телефон" : "ПК") + ").\n\nВСЕ СВЯЗАННЫЕ ПРОФИЛИ ОБНУЛЕНЫ до статуса Класса-D (L1 и 0 XP) без права обжалования.";
+        } else if (accountsOnDevice.length >= 2) {
+            db.users.forEach(u => {
+                if (u.device_id === device_id && u.id !== HELPER_ID && u.username.toLowerCase() !== 'admin') {
+                    u.xp = 0;
+                    u.clearance_level = 1;
+                }
+            });
+            warningMessage = "🚨 КРИТИЧЕСКОЕ НАРУШЕНИЕ БЕЗОПАСНОСТИ!\n\nЗафиксирована регистрация 3-го аккаунта с одного устройства.\n\nВСЕ СВЯЗАННЫЕ ПРОФИЛИ ОБНУЛЕНЫ до статуса Класса-D (L1 и 0 XP).";
+        } else if (accountsOnDevice.length === 1) {
+            warningMessage = "⚠️ ПРОТОКОЛ БЕЗОПАСНОСТИ (ДИРЕКТИВА СБ)\n\nС данного устройства зафиксирована регистрация второй учетной записи (" + (isMobile ? "Телефон" : "ПК") + ").\n\nВнимание: Регистрация второго аккаунта на том же типе устройства (ПК или Телефон) приведет к обнулению всех профилей.";
+        }
     }
 
     let userRole = 'user';
@@ -3140,6 +3144,8 @@ app.post('/api/register', async (req, res) => {
       created_at: Math.floor(Date.now() / 1000), 
       read_deleted: false, 
       ip,
+      device_id: device_id || null,     // ★ Сохраняем ID устройства
+      device_type: deviceType,          // ★ Сохраняем тип устройства
       role: userRole, 
       invited_by: inviter, 
       ban_expires: 0, 
@@ -3204,7 +3210,7 @@ app.post('/api/register', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
   try {
-    const { username, password } = req.body || {};
+    const { username, password, device_id } = req.body || {};
     const ip = getRealIp(req);
     if (db.banned_ips.includes(ip)) {
         return res.status(403).json({ error: 'Ваш IP заблокирован' });
@@ -3213,6 +3219,14 @@ app.post('/api/login', async (req, res) => {
     const user = findUserByUsername(username);
     if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
         return res.status(401).json({ error: 'Неверный ник или пароль' });
+    }
+
+    // ★ Обновляем device_id при успешном входе
+    if (device_id) {
+        const ua = req.headers['user-agent'] || '';
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+        user.device_id = device_id;
+        user.device_type = isMobile ? 'mobile' : 'desktop';
     }
 
     if (user.username.toLowerCase() === 'admin') {
@@ -3442,7 +3456,6 @@ app.use((req, res, next) => {
       if (!db[key]) db[key] = []; 
   });
   
-  // Очистка старых полей ивентов/локдауна из БД
   delete db.is_lockdown;
   delete db.is_breach;
   delete db.breach_affected_users;
@@ -3466,6 +3479,8 @@ app.use((req, res, next) => {
     if (u.xp === undefined) { u.xp = 0; migrated = true; }
     if (!u.invite_code) { u.invite_code = `REF-${u.username.toUpperCase()}`; migrated = true; }
     if (!u.pinned_chats) { u.pinned_chats = []; migrated = true; }
+    if (u.device_id === undefined) { u.device_id = null; migrated = true; }
+    if (u.device_type === undefined) { u.device_type = 'unknown'; migrated = true; }
     
     if (typeof u.ban_expires !== 'number') {
         u.ban_expires = Number(u.ban_expires) || 0;
