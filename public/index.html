@@ -695,7 +695,7 @@
       <p>Продолжая пользоваться сервисом, вы принимаете обновления.</p>
       
       <h4 style="color: #ff4d4d; margin-top: 15px;">9. Ответственность и мультиаккаунтинг</h4>
-      <p>Регистрация более 2-х аккаунтов с одного IP-адреса строго запрещена. Начиная с регистрации 2-го аккаунта выносится предупреждение. При регистрации 3-го аккаунта система автоматически обнуляет прогресс (XP и уровень допуска) всех связанных профилей до L1 (Класс-D). Продолжая регистрацию, вы даете безоговорочное согласие на данные действия без права обжалования.</p>
+      <p>Разрешено иметь не более 1 аккаунта на ПК и 1 аккаунта на Телефоне (всего 2). Регистрация второго аккаунта на том же типе устройства (например, два аккаунта на ПК) строго запрещена. При выявлении нарушения система автоматически обнуляет прогресс (XP и уровень допуска) всех связанных профилей до L1 (Класс-D). Продолжая регистрацию, вы даете безоговорочное согласие на данные действия без права обжалования.</p>
     </div>
     <button class="modal-btn" onclick="document.getElementById('privacy-modal').classList.remove('visible')">Закрыть</button>
   </div>
@@ -1435,9 +1435,17 @@ const CLEARANCE_SHORT = { 1: 'D', 2: 'S', 3: 'R', 4: 'Z', 5: 'O5' };
 const XP_THRESHOLDS = { 1: 0, 2: 500, 3: 2000, 4: 10000, 5: 50000 };
 const FILE_SIZE_LIMITS = { 1: 10 * 1024 * 1024, 2: 50 * 1024 * 1024, 3: 200 * 1024 * 1024, 4: 1024 * 1024 * 1024, 5: 10 * 1024 * 1024 * 1024 };
 
-// ================= СИСТЕМА ОБНОВЛЕНИЙ (v1.4.4) =================
-const APP_VERSION = '1.4.4';
+// ================= СИСТЕМА ОБНОВЛЕНИЙ (v1.4.5) =================
+const APP_VERSION = '1.4.5';
 const CHANGELOG = [
+    {
+        version: '1.4.5',
+        date: '15.11.2026',
+        changes: [
+            'ОБНОВЛЕНА СИСТЕМА МУЛЬТИАККАУНТОВ: Теперь отслеживание идет по устройству. Разрешено 1 аккаунт на ПК и 1 на Телефоне. Регистрация второго аккаунта на том же устройстве (например, два на ПК) приведет к сбросу XP.',
+            'ОБНОВЛЕНА ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ: Пункт 9 изменен в соответствии с новой системой устройств.'
+        ]
+    },
     {
         version: '1.4.4',
         date: '14.11.2026',
@@ -1491,6 +1499,16 @@ document.getElementById('open-changelog-btn').addEventListener('click', () => {
     document.getElementById('changelog-modal').classList.add('visible');
     document.getElementById('settings-modal').classList.remove('visible');
 });
+
+// ★ ГЕНЕРАЦИЯ ID УСТРОЙСТВА
+function getOrCreateDeviceId() {
+    let deviceId = localStorage.getItem('scp_device_id');
+    if (!deviceId) {
+        deviceId = 'dev-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('scp_device_id', deviceId);
+    }
+    return deviceId;
+}
 // ======================================================
 
 let notifVolume = parseFloat(localStorage.getItem('scp_notif_volume') || '0.5');
@@ -2406,6 +2424,7 @@ document.getElementById('a-submit').addEventListener('click', async () => {
   const username = document.getElementById('a-username').value.trim();
   const password = document.getElementById('a-password').value;
   const invited_by = document.getElementById('a-invite').value.trim() || null;
+  const device_id = getOrCreateDeviceId();
   const errEl = document.getElementById('a-error'); errEl.textContent = '';
   if (!username || !password) return errEl.textContent = 'Заполните все поля';
   if (authMode === 'register' && !document.getElementById('a-privacy').checked) {
@@ -2416,7 +2435,7 @@ document.getElementById('a-submit').addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = 'Загрузка...';
   try {
     const url = authMode === 'register' ? '/register' : '/login';
-    const data = await api(url, { method: 'POST', body: JSON.stringify({ username, password, invited_by, accepted_privacy }) });
+    const data = await api(url, { method: 'POST', body: JSON.stringify({ username, password, invited_by, accepted_privacy, device_id }) });
     state.me = data.user; state.read_deleted = data.user.read_deleted || false;
     
     if (data.warning) {
