@@ -84,22 +84,6 @@
     --hill-color: #0a1f10; --tree-color: #14301c; --ground-color: #1e4029;
   }
 
-  /* CONTAINMENT BREACH */
-  [data-breach="true"] {
-    --bg: #2a0000 !important;
-    --panel: #3a0000 !important;
-    --card: #4a0000 !important;
-    --border: #ff0000 !important;
-    --text: #ffcccc !important;
-    --accent: #ff0000 !important;
-    --muted: #ff6666 !important;
-    animation: breachPulse 2s infinite;
-  }
-  @keyframes breachPulse {
-    0%, 100% { box-shadow: inset 0 0 50px rgba(255,0,0,0.3); }
-    50% { box-shadow: inset 0 0 150px rgba(255,0,0,0.7); }
-  }
-
   html.theme-changing * {
     transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, fill 0.4s ease !important;
   }
@@ -316,8 +300,6 @@
   #pinned-banner .unpin-btn { background: transparent; border: none; color: #ff4d4d; cursor: pointer; font-size: 16px; }
 
   #user-banned-banner { display: none; background: #ff3333; color: #ffffff; padding: 10px 16px; font-size: 13px; font-weight: bold; font-family: 'Fira Code', monospace; text-align: center; border-bottom: 1px solid #4a1515; z-index: 10; }
-
-  #lockdown-banner { display: none; background: #ff0000; color: #fff; text-align: center; padding: 5px; font-weight: bold; font-family: 'Fira Code'; font-size: 12px; letter-spacing: 2px; animation: pulseRed 1s infinite; z-index: 100; position: relative; }
 
   /* ИСПРАВЛЕНИЕ ПРОКРУТКИ ЧАТА */
   #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; position: relative; z-index: 2; }
@@ -872,31 +854,11 @@
       <div id="tab-server" class="admin-tab-content">
         <div class="admin-header"><h2>Управление сервером</h2></div>
         
-        <div class="admin-section" id="event-timer-section" style="display: none; border-color: #ffcc00;">
-            <h4 style="color: #ffcc00;">⏱️ Статус системы ивентов</h4>
-            <div style="font-size: 14px; color: var(--admin-text); font-family: 'Fira Code';">
-                <div>До следующего ивента: <span id="next-event-timer" style="color: #ffcc00; font-weight: bold; font-size: 18px;">--:--</span></div>
-                <div style="font-size: 11px; margin-top: 5px; color: var(--muted);">(Проверка раз в 10 секунд)</div>
-            </div>
-        </div>
-
         <div class="admin-section" id="invite-section">
           <h4>Генерация инвайт-кодов</h4>
           <div class="admin-input-group"><select id="invite-role-select"></select><button class="admin-btn" onclick="generateInvite()">Создать код</button></div>
           <div id="invite-result" style="font-family: 'Fira Code'; font-size: 14px; color: var(--admin-green); margin-top: 10px;"></div>
           <div id="invite-hint" style="font-size: 12px; color: var(--admin-text); margin-top: 8px; font-family: 'Fira Code';"></div>
-        </div>
-        
-        <div class="admin-section" style="border-color: #ff3333;">
-            <h4 style="color: #ff3333;">🚨 Протокол изоляции (SCP-5000)</h4>
-            <p style="font-size: 12px; color: var(--admin-text); margin-bottom: 15px;">Блокирует отправку сообщений всем, кроме Уровня 5.</p>
-            <button class="admin-btn admin-btn-danger" onclick="toggleLockdown()" style="width: 100%;">АКТИВИРОВАТЬ / СНЯТЬ ЛОКДАУН</button>
-        </div>
-
-        <div class="admin-section" style="border-color: #ff0000; background: rgba(255, 0, 0, 0.05);">
-            <h4 style="color: #ff3333;">☣️ Протокол Сдерживания (Нарушение)</h4>
-            <p style="font-size: 12px; color: var(--admin-text); margin-bottom: 15px;">Запускает событие "Нарушение условий содержания" на 60 секунд. Зашифровывает сообщения случайных 20% агентов.</p>
-            <button class="admin-btn admin-btn-danger" onclick="triggerBreach()" style="width: 100%;">АКТИВИРОВАТЬ НАРУШЕНИЕ</button>
         </div>
 
         <div class="admin-section" style="border-color: var(--admin-accent); background: rgba(255, 51, 51, 0.05);">
@@ -1288,16 +1250,6 @@
   </div>
 </div>
 
-<div class="modal" id="event-warning-modal" style="z-index: 9999998; background: rgba(255, 150, 0, 0.2); backdrop-filter: blur(5px);">
-  <div class="modal-content" style="border: 2px solid #ffcc00; box-shadow: 0 0 40px rgba(255, 204, 0, 0.5); text-align: center; max-width: 400px;">
-    <h3 style="color: #ffcc00; font-size: 22px; margin-bottom: 15px; text-shadow: 0 0 10px rgba(255,204,0,0.8);">⚠️ ВНИМАНИЕ ⚠️</h3>
-    <div style="font-size: 15px; margin-bottom: 20px; font-family: 'Fira Code', monospace; color: var(--text); line-height: 1.6;">
-      Система фиксирует нестабильность.<br>Через <b style="color:#ffcc00; font-size:18px;">10 секунд</b> ожидается <b>Протокол Сдерживания</b>.
-    </div>
-    <button class="modal-btn" onclick="document.getElementById('event-warning-modal').classList.remove('visible')" style="background: #ffcc00; color: #000; border: none; font-weight: bold;">ПОНЯТНО</button>
-  </div>
-</div>
-
 <div id="auth">
   <div class="auth-card">
     <h1>SCP FOUNDATION</h1>
@@ -1392,8 +1344,6 @@
     <div id="user-banned-banner">⛔ Пользователь заблокирован</div>
     <div id="blocked-banner" style="display: none; background: #ff4d4d; color: #fff; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; z-index: 10;">Пользователь заблокирован вами</div>
 
-    <div id="lockdown-banner">🚨 ВНИМАНИЕ: АКТИВЕН ПРОТОКОЛ ЛОКДАУН (SCP-5000) 🚨</div>
-
     <div id="messages"><div class="empty">⚡ КАНАЛ НЕ ВЫБРАН</div></div>
     
     <div class="file-progress" id="file-progress">
@@ -1461,7 +1411,7 @@ let chatDrafts = JSON.parse(localStorage.getItem('scp_drafts') || '{}');
 const state = { 
   me: null, chats: [], currentChat: null, socket: null, 
   unreadCounts: {}, replyTo: null, activeMsgId: null, activeMsg: null, read_deleted: false, 
-  currentPinnedIndex: 0, visiblePinnedMessages: [], isLockdown: false
+  currentPinnedIndex: 0, visiblePinnedMessages: []
 };
 
 let isSelectionMode = false;
@@ -1501,22 +1451,9 @@ const CHANGELOG = [
         version: '1.4.3',
         date: '14.11.2026',
         changes: [
-            'ДОБАВЛЕНО ОКНО ПРЕДУПРЕЖДЕНИЯ: За 10 секунд до ивента появляется уведомление, чтобы никого не напугать.',
-            'ОБНОВЛЕН ЗВУК СИРЕНЫ: Теперь используется реальный аудиофайл (siren.mp3) для максимального реализма.',
-            'ОБНОВЛЕН ЗВУК УВЕДОМЛЕНИЙ: Теперь используется аудиофайл (notify.mp3).',
-            'ДОБАВЛЕН ТАЙМЕР ДЛЯ СИСАДМИНА: В админ-панели можно увидеть точное время до следующего ивента.',
+            'УДАЛЕНЫ ИВЕНТЫ И ЛОКДАУН: Мессенджер больше не симулирует события Фонда, теперь это полноценный чат.',
+            'ДОБАВЛЕНА ОТМЕНА О5: Создатель запроса и администраторы могут отменить голосование.',
             'ОБНОВЛЕНЫ ДАТЫ в истории обновлений (синхронизированы с МСК).'
-        ]
-    },
-    {
-        version: '1.4.2',
-        date: '13.11.2026',
-        changes: [
-            'УБРАНА ЗАВИСИМОСТЬ ИВЕНТОВ ОТ КОЛИЧЕСТВА СООБЩЕНИЙ.',
-            'Теперь Протокол Сдерживания запускается исключительно по времени.',
-            'Ивенты стали реже: вероятность 2% каждую минуту (в среднем раз в 1-1.5 часа).',
-            'Обновлен звук уведомлений: теперь он басистый и менее резкий.',
-            'Звук сирены во время ивента теперь циклично повторяется.'
         ]
     }
 ];
@@ -1571,7 +1508,6 @@ let recStream;
 let currentExpiryTimeout;
 
 let e2eeKeys = {};
-let sirenAudio = null;
 
 function clearanceBadge(level) {
   const lvl = level || 1;
@@ -1667,31 +1603,6 @@ function playNotificationSound() {
         });
     } catch (e) { 
         console.error("Ошибка воспроизведения уведомления:", e); 
-    }
-}
-
-function playSirenSound() {
-    try {
-        if (!sirenAudio) {
-            sirenAudio = new Audio('/siren.mp3');
-            sirenAudio.loop = true; 
-        }
-        
-        sirenAudio.volume = notifVolume; 
-        sirenAudio.currentTime = 0; 
-        
-        sirenAudio.play().catch(e => {
-            console.error("Браузер заблокировал сирену (нужен клик по экрану):", e);
-        });
-    } catch (e) { 
-        console.error("Ошибка воспроизведения сирены:", e); 
-    }
-}
-
-function stopSirenSound() {
-    if (sirenAudio) {
-        sirenAudio.pause();
-        sirenAudio.currentTime = 0;
     }
 }
 
@@ -2835,14 +2746,6 @@ document.getElementById('admin-header-btn').addEventListener('click', async () =
     updateReadDeletedStatusLabel(state.read_deleted);
     populateInviteRoles();
 
-    const timerSection = document.getElementById('event-timer-section');
-    if (state.me.role === 'sysadmin') {
-        timerSection.style.display = 'block';
-        updateEventTimer();
-    } else {
-        timerSection.style.display = 'none';
-    }
-
     if (['sysadmin', 'admin'].includes(state.me.role)) {
       document.getElementById('tab-btn-o5').style.display = 'flex';
       loadAdminO5Requests();
@@ -2852,43 +2755,6 @@ document.getElementById('admin-header-btn').addEventListener('click', async () =
     alert('Ошибка проверки прав: ' + e.message);
   }
 });
-
-async function updateEventTimer() {
-    if (!document.getElementById('admin-dashboard-modal').classList.contains('visible') || state.me.role !== 'sysadmin') return;
-    try {
-        const status = await api('/admin/event-status');
-        const timerEl = document.getElementById('next-event-timer');
-        if (status.is_breach) {
-            timerEl.textContent = 'АКТИВЕН!';
-            timerEl.style.color = '#ff0000';
-        } else if (status.next_event_time > 0) {
-            const now = Date.now();
-            const diff = Math.max(0, status.next_event_time - now);
-            if (diff > 0) {
-                const secs = Math.floor(diff / 1000);
-                timerEl.textContent = `00:${secs.toString().padStart(2, '0')}`;
-                timerEl.style.color = '#ffcc00';
-            } else {
-                timerEl.textContent = 'Вот-вот начнется...';
-            }
-        } else {
-            const now = Date.now();
-            const last = status.last_auto_event;
-            const nextPossible = last + (45 * 60 * 1000);
-            if (now < nextPossible) {
-                const diff = nextPossible - now;
-                const mins = Math.floor(diff / 60000);
-                const secs = Math.floor((diff % 60000) / 1000);
-                timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-                timerEl.style.color = 'var(--online-green)';
-            } else {
-                timerEl.textContent = 'Ожидание... (2% шанс)';
-                timerEl.style.color = '#fff';
-            }
-        }
-    } catch(e) { console.error('Timer error', e); }
-}
-setInterval(updateEventTimer, 10000);
 
 document.querySelectorAll('.admin-tab[data-tab]').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -2980,23 +2846,6 @@ window.setClearance = async function() {
   } catch (e) { alert(e.message); }
 };
 
-window.toggleLockdown = async function() {
-    if (!confirm('Изменить статус Локдауна?')) return;
-    try {
-        const res = await api('/admin/toggle-lockdown', { method: 'POST' });
-        alert(res.is_lockdown ? 'ЛОКДАУН АКТИВИРОВАН' : 'ЛОКДАУН СНЯТ');
-        document.getElementById('lockdown-banner').style.display = res.is_lockdown ? 'block' : 'none';
-    } catch(e) { alert(e.message); }
-};
-
-window.triggerBreach = async function() {
-    if (!confirm('Активировать нарушение условий содержания?')) return;
-    try {
-        const res = await api('/admin/trigger-breach', { method: 'POST' });
-        alert(`Нарушение активировано! Заражено агентов: ${res.affectedCount}`);
-    } catch(e) { alert(e.message); }
-};
-
 // ================= ★ О5 ЗАПРОСЫ (ГОЛОСОВАНИЯ) =================
 window.openO5RequestsModal = function() {
   document.getElementById('o5-requests-modal').classList.add('visible');
@@ -3056,6 +2905,15 @@ window.submitO5Request = async function() {
   } catch(e) { alert(e.message); }
 };
 
+// ★ ДОБАВЛЕНА ОТМЕНА ГОЛОСОВАНИЯ
+window.cancelO5Request = async function(id) {
+  if (!confirm('Вы уверены, что хотите отменить это голосование?')) return;
+  try {
+    await api(`/o5/requests/${id}/cancel`, { method: 'POST' });
+    loadO5Requests();
+  } catch(e) { alert(e.message); }
+};
+
 window.loadO5Requests = async function() {
   const box = document.getElementById('o5-requests-list');
   if (!box) return;
@@ -3082,13 +2940,16 @@ window.loadO5Requests = async function() {
         ? '<span style="background:#16a34a; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px;">✅ ОДОБРЕНО — ждёт админа</span>'
         : '<span style="background:#8b5cf6; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px;">ГОЛОСОВАНИЕ</span>';
 
+      const canCancel = r.status === 'voting' && (r.creator_id === state.me.id || ['admin', 'sysadmin'].includes(state.me.role));
+
       const voteButtons = r.status === 'voting'
         ? `<div style="display:flex; gap:8px; margin-top:10px;">
             <button onclick="voteO5('${r.id}', 'for')" ${r.my_vote==='for'?'disabled':''}
               style="flex:1; padding:6px; background:${r.my_vote==='for'?'#16a34a':'var(--card)'}; color:${r.my_vote==='for'?'#fff':'var(--text)'}; border:1px solid #16a34a; border-radius:6px; cursor:pointer; font-weight:bold;">✅ За (${r.for_votes})</button>
             <button onclick="voteO5('${r.id}', 'against')" ${r.my_vote==='against'?'disabled':''}
               style="flex:1; padding:6px; background:${r.my_vote==='against'?'#dc2626':'var(--card)'}; color:${r.my_vote==='against'?'#fff':'var(--text)'}; border:1px solid #dc2626; border-radius:6px; cursor:pointer; font-weight:bold;">❌ Против (${r.against_votes})</button>
-           </div>`
+           </div>
+           ${canCancel ? `<button onclick="cancelO5Request('${r.id}')" style="width:100%; margin-top:8px; padding:6px; background:transparent; color:#ff4d4d; border:1px solid #ff4d4d; border-radius:6px; cursor:pointer; font-weight:bold; font-size:12px;">✖ Отменить голосование</button>` : ''}`
         : '';
 
       return `<div style="background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; ${r.is_global ? 'border-color: #8b5cf6;' : ''}">
@@ -3774,10 +3635,6 @@ async function openChat(chatId, name, avatarUrl, isBlocked, otherUserId, ban_exp
      if (myClearance < minWrite && !isCreator) {
          showComposer = false;
      }
-  }
-
-  if (state.isLockdown && myClearance < 5) {
-      showComposer = false;
   }
 
   document.getElementById('composer').style.display = showComposer ? 'flex' : 'none';
@@ -4798,33 +4655,6 @@ function connectSocket() {
   state.socket.on('roleChanged', async () => {
     try { state.me = await api('/me'); enterChat(); if (document.getElementById('admin-dashboard-modal').classList.contains('visible')) loadStaffList(); } catch (e) {}
   });
-
-  state.socket.on('lockdownToggled', (isLockdown) => {
-      state.isLockdown = isLockdown;
-      document.getElementById('lockdown-banner').style.display = isLockdown ? 'block' : 'none';
-      if (isLockdown && (state.me.clearance_level || 1) < 5) {
-          document.getElementById('composer').style.display = 'none';
-      } else {
-          const c = state.currentChat;
-          if (c && !c.isBlocked && (!c.isChannel || c.creatorId === state.me.id)) {
-              document.getElementById('composer').style.display = 'flex';
-          }
-      }
-  });
-
-  state.socket.on('eventWarning', (data) => {
-      document.getElementById('event-warning-modal').classList.add('visible');
-  });
-
-  state.socket.on('containmentBreach', (data) => {
-      if (data.active) {
-          document.documentElement.setAttribute('data-breach', 'true');
-          playSirenSound();
-      } else {
-          document.documentElement.removeAttribute('data-breach');
-          stopSirenSound();
-      }
-  });
   
   let refreshTimeout;
   state.socket.on('refreshData', () => {
@@ -5079,518 +4909,497 @@ document.getElementById('user-search').addEventListener('input', (e) => {
       if (res.chats && res.chats.length) {
         html += `<div style="font-size: 11px; color: var(--muted); padding: 10px 16px 5px; font-family: 'Fira Code';">ГРУППЫ И КАНАЛЫ</div>`;
         html += res.chats.map(c => `
-          <div class="chat-item" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', ${c.isBlocked ? 'true' : 'false'}, '${escAttr(c.otherUserId || '')}', ${c.ban_expires || 0}, ${c.isGroup ? 'true' : 'false'}, '${escAttr(c.creatorId || '')}', ${c.isChannel ? 'true' : 'false'}, '${escAttr(c.username || '')}', ${c.isHelper ? 'true' : 'false'}, ${c.blockedByMe ? 'true' : 'false'}, ${c.blockedByThem ? 'true' : 'false'}, ${c.required_clearance || 1}, ${c.canAccess !== false ? 'true' : 'false'})">
-            <div class="chat-avatar" style="background:var(--border); font-size: 18px;">${c.isChannel ? '📢' : '👥'}</div>
-            <div class="chat-info"><div class="name">${esc(c.name)}</div><div class="preview">${c.username ? (c.isChannel ? 'scp.me/' : 'scp.group/') + c.username : 'Публичный чат'}</div></div>
-          </div>`).join('');
+          <div class="chat-item" onclick="openChat('${escAttr(c.id)}', '${escAttr(c.name)}', '${escAttr(c.avatarUrl || '')}', false, null, 0, ${c.isGroup}, '${escAttr(c.creatorId || '')}', ${c.isChannel}, '${escAttr(c.username || '')}', false, false, false, ${c.required_clearance || 1}, ${state.me.clearance_level >= (c.required_clearance || 1)})" style="cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px;">
+            <div class="chat-avatar" style="background: var(--accent); color: var(--bg);">${c.isChannel ? '📢' : '👥'}</div>
+            <div class="chat-info">
+              <div class="name" style="display:flex; align-items:center;">${esc(c.name)} ${c.is_black_channel ? '<span style="color:#8b5cf6; font-size:12px; margin-left:4px;">🕵️</span>' : ''}</div>
+              <div class="preview">${c.username ? 'scp.me/' + esc(c.username) : (c.isChannel ? 'Канал' : 'Группа')} • Вход: L${c.required_clearance}</div>
+            </div>
+          </div>
+        `).join('');
       }
-      
+
       if (res.users && res.users.length) {
         html += `<div style="font-size: 11px; color: var(--muted); padding: 10px 16px 5px; font-family: 'Fira Code';">ПОЛЬЗОВАТЕЛИ</div>`;
-        html += res.users.map(u => `<div class="chat-item" onclick="startChat('${escAttr(u.id)}')"><div class="chat-avatar">${esc((u.displayName || u.username || '?')[0].toUpperCase())}</div><div class="chat-info"><div class="name">${esc(u.displayName || u.username)}</div><div class="preview">@${esc(u.username)} • ${u.status === 'online' ? '🟢' : '⚪'}</div></div></div>`).join('');
+        html += res.users.map(u => `
+          <div class="chat-item" onclick="startPersonalChat('${escAttr(u.id)}')" style="cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px;">
+            <div class="chat-avatar">${u.avatarUrl ? `<img src="${escAttr(u.avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : esc((u.displayName || u.username || '?')[0].toUpperCase())}</div>
+            <div class="chat-info">
+              <div class="name" style="display:flex; align-items:center;">${esc(u.displayName || u.username)}</div>
+              <div class="preview">@${esc(u.username)} • ${CLEARANCE_LABEL[u.clearance_level || 1]}</div>
+            </div>
+          </div>
+        `).join('');
       }
-      
+
       if (!html) html = '<div class="empty">Ничего не найдено</div>';
       list.innerHTML = html;
-    } catch (err) { console.error(err); }
-  }, 250);
+    } catch (e) { console.error(e); }
+  }, 500);
 });
-window.startChat = async function(userId) {
-  try { const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId }) }); await loadChats(); document.getElementById('user-search').value = ''; openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires || 0, false); }
-  catch (e) { alert(e.message); }
+
+window.startPersonalChat = async function(userId) {
+    try {
+        const chat = await api('/chats', { method: 'POST', body: JSON.stringify({ userId }) });
+        document.getElementById('user-search').value = '';
+        await loadChats();
+        openChat(chat.id, chat.name, chat.avatarUrl, chat.isBlocked, chat.otherUserId, chat.ban_expires, chat.isGroup, chat.creatorId, chat.isChannel, chat.username, chat.isHelper, chat.blockedByMe, chat.blockedByThem, chat.required_clearance, chat.canAccess);
+    } catch (e) { alert(e.message); }
 };
 
-document.getElementById('back-btn').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('mobile-open'); });
-const msgInput = document.getElementById('msg-input');
-msgInput.addEventListener('input', () => {
-  msgInput.style.height = 'auto';
-  msgInput.style.height = Math.min(msgInput.scrollHeight, 140) + 'px';
+let typingTimer = null;
+document.getElementById('msg-input').addEventListener('input', (e) => {
+  const input = e.target;
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+  const text = input.value;
+  
   if (state.currentChat) {
-    const t = msgInput.value;
-    if (t.trim()) chatDrafts[state.currentChat.id] = t;
-    else delete chatDrafts[state.currentChat.id];
+    if (text.trim()) {
+      chatDrafts[state.currentChat.id] = text;
+    } else {
+      delete chatDrafts[state.currentChat.id];
+    }
     localStorage.setItem('scp_drafts', JSON.stringify(chatDrafts));
     updateChatPreview(state.currentChat.id);
-    if (state.socket && state.currentChat) {
-      state.socket.emit('typing', { chatId: state.currentChat.id });
-      clearTimeout(window._typingStopTimer);
-      window._typingStopTimer = setTimeout(() => {
-        if (state.socket && state.currentChat) state.socket.emit('stopTyping', { chatId: state.currentChat.id });
-      }, 2000);
-    }
+  }
+
+  if (!state.socket || !state.currentChat) return;
+  state.socket.emit('typing', { chatId: state.currentChat.id });
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => { if (state.socket && state.currentChat) state.socket.emit('stopTyping', { chatId: state.currentChat.id }); }, 1500);
+});
+
+document.getElementById('msg-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
+    e.preventDefault();
+    const text = e.target.value.trim();
+    if (text) document.getElementById('composer').dispatchEvent(new Event('submit'));
   }
 });
-msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('composer').dispatchEvent(new Event('submit')); } });
 
-let _attViewerState = { attachments: [], index: 0, chatName: '', senderName: '' };
-window.openAttViewer = function(msgId, index) {
-  const data = window._attStore && window._attStore[msgId]; if (!data) return;
-  _attViewerState = { attachments: data.attachments, index: Math.max(0, Math.min(index || 0, data.attachments.length - 1)), chatName: data.chatName || '', senderName: data.senderName || '' };
-  renderAttViewer();
-  document.getElementById('att-viewer').classList.add('visible');
-};
-window.closeAttViewer = () => document.getElementById('att-viewer').classList.remove('visible');
-window.navAttViewer = function(dir) {
-  const n = _attViewerState.index + dir;
-  if (n < 0 || n >= _attViewerState.attachments.length) return;
-  _attViewerState.index = n;
-  renderAttViewer();
-};
-function renderAttViewer() {
-  const { attachments, index, chatName, senderName } = _attViewerState;
-  const a = attachments[index]; if (!a) return;
-  document.getElementById('att-viewer-title').textContent = a.name || 'Файл';
-  document.getElementById('att-viewer-meta').textContent = `От: @${senderName} → @${chatName} • ${index + 1} / ${attachments.length}`;
-  const body = document.getElementById('att-viewer-body');
-  const url = a.url || '';
-  const mime = a.mime || '';
-  if (mime.startsWith('image/')) {
-    body.innerHTML = `<img src="${escAttr(url)}" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px;">`;
-  } else if (mime.startsWith('video/')) {
-    body.innerHTML = `<video src="${escAttr(url)}" controls autoplay style="max-width: 100%; max-height: 100%; border-radius: 4px;"></video>`;
-  } else if (mime.startsWith('audio/')) {
-    body.innerHTML = `<audio src="${escAttr(url)}" controls autoplay style="width: 100%;"></audio>`;
-  } else {
-    body.innerHTML = `<div style="text-align: center; padding: 20px;"><div style="font-size: 48px; margin-bottom: 15px;">${getAttIcon(a)}</div><button class="modal-btn" onclick="forceDownloadFile('${escAttr(url)}', '${escAttr(a.name || 'file')}')" style="display: inline-flex; justify-content: center; padding: 10px 20px; background: var(--accent); color: var(--bg); border-radius: 6px; text-decoration: none; font-weight: 600; width: auto;">📥 Скачать (${formatSize(a.size)})</button></div>`;
-  }
-  const nav = document.getElementById('att-viewer-nav');
-  if (attachments.length > 1) {
-    nav.style.display = 'flex';
-    nav.innerHTML = `<button class="admin-btn" onclick="navAttViewer(-1)" ${index === 0 ? 'disabled' : ''} style="padding: 4px 10px;">←</button><span>${index + 1} / ${attachments.length}</span><button class="admin-btn" onclick="navAttViewer(1)" ${index === attachments.length - 1 ? 'disabled' : ''} style="padding: 4px 10px;">→</button>`;
-  } else { nav.style.display = 'none'; nav.innerHTML = ''; }
-}
+document.getElementById('back-btn').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.add('mobile-open');
+});
 
-window.forceDownloadFile = async function(url, filename) {
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Ошибка сети');
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        
-        URL.revokeObjectURL(blobUrl);
-    } catch (e) {
-        console.error(e);
-        window.open(url, '_blank');
-    }
-};
-
-function formatSize(b) { if (!b) return '0 B'; const u = ['B','KB','MB','GB']; let i = 0, n = b; while (n >= 1024 && i < u.length-1) { n /= 1024; i++; } return n.toFixed(1) + ' ' + u[i]; }
-function getAttIcon(a) {
-  const m = a.mime || ''; const n = (a.name || '').toLowerCase();
-  if (m.startsWith('image/')) return '🖼️'; if (m.startsWith('video/')) return '🎬'; if (m.startsWith('audio/')) return '🎵';
-  if (n.endsWith('.pdf')) return '📄'; if (/\.(zip|rar|7z|tar|gz)$/.test(n)) return '📦';
-  return '📎';
-}
-
-const FXEngine = {
-    canvas: null,
-    ctx: null,
-    particles: [],
-    w: 0,
-    h: 0,
-    init() {
-        this.canvas = document.getElementById('fx-canvas');
-        this.ctx = this.canvas.getContext('2d');
-        this.resize();
-        window.addEventListener('resize', () => this.resize());
-        this.start();
-    },
-    resize() {
-        this.w = this.canvas.width = window.innerWidth;
-        this.h = this.canvas.height = window.innerHeight;
-    },
-    initParticles() {
-        this.particles = [];
-        const count = visualSettings.weather !== 'none' ? 80 : 0;
-        for (let i = 0; i < count; i++) {
-            this.particles.push({
-                x: Math.random() * this.w,
-                y: Math.random() * this.h,
-                vx: visualSettings.weather === 'rain' ? (Math.random() - 0.5) * 2 : (Math.random() - 0.5) * 0.5,
-                vy: visualSettings.weather === 'rain' ? Math.random() * 5 + 5 : Math.random() * 1 + 0.5,
-                r: visualSettings.weather === 'rain' ? Math.random() * 1 + 0.5 : Math.random() * 2 + 1
-            });
+let lastTap = 0;
+document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    const target = e.target.closest('.msg');
+    if (target && now - lastTap < 300) {
+        const row = target.closest('.msg-row');
+        if (row && !target.querySelector('.reply-quote') && !target.closest('.poll-container') && !['IMG','VIDEO','AUDIO','A'].includes(e.target.tagName)) {
+             const msgId = row.id.replace('msg-', '');
+             const chat = state.chats.find(c => c.id === state.currentChat.id);
+             if (chat && (chat.isGroup || !chat.isChannel)) {
+                 const originalMsg = state.activeMsg;
+                 state.activeMsg = { id: msgId, sender: { displayName: row.querySelector('.who')?.innerText.replace('@','') || 'Собеседник' } };
+                 const textEl = row.querySelector('.msg > div:not(.reply-quote):not(.msg-footer):not(.who):not(.deleted-label)');
+                 if (textEl) state.activeMsg.text = textEl.innerText;
+                 document.getElementById('msg-reply-btn').click();
+                 state.activeMsg = originalMsg;
+             }
         }
-    },
-    start() {
-        const tick = () => {
-            this.ctx.clearRect(0, 0, this.w, this.h);
-            const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-            
-            if (visualSettings.weather === 'rain') {
-                this.ctx.strokeStyle = isLight ? 'rgba(50, 100, 150, 0.6)' : 'rgba(150, 200, 255, 0.4)';
-                this.ctx.lineWidth = 1;
-                this.particles.forEach(p => {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(p.x, p.y);
-                    this.ctx.lineTo(p.x + p.vx, p.y + p.vy);
-                    this.ctx.stroke();
-                    p.x += p.vx; p.y += p.vy;
-                    if (p.y > this.h) { p.y = -10; p.x = Math.random() * this.w; }
-                });
-            } else if (visualSettings.weather === 'snow') {
-                this.ctx.fillStyle = isLight ? 'rgba(100, 100, 100, 0.5)' : 'rgba(255, 255, 255, 0.8)';
-                this.particles.forEach(p => {
-                    this.ctx.beginPath();
-                    this.ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                    this.ctx.fill();
-                    p.x += Math.sin(p.y * 0.02) * 1; p.y += p.vy;
-                    if (p.y > this.h) { p.y = -10; p.x = Math.random() * this.w; }
-                });
-            }
-
-            if (visualSettings.ghosts) {
-                const time = Date.now() * 0.001;
-                for (let i = 0; i < 5; i++) {
-                    const px = this.w / 2 + Math.sin(time + i * 2) * (this.w / 2);
-                    const py = this.h / 2 + Math.cos(time * 0.8 + i * 3) * (this.h / 2);
-                    const radius = 80 + Math.sin(time * 2 + i) * 30;
-                    const gradient = this.ctx.createRadialGradient(px, py, 0, px, py, radius);
-                    gradient.addColorStop(0, isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.08)'); 
-                    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-                    this.ctx.fillStyle = gradient;
-                    this.ctx.beginPath();
-                    this.ctx.arc(px, py, radius, 0, Math.PI * 2);
-                    this.ctx.fill();
-                }
-            }
-            requestAnimationFrame(tick);
-        };
-        tick();
     }
+    lastTap = now;
+});
+
+window.openAttViewer = function(msgId, index) {
+  const store = window._attStore && window._attStore[msgId];
+  if (!store || !store.attachments || !store.attachments[index]) return;
+  
+  const att = store.attachments[index];
+  const modal = document.getElementById('att-viewer');
+  const body = document.getElementById('att-viewer-body');
+  const title = document.getElementById('att-viewer-title');
+  const meta = document.getElementById('att-viewer-meta');
+  const nav = document.getElementById('att-viewer-nav');
+  
+  title.textContent = att.name || 'Файл';
+  meta.textContent = `${store.senderName || ''} • ${store.chatName || ''} • ${(att.size / 1024).toFixed(1)} KB`;
+  
+  const ext = (att.name || '').split('.').pop().toLowerCase();
+  const isImg = (att.mime && att.mime.startsWith('image/')) || ['jpg','jpeg','png','gif','webp'].includes(ext);
+  const isVid = (att.mime && att.mime.startsWith('video/')) || ['mp4','webm','mov'].includes(ext);
+  
+  if (isImg) {
+    body.innerHTML = `<img src="${escAttr(att.url)}" alt="${escAttr(att.name)}">`;
+  } else if (isVid) {
+    body.innerHTML = `<video src="${escAttr(att.url)}" controls autoplay style="max-width:100%; max-height:100%;"></video>`;
+  } else {
+    body.innerHTML = `<div style="text-align:center; color: var(--muted);"><div style="font-size: 48px; margin-bottom: 10px;">${getAttIcon(att)}</div><div>Предпросмотр недоступен</div><a href="${escAttr(att.url)}" target="_blank" style="display: inline-block; margin-top: 15px; background: var(--accent); color: var(--bg); padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold;">📥 Скачать</a></div>`;
+  }
+  
+  const validAtts = store.attachments.map((a, i) => ({ a, i })).filter(x => !x.a.is_voice);
+  const currentValidIdx = validAtts.findIndex(x => x.i === index);
+  
+  if (validAtts.length > 1) {
+    nav.innerHTML = `
+      <button class="admin-btn" onclick="navAttViewer('${msgId}', ${index}, -1)" ${currentValidIdx === 0 ? 'disabled' : ''}>◀</button>
+      <span>${currentValidIdx + 1} / ${validAtts.length}</span>
+      <button class="admin-btn" onclick="navAttViewer('${msgId}', ${index}, 1)" ${currentValidIdx === validAtts.length - 1 ? 'disabled' : ''}>▶</button>
+    `;
+    nav.style.display = 'flex';
+  } else {
+    nav.style.display = 'none';
+  }
+  
+  modal.classList.add('visible');
 };
 
-let wbTool = 'pen';
-let wbColor = '#ffffff';
-let wbLineWidth = 4;
-let wbIsDrawing = false;
-let wbLastX = 0, wbLastY = 0;
-let wbHistory = [];
-let currentTextInput = null;
-let wbTextAngle = 0;
-let isAddingText = false;
-let wbIsPanning = false;
-let wbStartPanX = 0, wbStartPanY = 0;
+window.navAttViewer = function(msgId, currentIndex, dir) {
+  const store = window._attStore && window._attStore[msgId];
+  if (!store) return;
+  const validAtts = store.attachments.map((a, i) => ({ a, i })).filter(x => !x.a.is_voice);
+  const currentValidIdx = validAtts.findIndex(x => x.i === currentIndex);
+  const nextValidIdx = currentValidIdx + dir;
+  if (nextValidIdx >= 0 && nextValidIdx < validAtts.length) {
+    openAttViewer(msgId, validAtts[nextValidIdx].i);
+  }
+};
+
+window.closeAttViewer = function() {
+  document.getElementById('att-viewer').classList.remove('visible');
+  document.getElementById('att-viewer-body').innerHTML = '';
+};
+
+function getAttIcon(att) {
+    const ext = (att.name || '').split('.').pop().toLowerCase();
+    if (att.mime && att.mime.startsWith('image/')) return '🖼️';
+    if (att.mime && att.mime.startsWith('video/')) return '🎬';
+    if (att.mime && att.mime.startsWith('audio/')) return '🎵';
+    if (ext === 'pdf') return '📄';
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return '📦';
+    if (['exe', 'msi', 'apk', 'bat', 'cmd'].includes(ext)) return '⚙️';
+    if (['txt', 'md', 'log', 'json', 'xml', 'csv', 'yml', 'yaml'].includes(ext)) return '📝';
+    return '📎';
+}
 
 const wbCanvas = document.getElementById('wb-canvas');
 const wbCtx = wbCanvas.getContext('2d');
-const wbContainer = document.getElementById('wb-canvas-container');
-const wbWrapper = document.getElementById('wb-canvas-wrapper');
-const wbCoords = document.getElementById('wb-coords-panel');
+let wbDrawing = false;
+let wbTool = 'pen';
+let wbColor = '#ffffff';
+let wbLineWidth = 4;
+let wbHistory = [];
+let wbCurrentTextInput = null;
 
-function initWhiteboard() {
-    wbCanvas.width = 4000;
-    wbCanvas.height = 4000;
+function initWbCanvas() {
+    const container = document.getElementById('wb-canvas-container');
+    wbCanvas.width = container.clientWidth;
+    wbCanvas.height = container.clientHeight;
     wbCtx.lineCap = 'round';
     wbCtx.lineJoin = 'round';
-    wbHistory = [];
-    saveWbState();
+    if (wbHistory.length === 0) {
+        wbHistory.push(wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height));
+    }
 }
-
-function saveWbState() {
-    if (wbHistory.length > 20) wbHistory.shift();
-    wbHistory.push(wbCanvas.toDataURL());
-}
+window.addEventListener('resize', () => {
+    if (document.getElementById('whiteboard-modal').classList.contains('visible')) {
+        const data = wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height);
+        const container = document.getElementById('wb-canvas-container');
+        wbCanvas.width = container.clientWidth;
+        wbCanvas.height = container.clientHeight;
+        wbCtx.putImageData(data, 0, 0);
+    }
+});
 
 window.setWbTool = function(tool) {
+    if (wbTool === 'text' && wbCurrentTextInput) {
+        commitWbText();
+    }
     wbTool = tool;
-    document.querySelectorAll('.wb-btn[id^="wb-tool-"]').forEach(b => b.classList.remove('active'));
-    document.getElementById('wb-tool-' + tool)?.classList.add('active');
+    document.querySelectorAll('.wb-btn[id^="wb-tool-"]').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById('wb-tool-' + tool);
+    if (activeBtn) activeBtn.classList.add('active');
+    
+    document.getElementById('wb-text-settings').style.display = tool === 'text' ? 'block' : 'none';
     
     if (tool === 'text') {
-        document.getElementById('wb-text-settings').style.display = 'flex';
+        wbCanvas.style.cursor = 'text';
+    } else if (tool === 'pan') {
+        wbCanvas.style.cursor = 'grab';
     } else {
-        document.getElementById('wb-text-settings').style.display = 'none';
-        if (currentTextInput) commitTextInput();
-    }
-    
-    if (tool === 'pan') {
-        wbWrapper.style.cursor = 'grab';
-    } else {
-        wbWrapper.style.cursor = 'crosshair';
+        wbCanvas.style.cursor = 'crosshair';
     }
 };
 
 window.setWbColor = function(el) {
-    wbColor = el.dataset.color;
     document.querySelectorAll('.wb-color').forEach(c => c.classList.remove('active'));
     el.classList.add('active');
+    wbColor = el.dataset.color;
+    if (wbCurrentTextInput) wbCurrentTextInput.style.color = wbColor;
 };
 
-window.updateWbTextAngle = function(val) {
-    wbTextAngle = parseInt(val) || 0;
-    if (currentTextInput) {
-        currentTextInput.style.transform = `rotate(${wbTextAngle}deg)`;
+let wbDragStart = null;
+wbCanvas.addEventListener('pointerdown', (e) => {
+    if (wbTool === 'text') {
+        if (wbCurrentTextInput) commitWbText();
+        createWbTextInput(e.offsetX, e.offsetY);
+        return;
     }
-};
+    
+    if (wbTool === 'pan') {
+        wbCanvas.style.cursor = 'grabbing';
+        wbDragStart = { x: e.clientX, y: e.clientY, sl: document.getElementById('wb-canvas-wrapper').scrollLeft, st: document.getElementById('wb-canvas-wrapper').scrollTop };
+        return;
+    }
+    
+    wbDrawing = true;
+    wbCtx.beginPath();
+    wbCtx.moveTo(e.offsetX, e.offsetY);
+});
+
+wbCanvas.addEventListener('pointermove', (e) => {
+    document.getElementById('wb-coords-panel').textContent = `X: ${e.offsetX} | Y: ${e.offsetY}`;
+    
+    if (wbTool === 'pan' && wbDragStart) {
+        const wrapper = document.getElementById('wb-canvas-wrapper');
+        wrapper.scrollLeft = wbDragStart.sl - (e.clientX - wbDragStart.x);
+        wrapper.scrollTop = wbDragStart.st - (e.clientY - wbDragStart.y);
+        return;
+    }
+    
+    if (!wbDrawing) return;
+    wbCtx.lineTo(e.offsetX, e.offsetY);
+    if (wbTool === 'pen') {
+        wbCtx.strokeStyle = wbColor;
+        wbCtx.lineWidth = wbLineWidth;
+    } else if (wbTool === 'eraser') {
+        wbCtx.strokeStyle = '#000000';
+        wbCtx.lineWidth = wbLineWidth * 2;
+    }
+    wbCtx.stroke();
+});
+
+wbCanvas.addEventListener('pointerup', () => {
+    if (wbTool === 'pan') { wbCanvas.style.cursor = 'grab'; wbDragStart = null; return; }
+    if (!wbDrawing) return;
+    wbDrawing = false;
+    wbCtx.closePath();
+    saveWbHistory();
+});
+wbCanvas.addEventListener('pointerleave', () => {
+    if (wbDrawing) {
+        wbDrawing = false;
+        wbCtx.closePath();
+        saveWbHistory();
+    }
+    if (wbTool === 'pan' && wbDragStart) { wbCanvas.style.cursor = 'grab'; wbDragStart = null; }
+});
+
+function saveWbHistory() {
+    if (wbHistory.length > 20) wbHistory.shift();
+    wbHistory.push(wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height));
+}
 
 window.undoWb = function() {
-    if (wbHistory.length <= 1) return;
-    wbHistory.pop(); 
-    const prev = wbHistory[wbHistory.length - 1];
-    const img = new Image();
-    img.src = prev;
-    img.onload = () => {
+    if (wbHistory.length > 1) {
+        wbHistory.pop();
+        const prev = wbHistory[wbHistory.length - 1];
+        wbCtx.putImageData(prev, 0, 0);
+    } else if (wbHistory.length === 1) {
         wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
-        wbCtx.drawImage(img, 0, 0);
-    };
+        wbCtx.fillStyle = '#000000';
+        wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
+        wbHistory = [wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height)];
+    }
 };
 
 window.clearWb = function() {
-    wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
-    saveWbState();
+    if (!confirm('Очистить доску?')) return;
+    wbCtx.fillStyle = '#000000';
+    wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
+    saveWbHistory();
 };
 
-wbContainer.addEventListener('pointerdown', (e) => {
-    if (e.target !== wbCanvas && !e.target.classList.contains('wb-text-input-overlay')) return;
+let wbTextAngle = 0;
+window.updateWbTextAngle = function(val) {
+    wbTextAngle = parseInt(val) || 0;
+    if (wbCurrentTextInput) {
+        wbCurrentTextInput.style.transform = `rotate(${wbTextAngle}deg)`;
+    }
+};
+
+function createWbTextInput(x, y) {
+    const container = document.getElementById('wb-canvas-container');
+    const input = document.createElement('textarea');
+    input.className = 'wb-text-input-overlay';
+    input.style.left = x + 'px';
+    input.style.top = y + 'px';
+    input.style.color = wbColor;
+    input.style.fontSize = Math.max(12, wbLineWidth * 4) + 'px';
+    input.style.width = '100px';
+    input.style.height = (Math.max(12, wbLineWidth * 4) * 1.2) + 'px';
+    input.dataset.angle = wbTextAngle;
+    input.style.transform = `rotate(${wbTextAngle}deg)`;
+    input.value = '';
     
-    const rect = wbCanvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    container.appendChild(input);
+    wbCurrentTextInput = input;
+    input.focus();
 
-    if (wbTool === 'pan') {
-        e.preventDefault();
-        wbIsPanning = true;
-        wbStartPanX = e.clientX + wbWrapper.scrollLeft;
-        wbStartPanY = e.clientY + wbWrapper.scrollTop;
-        wbWrapper.style.cursor = 'grabbing';
-        return;
-    }
-
-    if (wbTool === 'text') {
-        e.preventDefault();
-        if (currentTextInput) commitTextInput();
-        createTextInput(x, y);
-    } else if (wbTool === 'pen' || wbTool === 'eraser') {
-        wbIsDrawing = true;
-        wbLastX = x;
-        wbLastY = y;
-        wbCtx.beginPath();
-        wbCtx.moveTo(wbLastX, wbLastY);
-    }
-});
-
-wbContainer.addEventListener('pointermove', (e) => {
-    const rect = wbCanvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    wbCoords.textContent = `X: ${Math.round(x)} | Y: ${Math.round(y)}`;
-
-    if (wbIsPanning) {
-        wbWrapper.scrollLeft = wbStartPanX - e.clientX;
-        wbWrapper.scrollTop = wbStartPanY - e.clientY;
-        return;
-    }
-    
-    if (!wbIsDrawing) return;
-    
-    if (wbTool === 'pen' || wbTool === 'eraser') {
-        wbCtx.strokeStyle = wbTool === 'eraser' ? '#000000' : wbColor;
-        wbCtx.lineWidth = wbTool === 'eraser' ? wbLineWidth * 3 : wbLineWidth;
-        wbCtx.lineTo(x, y);
-        wbCtx.stroke();
-    }
-});
-
-wbContainer.addEventListener('pointerup', () => {
-    if (wbIsPanning) {
-        wbIsPanning = false;
-        wbWrapper.style.cursor = 'grab';
-    }
-    if (wbIsDrawing) {
-        wbIsDrawing = false;
-        saveWbState();
-    }
-});
-
-wbContainer.addEventListener('pointerleave', () => {
-    if (wbIsDrawing) {
-        wbIsDrawing = false;
-        saveWbState();
-    }
-});
-
-function createTextInput(x, y) {
-    isAddingText = true;
-    currentTextInput = document.createElement('textarea');
-    currentTextInput.className = 'wb-text-input-overlay';
-    currentTextInput.style.left = x + 'px';
-    currentTextInput.style.top = y + 'px';
-    const fontSize = wbLineWidth * 4; 
-    currentTextInput.style.fontSize = fontSize + 'px';
-    currentTextInput.style.color = wbColor;
-    currentTextInput.style.minHeight = (fontSize * 1.2) + 'px';
-    currentTextInput.style.transform = `rotate(${wbTextAngle}deg)`;
-    
-    wbContainer.appendChild(currentTextInput);
-    
-    setTimeout(() => {
-        if (currentTextInput) {
-            currentTextInput.focus();
-            isAddingText = false;
-        }
-    }, 50);
-
-    currentTextInput.addEventListener('blur', () => {
-        if (!isAddingText) {
-            commitTextInput();
-        }
+    input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = input.scrollHeight + 'px';
+        input.style.width = 'auto';
+        input.style.width = input.scrollWidth + 'px';
     });
-    
-    currentTextInput.addEventListener('keydown', (e) => {
+
+    input.addEventListener('blur', commitWbText);
+    input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            commitTextInput();
+            commitWbText();
+        }
+        if (e.key === 'Escape') {
+            input.remove();
+            wbCurrentTextInput = null;
         }
     });
 }
 
-function commitTextInput() {
-    if (!currentTextInput) return;
-    const text = currentTextInput.value.trim();
-    const x = parseFloat(currentTextInput.style.left);
-    const y = parseFloat(currentTextInput.style.top);
-    const fontSize = parseFloat(currentTextInput.style.fontSize);
-
+function commitWbText() {
+    if (!wbCurrentTextInput) return;
+    const text = wbCurrentTextInput.value.trim();
     if (text) {
+        const x = parseInt(wbCurrentTextInput.style.left);
+        const y = parseInt(wbCurrentTextInput.style.top);
+        const fontSize = parseInt(wbCurrentTextInput.style.fontSize);
+        const color = wbCurrentTextInput.style.color;
+        const angle = parseInt(wbCurrentTextInput.dataset.angle) || 0;
+        
         wbCtx.save();
         wbCtx.translate(x, y);
-        wbCtx.rotate(wbTextAngle * Math.PI / 180);
-        
-        wbCtx.font = `${fontSize}px 'Inter', sans-serif`;
-        wbCtx.fillStyle = wbColor;
+        wbCtx.rotate(angle * Math.PI / 180);
+        wbCtx.fillStyle = color;
+        wbCtx.font = `bold ${fontSize}px "Inter", sans-serif`;
         wbCtx.textBaseline = 'top';
         
         const lines = text.split('\n');
-        const lineHeight = fontSize * 1.2;
-        lines.forEach((line, index) => {
-            wbCtx.fillText(line, 0, index * lineHeight);
+        lines.forEach((line, i) => {
+            wbCtx.fillText(line, 0, i * fontSize * 1.2);
         });
         
         wbCtx.restore();
-        saveWbState();
+        saveWbHistory();
     }
-
-    currentTextInput.remove();
-    currentTextInput = null;
+    wbCurrentTextInput.remove();
+    wbCurrentTextInput = null;
 }
 
-document.getElementById('menu-whiteboard-btn').addEventListener('click', () => {
+window.openWhiteboard = function() {
     document.getElementById('composer-more-menu').classList.remove('visible');
+    if (!state.currentChat) return alert('Выберите чат');
     document.getElementById('whiteboard-modal').classList.add('visible');
-    setTimeout(initWhiteboard, 100);
-});
+    setTimeout(() => {
+        initWbCanvas();
+        wbCtx.fillStyle = '#000000';
+        wbCtx.fillRect(0, 0, wbCanvas.width, wbCanvas.height);
+        wbHistory = [];
+        saveWbHistory();
+        setWbTool('pen');
+    }, 100);
+};
+
+document.getElementById('menu-whiteboard-btn').addEventListener('click', openWhiteboard);
 
 window.sendWhiteboard = async function() {
-    if (!state.currentChat) return alert('Чат не выбран');
-    
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = wbCanvas.width;
-    tempCanvas.height = wbCanvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.fillStyle = '#000000';
-    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-    tempCtx.drawImage(wbCanvas, 0, 0);
-    
-    tempCanvas.toBlob(async (blob) => {
-        if (!blob) return;
-        const file = new File([blob], `board_${Date.now()}.png`, { type: 'image/png' });
-        document.getElementById('whiteboard-modal').classList.remove('visible');
+    if (wbCurrentTextInput) commitWbText();
+    wbCanvas.toBlob(async (blob) => {
+        if (!blob) return alert('Ошибка создания изображения');
+        const file = new File([blob], 'whiteboard.png', { type: 'image/png' });
         await uploadFilesWithProgress([file], '🎨 Белая доска');
+        document.getElementById('whiteboard-modal').classList.remove('visible');
     }, 'image/png');
 };
 
-setTimeout(() => {
-  if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
-}, 3000);
-
-window.addEventListener('load', () => {
-    FXEngine.init();
-    FXEngine.initParticles();
-});
-
-setInterval(() => {
-    if (visualSettings.weather !== 'none' && FXEngine.particles.length === 0) FXEngine.initParticles();
-    if (visualSettings.weather === 'none' && FXEngine.particles.length > 0) FXEngine.particles = [];
-}, 1000);
-
-document.getElementById('expiry-btn')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    document.getElementById('expiry-popup').classList.toggle('visible');
-});
-document.addEventListener('click', (e) => {
-    const popup = document.getElementById('expiry-popup');
-    const btn = document.getElementById('expiry-btn');
-    if (popup && !popup.contains(e.target) && e.target !== btn && !composerMoreMenu.contains(e.target)) {
-        popup.classList.remove('visible');
-    }
-});
-
-document.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
-
-    const ripple = document.createElement('div');
-    ripple.className = 'cursor-click-effect';
-    ripple.style.left = e.clientX + 'px';
-    ripple.style.top = e.clientY + 'px';
-    document.body.appendChild(ripple);
-
-    setTimeout(() => {
-        ripple.remove();
-    }, 400);
-});
-
-(async () => {
-  try { 
-      state.me = await api('/me'); 
-      state.read_deleted = state.me.read_deleted || false; 
-      enterChat(); 
-  }
-  catch (e) { 
-      document.getElementById('auth').style.display = 'flex';
-      document.getElementById('chat').classList.remove('visible');
-      if (e.message !== 'Сессия истекла.' && e.message !== 'Banned') {
-          document.getElementById('a-error').textContent = e.message;
-      }
-  }
-})();
+const FXEngine = {
+    canvas: document.getElementById('fx-canvas'), ctx: null, particles: [], animId: null,
+    init() { this.ctx = this.canvas.getContext('2d'); this.resize(); window.addEventListener('resize', () => this.resize()); this.initParticles(); this.loop(); },
+    resize() { this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; this.initParticles(); },
+    initParticles() {
+        this.particles = [];
+        if (visualSettings.weather === 'none') return;
+        const count = visualSettings.weather === 'snow' ? 100 : 150;
+        for (let i = 0; i < count; i++) {
+            const isRain = visualSettings.weather === 'rain';
+            this.particles.push({
+                x: Math.random() * this.canvas.width,
+                y: Math.random() * this.canvas.height - this.canvas.height,
+                size: isRain ? Math.random() * 2 + 1 : Math.random() * 3 + 1,
+                speedY: isRain ? Math.random() * 15 + 10 : Math.random() * 1.5 + 0.5,
+                speedX: isRain ? -2 : Math.random() * 1 - 0.5,
+                opacity: isRain ? 0.3 : Math.random() * 0.6 + 0.2,
+                type: isRain ? 'rain' : 'snow'
+            });
+        }
+    },
+    drawParticle(p) {
+        const ctx = this.ctx;
+        ctx.beginPath();
+        if (p.type === 'snow') {
+            ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.strokeStyle = `rgba(174, 194, 224, ${p.opacity})`;
+            ctx.lineWidth = p.size;
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x + p.speedX * 2, p.y + p.speedY * 2);
+            ctx.stroke();
+        }
+    },
+    update() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.particles.forEach(p => {
+            p.y += p.speedY; p.x += p.speedX;
+            if (p.y > this.canvas.height) { p.y = -10; p.x = Math.random() * this.canvas.width; }
+            if (p.x > this.canvas.width || p.x < 0) p.x = Math.random() * this.canvas.width;
+            this.drawParticle(p);
+        });
+    },
+    loop() { this.update(); this.animId = requestAnimationFrame(() => this.loop()); }
+};
+FXEngine.init();
 
 (function() {
-    const author = "@aldernx-scp";
-    const watermarkText = "Разработано @aldernx-scp. Все права защищены.";
-
-    const isApp = (typeof window !== 'undefined') && (
-        window.cordova !== undefined ||
-        window.electron !== undefined ||
-        (window.process && window.process.type === 'renderer') ||
-        window.ReactNativeWebView !== undefined ||
-        window.location.protocol === 'file:'
-    );
-
-    if (isApp) {
-        setInterval(() => {
-            const el = document.getElementById('author-watermark');
-            if (!el || !el.textContent.includes(author)) {
-                document.body.innerHTML = `
-                    <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#000; color:#ff0000; font-family:'Fira Code', monospace; font-size:20px; text-align:center; padding:20px; flex-direction:column; z-index:9999999; position:fixed; inset:0;">
-                        <h1 style="font-size:40px; margin-bottom:20px;">⚠️ ВНИМАНИЕ ⚠️</h1>
-                        <p style="margin-bottom:10px;">Код этого приложения принадлежит <b>@aldernx-scp</b>!</p>
-                        <p style="font-size:14px; color:#888;">Данный проект является интеллектуальной собственностью автора.<br>Попытка выдать его за свой проект незаконна и будет преследоваться.</p>
-                    </div>`;
-            }
-        }, 1000);
-    } else {
-        console.log('%c STOP! ', 'color: red; font-size: 40px; font-weight: bold; text-shadow: 0 0 10px red;');
-        console.log(`%c ${watermarkText}\nЛюбые копии, выданные за другие проекты, являются подделками.`, 'font-size: 16px; color: #1d9bf0; font-weight: bold;');
-    }
+    const style = document.createElement('style');
+    style.innerHTML = `
+        #cursor-ghost { position: fixed; width: 20px; height: 20px; background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%); border-radius: 50%; pointer-events: none; z-index: 9999999; opacity: 0; transition: opacity 0.3s; mix-blend-mode: screen; }
+        #cursor-eye { position: fixed; font-size: 24px; pointer-events: none; z-index: 9999998; opacity: 0; transition: opacity 0.3s, transform 0.1s; }
+    `;
+    document.head.appendChild(style);
+    const ghost = document.createElement('div'); ghost.id = 'cursor-ghost';
+    const eye = document.createElement('div'); eye.id = 'cursor-eye'; eye.textContent = '👁️';
+    document.body.appendChild(ghost); document.body.appendChild(eye);
+    document.addEventListener('mousemove', (e) => {
+        if (!visualSettings.ghosts) { ghost.style.opacity = '0'; eye.style.opacity = '0'; return; }
+        if (Math.random() < 0.05) {
+            ghost.style.left = (e.clientX + (Math.random() - 0.5) * 100) + 'px';
+            ghost.style.top = (e.clientY + (Math.random() - 0.5) * 100) + 'px';
+            ghost.style.opacity = '0.5';
+            setTimeout(() => { ghost.style.opacity = '0'; }, 500);
+        }
+        if (Math.random() < 0.005) {
+            eye.style.left = e.clientX + 'px';
+            eye.style.top = e.clientY + 'px';
+            eye.style.opacity = '1';
+            eye.style.transform = `translate(-50%, -50%) rotate(${Math.random() * 360}deg) scale(${1 + Math.random() * 0.5})`;
+            setTimeout(() => { eye.style.opacity = '0'; }, 1000);
+        }
+    });
 })();
+
+document.addEventListener('click', (e) => {
+    const effect = document.createElement('div');
+    effect.className = 'cursor-click-effect';
+    effect.style.left = e.clientX + 'px';
+    effect.style.top = e.clientY + 'px';
+    document.body.appendChild(effect);
+    setTimeout(() => effect.remove(), 400);
+});
+
 </script>
 </body>
 </html>
