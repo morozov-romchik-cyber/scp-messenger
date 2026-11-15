@@ -734,12 +734,11 @@ app.post('/api/o5/requests', authMiddleware, (req, res) => {
   if (!O5_TYPES.includes(type)) return res.status(400).json({ error: 'Неверный тип' });
   if (!title || !title.trim()) return res.status(400).json({ error: 'Укажите заголовок' });
 
-  if (is_global) {
-    const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;
-    const recentGlobal = db.o5_requests.find(r => r.creator_id === req.userId && r.is_global && r.created_at > oneDayAgo);
-    if (recentGlobal) {
-      return res.status(400).json({ error: 'Вы можете отправлять только 1 глобальный запрос в 24 часа.' });
-    }
+  // ★ ЛИМИТ 1 ЗАПРОС В 24 ЧАСА ДЛЯ ЛЮБЫХ ЗАПРОСОВ
+  const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;
+  const recentRequest = db.o5_requests.find(r => r.creator_id === req.userId && r.created_at > oneDayAgo);
+  if (recentRequest) {
+    return res.status(400).json({ error: 'Вы можете отправлять только 1 запрос к О5 в 24 часа.' });
   }
 
   let targetId = null;
@@ -3059,7 +3058,7 @@ app.post('/api/register', async (req, res) => {
         return res.status(403).json({ error: 'Ваш IP заблокирован' });
     }
 
-    // ★ НОВАЯ ЛОГИКА: Отслеживание по устройству (ПК / Телефон)
+    // ★ ЛОГИКА: Отслеживание по устройству (ПК / Телефон)
     let warningMessage = null;
     const ua = req.headers['user-agent'] || '';
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
