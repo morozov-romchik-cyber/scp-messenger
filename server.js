@@ -147,12 +147,7 @@ let db = {
     reports: [], 
     audit_logs: [],
     chat_invites: [],
-    o5_requests: [],                // ★ О5 запросы
-    is_lockdown: false,
-    is_breach: false,
-    breach_affected_users: [],
-    last_auto_event: 0,
-    next_event_time: 0
+    o5_requests: []                // ★ О5 запросы
 };
 
 let isS3Syncing = false;
@@ -565,62 +560,6 @@ function addXp(userId, amount) {
   saveDb();
 }
 
-// ================= АВТОМАТИЧЕСКИЕ ИВЕНТЫ =================
-setInterval(() => {
-    if (db.is_breach) return;
-    const now = Date.now();
-    
-    // Не чаще, чем раз в 45 минут
-    if (now - (db.last_auto_event || 0) < 45 * 60 * 1000) return; 
-
-    // 2% шанс каждую минуту
-    if (Math.random() < 0.02) {
-        serverLog('info', 'Запланирован Протокол Сдерживания (через 10 секунд)!');
-        
-        db.last_auto_event = now;
-        db.next_event_time = now + 10000;
-        saveDb();
-        
-        io.emit('eventWarning', { startsIn: 10 });
-
-        setTimeout(() => {
-            if (db.is_breach) return;
-            
-            serverLog('info', 'Автоматический запуск Протокола Сдерживания!');
-            db.is_breach = true;
-            db.breach_affected_users = [];
-            db.next_event_time = 0;
-            
-            const allUsers = db.users.filter(u => u.id !== HELPER_ID && u.role !== 'sysadmin' && u.role !== 'admin');
-            const numAffected = Math.max(1, Math.floor(allUsers.length * 0.2));
-            const shuffled = allUsers.sort(() => 0.5 - Math.random());
-            const affected = shuffled.slice(0, numAffected);
-            db.breach_affected_users = affected.map(u => u.id);
-            
-            saveDb();
-            io.emit('containmentBreach', { active: true, duration: 60000, auto: true });
-
-            setTimeout(() => {
-                if (db.is_breach) {
-                    db.is_breach = false;
-                    db.breach_affected_users = [];
-                    saveDb();
-                    io.emit('containmentBreach', { active: false });
-                }
-            }, 60000);
-        }, 10000);
-    }
-}, 60000);
-
-app.get('/api/admin/event-status', authMiddleware, (req, res) => {
-    if (req.user.role !== 'sysadmin') return res.status(403).json({ error: 'Доступ запрещён' });
-    res.json({
-        last_auto_event: db.last_auto_event || 0,
-        next_event_time: db.next_event_time || 0,
-        is_breach: db.is_breach
-    });
-});
-
 // ================= ADMIN STATS & AUDIT =================
 app.get('/api/admin/stats', authMiddleware, (req, res) => {
     const me = req.user;
@@ -869,6 +808,7 @@ app.get('/api/o5/requests', authMiddleware, (req, res) => {
         status: r.status, created_at: r.created_at,
         is_global: r.is_global,
         creator_name: creator ? creator.username : 'Unknown',
+        creator_id: r.creator_id,
         target_user_id: r.target_user_id,
         target_name: target ? target.username : null,
         for_votes: forVotes, against_votes: againstVotes,
@@ -909,6 +849,29 @@ app.post('/api/o5/requests/:id/vote', authMiddleware, (req, res) => {
   saveDb();
   io.emit('o5RequestUpdated', { id: request.id });
   res.json({ ok: true, status: request.status });
+});
+
+// ★ НОВЫЙ ЭНДПОИНТ: Отмена голосования О5
+app.post('/api/o5/requests/:id/cancel', authMiddleware, (req, res) => {
+  const request = db.o5_requests.find(r => r.id === req.params.id);
+  if (!request) return res.status(404).json({ error: 'Запрос не найден' });
+  if (request.status !== 'voting') return res.status(400).json({ error: 'Голосование уже завершено' });
+
+  const isCreator = request.creator_id === req.userId;
+  const isAdmin = ['admin', 'sysadmin'].includes(req.user.role);
+
+  if (!isCreator && !isAdmin) {
+    return res.status(403).json({ error: 'Только создатель или администратор может отменить голосование' });
+  }
+
+  request.status = 'cancelled';
+  request.resolved_at = Math.floor(Date.now() / 1000);
+  request.resolved_by = req.userId;
+  request.admin_comment = 'Отменено пользователем/администратором';
+
+  saveDb();
+  io.emit('o5RequestUpdated', { id: request.id });
+  res.json({ ok: true });
 });
 
 app.get('/api/admin/o5-requests', authMiddleware, (req, res) => {
@@ -1297,49 +1260,6 @@ app.post('/api/admin/broadcast-alert', authMiddleware, (req, res) => {
   
   io.emit('urgentAlert', { text: sanitizeString(text), sender: me.username, timestamp: Date.now() });
   res.json({ ok: true });
-});
-
-app.post('/api/admin/toggle-lockdown', authMiddleware, (req, res) => {
-    const me = req.user;
-    if (me.role !== 'sysadmin') {
-        return res.status(403).json({ error: 'Доступ запрещён' });
-    }
-    
-    db.is_lockdown = !db.is_lockdown;
-    saveDb();
-    io.emit('lockdownToggled', db.is_lockdown);
-    res.json({ ok: true, is_lockdown: db.is_lockdown });
-});
-
-// ================= CONTAINMENT BREACH =================
-app.post('/api/admin/trigger-breach', authMiddleware, (req, res) => {
-    const me = req.user;
-    if (me.role !== 'sysadmin' && me.role !== 'admin') return res.status(403).json({ error: 'Доступ запрещён' });
-    
-    if (db.is_breach) return res.status(400).json({ error: 'Нарушение уже активно!' });
-
-    db.is_breach = true;
-    db.breach_affected_users = [];
-    
-    const allUsers = db.users.filter(u => u.id !== HELPER_ID && u.role !== 'sysadmin');
-    const numAffected = Math.max(1, Math.floor(allUsers.length * 0.2));
-    const shuffled = allUsers.sort(() => 0.5 - Math.random());
-    const affected = shuffled.slice(0, numAffected);
-    db.breach_affected_users = affected.map(u => u.id);
-    
-    saveDb();
-    io.emit('containmentBreach', { active: true, duration: 60000 });
-
-    setTimeout(() => {
-        if (db.is_breach) {
-            db.is_breach = false;
-            db.breach_affected_users = [];
-            saveDb();
-            io.emit('containmentBreach', { active: false });
-        }
-    }, 60000);
-
-    res.json({ ok: true, affectedCount: db.breach_affected_users.length });
 });
 
 app.post('/api/admin/wipe-messages-and-files', authMiddleware, (req, res) => {
@@ -2464,10 +2384,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
     return res.status(403).json({ error: `Доступ запрещён. Требуется уровень допуска ${chatForCheck.required_clearance}` });
   }
 
-  if (db.is_lockdown && myClearance < 5) {
-      return res.status(403).json({ error: '🚨 ПРОТОКОЛ ЛОКДАУН АКТИВЕН. Связь разрешена только Совету О5.' });
-  }
-
   if (chatForCheck.is_group) {
     if (chatForCheck.is_channel && chatForCheck.creator_id !== req.userId) {
       return res.status(403).json({ error: 'Только создатель канала может писать сообщения' });
@@ -2491,34 +2407,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   if (!text || typeof text !== 'string' || !text.trim()) {
       return res.status(400).json({ error: 'Empty message' });
   }
-
-  // --- CALM COMMAND ---
-  if (text.startsWith('/calm ')) {
-      const targetUsername = text.replace('/calm ', '').trim().replace(/^@/, '');
-      const targetUser = findUserByUsername(targetUsername);
-      
-      if (!targetUser) return res.status(404).json({ error: 'Агент не найден' });
-      if (targetUser.id === req.userId) return res.status(400).json({ error: 'Вы не можете успокоить себя. Попросите другого агента.' });
-
-      if (db.breach_affected_users.includes(targetUser.id)) {
-          db.breach_affected_users = db.breach_affected_users.filter(id => id !== targetUser.id);
-          saveDb();
-          
-          const sysMsgId = genId();
-          const sysMsg = {
-              id: sysMsgId, chat_id: chatId, sender_id: HELPER_ID,
-              text: `✅ Агент @${me.username} успешно применил протокол успокоения к @${targetUser.username}.`,
-              created_at: Math.floor(Date.now() / 1000), is_deleted: false, delivered_to: [], read_by: [], is_encrypted: false
-          };
-          db.messages.push(sysMsg);
-          saveDb();
-          emitToChatMembers(chatId, 'newMessage', buildMessagePayload(sysMsg));
-          return res.json(buildMessagePayload(sysMsg, req.userId));
-      } else {
-          return res.status(400).json({ error: 'Этот агент не заражен меметическим агентом' });
-      }
-  }
-  // --- END CALM COMMAND ---
 
   const isHelperChat = !chatForCheck.is_group && db.chat_members.some(m => m.chat_id === chatId && m.user_id === HELPER_ID);
   
@@ -2554,12 +2442,6 @@ app.post('/api/chats/:chatId/messages', authMiddleware, (req, res) => {
   }
 
   let finalText = is_encrypted ? text.slice(0, 100000) : sanitizeString(text).slice(0, 4000);
-  
-  if (db.is_breach && db.breach_affected_users.includes(req.userId)) {
-      const base64Text = Buffer.from(finalText).toString('base64');
-      finalText = '▓▒░ ' + base64Text.slice(0, 20) + ' ░▒▓';
-      isFlagged = false;
-  }
 
   const msgId = genId();
   const now = Math.floor(Date.now() / 1000);
@@ -3457,9 +3339,6 @@ io.on('connection', (socket) => {
     io.emit('refreshData');
     socket.join(`user:${socket.userId}`);
 
-    socket.emit('lockdownToggled', db.is_lockdown);
-    socket.emit('containmentBreach', { active: db.is_breach });
-
     socket.on('typing', ({ chatId }) => {
       if (!db.chat_members.find(m => m.chat_id === chatId && m.user_id === socket.userId)) return;
       db.chat_members
@@ -3559,14 +3438,16 @@ app.use((req, res, next) => {
     }
   }
 
-  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments', 'reports', 'audit_logs', 'chat_invites', 'breach_affected_users', 'o5_requests'].forEach(key => { 
+  ['blocks', 'banned_ips', 'invite_codes', 'chats', 'chat_members', 'messages', 'attachments', 'reports', 'audit_logs', 'chat_invites', 'o5_requests'].forEach(key => { 
       if (!db[key]) db[key] = []; 
   });
   
-  if (db.is_lockdown === undefined) db.is_lockdown = false;
-  if (db.is_breach === undefined) db.is_breach = false;
-  if (!db.last_auto_event) db.last_auto_event = Date.now();
-  if (db.next_event_time === undefined) db.next_event_time = 0;
+  // Очистка старых полей ивентов/локдауна из БД
+  delete db.is_lockdown;
+  delete db.is_breach;
+  delete db.breach_affected_users;
+  delete db.last_auto_event;
+  delete db.next_event_time;
 
   let migrated = false;
   db.users.forEach(u => {
